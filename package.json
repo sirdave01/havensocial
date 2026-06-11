@@ -1,0 +1,32 @@
+{
+  "name": "havensocial",
+  "version": "1.0.0",
+  "description": "The SocialFi; Next-Gen Social Media PLatform of ByteHaven Tech Solutions Ltd, powered by the utility toke: havenbyte token (HBT)",
+  "keywords": [
+    "socialfi",
+    "havensocial",
+    "social",
+    "media",
+    "next-gen",
+    "social",
+    "media",
+    "platform",
+    "bytehaven",
+    "HBT"
+  ],
+  "homepage": "https://github.com/sirdave01/havensocial#readme",
+  "bugs": {
+    "url": "https://github.com/sirdave01/havensocial/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sirdave01/havensocial.git"
+  },
+  "license": "ISC",
+  "author": "Osigwe Uchechukwu David Caleb",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
