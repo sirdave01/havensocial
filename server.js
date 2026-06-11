@@ -33,21 +33,36 @@ app.set('views', path.join(__dirname, 'src/views'));
 /**
   * Routes
   */
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'src/views/index.html'));
+
+app.get('/', async (req, res) => {
+
+  const title = 'Find out what\'s happening right now';
+  
+    res.render('index', { title });
+    
 });
 
-app.get('/feed', (req, res) => {
-    res.sendFile(path.join(__dirname, 'src/views/feed.html'));
+app.get('/feed', async (req, res) => {
+
+  const title = 'Feed';
+
+    res.render('feed', {title});
 });
 
-app.get('/register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'src/views/register.html'));
+app.get('/register', async (req, res) => {
+
+  const title = 'User Registration';
+
+    res.render('register', {title});
 });
 
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'src/views/login.html'));
+app.get('/login', async (req, res) => {
+
+  const title = 'Welcome Back, Please, Log In';
+
+    res.render('login', {title});
 });
+
 
 app.listen(PORT, () => {
 
