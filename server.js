@@ -24,6 +24,12 @@ const app = express();
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Set EJS as the templating engine
+app.set('view engine', 'ejs');
+
+// Tell Express where to find your templates
+app.set('views', path.join(__dirname, 'src/views'));
+
 /**
   * Routes
   */
