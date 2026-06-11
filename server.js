@@ -24,10 +24,23 @@ const app = express();
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get("/", (req, res) => {
+/**
+  * Routes
+  */
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'src/views/index.html'));
+});
 
-  res.send("Welcome to HavenSocial - the next-gen Social Media platform!");
+app.get('/feed', (req, res) => {
+    res.sendFile(path.join(__dirname, 'src/views/feed.html'));
+});
 
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, 'src/views/register.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'src/views/login.html'));
 });
 
 app.listen(PORT, () => {
