@@ -226,7 +226,7 @@ main a {
 }
 
 main a {
-    color: var(--accent);
+    /* color: var(--accent); */
     text-decoration: none;
     transition: color 0.2s ease;
 }
