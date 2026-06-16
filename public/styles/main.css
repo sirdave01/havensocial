@@ -484,10 +484,6 @@ li {
     font-size: 1.1rem;
 }
 
-.btn-primary {
-    background: var(--accent);
-}
-
 /* Ensure danger button overrides look good */
 .btn-danger {
     background: #e74c3c;
