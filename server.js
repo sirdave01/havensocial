@@ -91,6 +91,21 @@ app.use((req, res, next) => {
   
 });
 
+// ====================== STATIC RESOURCE ROUTES ======================
+
+// Prevent unnecessary 404 errors for common browser requests
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+app.get('/site.webmanifest', (req, res) => res.status(204).end());
+
+// Fix the specific path causing the error
+app.get('/profile/images/favicon/site.webmanifest', (req, res) => {
+    res.status(204).end();
+});
+
+// You can add more common paths if needed
+app.get('/images/favicon/site.webmanifest', (req, res) => res.status(204).end());
+
 /**
   * Routes
   */

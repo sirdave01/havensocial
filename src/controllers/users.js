@@ -142,7 +142,7 @@ const showDashboard = (req, res) => {
 const showUsers = async (req, res) => {
     if (!req.session.user || req.session.user.role_name !== 'founder') {
         req.flash('error', 'Access denied.');
-        return res.redirect('/profile/' + req.session.user.username);
+        return res.redirect(`/profile/${req.session.user.username}`);
     }
 
     try {

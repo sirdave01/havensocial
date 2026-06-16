@@ -94,7 +94,7 @@ const updateProfile = async (req, res) => {
 
         const updatedUser = await updateUserProfile(
 
-            req.session.user.user_id,
+            req.session.user.users_id,
             fullName || null,
             displayName || null,
             bio || null,
@@ -106,6 +106,7 @@ const updateProfile = async (req, res) => {
         if (req.session.user) {
 
             req.session.user.display_name = updatedUser.display_name;
+
             req.session.user.full_name = updatedUser.full_name;
 
         }
@@ -123,7 +124,7 @@ const updateProfile = async (req, res) => {
         res.redirect(`/profile/${req.session.user.username}`);
 
     }
-    
+
 };
 
 export { 

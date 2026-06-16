@@ -25,7 +25,7 @@ import {
     profileValidation 
 } from "./controllers/profile.js";
 
-
+import { upload } from './middleware/upload.js';
 
 
 
@@ -54,7 +54,7 @@ router.get('/logout', processLogout);
 router.get('/profile/:username', requireLogin, showProfile);
 
 // Protected: Only logged-in users can update their own profile
-router.post('/profile/update', requireLogin, profileValidation, updateProfile);
+router.post('/profile/update', requireLogin, upload.single('profilePicture'), profileValidation, updateProfile);
 
 // ====================== OTHER ROUTES ======================
 router.get('/test-error', testErrorPage);
