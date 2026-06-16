@@ -18,6 +18,13 @@ import { showHomePage } from "./controllers/index.js";
 
 import { testErrorPage } from "./controllers/errors.js";
 
+// Import Profile Controller
+import { 
+    showProfile, 
+    updateProfile, 
+    profileValidation 
+} from "./controllers/profile.js";
+
 
 
 
@@ -27,27 +34,34 @@ import { testErrorPage } from "./controllers/errors.js";
 const router = express.Router();
 
 
-// middleware function to make the current year available in all EJS templates
+// Middleware to make current year available in all EJS templates (if you have it)
 
-// main routes
-
-
+// ====================== MAIN ROUTES ======================
 router.get('/', showHomePage);
-
 router.get('/feed', showFeedPage);
 
-// user registration routes
+// ====================== AUTH ROUTES ======================
 router.get('/register', showUserRegistrationForm);
-router.post('/register', userValidation, processUserRegistrationForm, );
+router.post('/register', userValidation, processUserRegistrationForm);
 
-// user login routes
 router.get('/login', showLoginForm);
 router.post('/login', processLoginForm);
 
-// user logout route
 router.get('/logout', processLogout);
 
+// ====================== PROFILE ROUTES ======================
+// Protected: Only logged-in users can view profiles
+router.get('/profile/:username', requireLogin, showProfile);
+
+// Protected: Only logged-in users can update their own profile
+router.post('/profile/update', requireLogin, profileValidation, updateProfile);
+
+// ====================== OTHER ROUTES ======================
 router.get('/test-error', testErrorPage);
+
+// Optional: Founder-only routes
+router.get('/dashboard', requireLogin, showDashboard);
+router.get('/users', requireLogin, requireRole('founder'), showUsers);
 
 
 

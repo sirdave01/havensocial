@@ -6,7 +6,7 @@ import { db } from './db.js';
 const getUserByEmail = async (email) => {
 
     const query = `
-        SELECT user_id 
+        SELECT users_id 
         FROM users 
         WHERE email = $1 
           AND deleted_at IS NULL
@@ -45,7 +45,7 @@ const createUser = async (username, email, passwordHash, fullName = null, displa
             (SELECT role_id FROM roles WHERE role_name = $6)
         ) 
         RETURNING 
-            user_id, 
+            users_id, 
             username, 
             display_name, 
             full_name,
@@ -79,7 +79,7 @@ const findUserByEmail = async (email) => {
 
     const query = `
         SELECT 
-            u.user_id,
+            u.users_id,
             u.username,
             u.email,
             u.password_hash,
@@ -127,7 +127,7 @@ const getAllUsers = async () => {
 
     const query = `
         SELECT 
-            u.user_id,
+            u.users_id,
             u.username,
             u.full_name,
             u.display_name,
@@ -147,10 +147,60 @@ const getAllUsers = async () => {
     return result.rows;
 };
 
+// Get user profile by username
+const getUserProfile = async (username) => {
+
+    const query = `
+        SELECT 
+            u.users_id,
+            u.username,
+            u.full_name,
+            u.display_name,
+            u.bio,
+            u.profile_picture_url,
+            u.verified,
+            u.follower_count,
+            u.following_count,
+            u.post_count,
+            r.role_name
+        FROM users u
+        JOIN roles r ON u.role_id = r.role_id
+        WHERE u.username = $1 
+          AND u.deleted_at IS NULL;
+    `;
+
+    const result = await db.query(query, [username]);
+
+    return result.rows[0] || null;
+
+};
+
+// Update user profile (bio, profile picture, display name, etc.)
+const updateUserProfile = async (userId, fullName, displayName, bio, profilePictureUrl) => {
+
+    const query = `
+        UPDATE users 
+        SET 
+            full_name = COALESCE($2, full_name),
+            display_name = COALESCE($3, display_name),
+            bio = COALESCE($4, bio),
+            profile_picture_url = COALESCE($5, profile_picture_url),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $1
+        RETURNING user_id, username, display_name, bio, profile_picture_url;
+    `;
+
+    const result = await db.query(query, [userId, fullName, displayName, bio, profilePictureUrl]);
+
+    return result.rows[0];
+};
+
 export { 
     createUser, 
     authenticateUser, 
     getAllUsers,
     getUserByEmail,
-    findUserByEmail 
+    findUserByEmail,
+    getUserProfile,
+    updateUserProfile
 };

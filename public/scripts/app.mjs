@@ -7,6 +7,8 @@ import { initDarkMode } from './modetoggle.mjs';
 
 import { initPasswordToggle } from './passwordToggle.mjs';
 
+import {toggleEditForm, previewProfileImage, initProfilePage} from './profile.mjs'
+
 document.addEventListener('DOMContentLoaded', () => {
 
     initHamburger();
@@ -14,5 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initDarkMode();
 
     initPasswordToggle();
+
+    toggleEditForm();
+
+    previewProfileImage();
+
+    initProfilePage();
 
 });

@@ -10,8 +10,6 @@ import { fileURLToPath } from 'url';
 
 import path from 'path';
 
-import { testConnection } from "./src/models/db.js";
-
 import router from './src/routes.js';
 
 
@@ -54,6 +52,12 @@ app.use(session({
 // use flashmessage middleware to handle flash messages in the application
 
 app.use(flash);
+
+// Allow Express to receive and process common POST data
+
+app.use(express.urlencoded({ extended: true }));
+
+app.use(express.json());
 
 // Serve static files from the public directory
 
@@ -149,8 +153,6 @@ app.use((err, req, res, next) => {
 app.listen(PORT, async () => {
 
   try {
-
-    await testConnection();
 
     console.log(`Server is running at http://127.0.0.1:${PORT}`);
 
