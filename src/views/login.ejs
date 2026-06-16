@@ -1,34 +1,31 @@
 <%- include('partials/header') %>
 
-    <main>
+<main class="auth-page">
+
+    <div class="auth-container">
 
         <h1>
-        
-            <%= title %>
-        
+
+            <%= title || 'Welcome Back' %>
+
         </h1>
 
-        <form action="/login" method="POST">
+        <p class="subtitle">Sign in to your account</p>
 
-            <div class="form-group">
-            
-                <label for="username">Username:</label>
-            
-                <input type="text" id="username" name="username" required>
-            
-            </div>
+        <form action="/login" method="POST" id="loginForm">
 
             <div class="form-group">
 
-                <label for="email">Email:</label>
+                <label for="email">Email Address</label>
 
-                <input type="email" id="email" name="email" required>
+                <input type="email" id="email" name="email" required
+                    placeholder="you@example.com">
 
             </div>
 
             <div class="form-group">
 
-                <label for="password">Password:</label>
+                <label for="password">Password</label>
 
                 <input type="password" id="password" name="password" required>
 
@@ -36,16 +33,24 @@
 
             <div class="form-group show-password">
 
-                <input type="checkbox" id="show-password">
+                <input type="checkbox" id="show-password-login">
 
-                <label for="show-password">Show password while typing</label>
+                <label for="show-password-login">Show password</label>
 
             </div>
 
-            <button type="submit">Log In</button>
+            <button type="submit" class="btn-primary">Login</button>
 
         </form>
 
-    </main>
+        <p class="auth-link">
+
+            Don't have an account? <a href="/register">Register here</a>
+
+        </p>
+
+    </div>
+    
+</main>
 
     <%- include('partials/footer') %>
