@@ -1,12 +1,18 @@
 // importing express from express library
 
-import express from "express";
+import express from 'express';
 
 import { fileURLToPath } from 'url';
 
 import path from 'path';
 
 import { testConnection } from "./src/models/db.js";
+
+import router from './src/routes.js';
+
+
+// after the .env file is created we'll modify the server.js file to use the environment
+// variables instead of hardcoding the values
 
 const NODE_ENV = process.env.NODE_ENV?.toLowerCase() || "production";
 
@@ -32,37 +38,84 @@ app.set('view engine', 'ejs');
 // Tell Express where to find your templates
 app.set('views', path.join(__dirname, 'src/views'));
 
+// Middleware to log all incoming requests
+app.use((req, res, next) => {
+
+  if (NODE_ENV === 'development') {
+      
+    console.log(`${req.method} ${req.url}`);
+    
+  }
+  
+  next(); // Pass control to the next middleware or route
+  
+});
+
+// Middleware to make NODE_ENV available to all templates
+app.use((req, res, next) => {
+
+  res.locals.NODE_ENV = NODE_ENV;
+  
+  next();
+  
+});
+
 /**
   * Routes
   */
 
-app.get('/', async (req, res) => {
+// dynamically populating the page titles
 
-  const title = 'Find out what\'s happening right now';
+app.use(router); // Use the router for all routes defined in src/routes.js
+
+
+// adding the catch-all error route for 404 errors
+
+app.use((req, res, next) => {
+
+  const err = new Error('Page Not Found');
+
+  err.status = 404;
+
+  next(err);
+
+});
+
+
+// creating the global error handler middleware to
+// catch any errors that occur in the routes and send a response to the client
+
+app.use((err, req, res, next) => {
+
+  // log error details for debugging
+
+  console.error('Error Occurred:', err.message);
+
+
+  console.error('Stack Trace:', err.stack);
+
+  // Determine status and template based on error type
   
-    res.render('index', { title });
-    
-});
+  const status = err.status || 500;
 
-app.get('/feed', async (req, res) => {
+  const template = status === 404 ? '404' : '500';
 
-  const title = 'Feed';
+  // Prepare data for the template
 
-    res.render('feed', {title});
-});
+  const context = {
 
-app.get('/register', async (req, res) => {
+    title: status === 404 ? 'Page Not Found' : 'Server Error',
 
-  const title = 'User Registration';
+    error: err.message,
 
-    res.render('register', {title});
-});
+    stack: err.stack
 
-app.get('/login', async (req, res) => {
+  };
 
-  const title = 'Welcome Back, Please, Log In';
+  // Render the appropriate error template with the context data
+  
+  res.status(status).render(`errors/${template}`, context);
 
-    res.render('login', {title});
 });
 
 
