@@ -186,8 +186,8 @@ const updateUserProfile = async (userId, fullName, displayName, bio, profilePict
             bio = COALESCE($4, bio),
             profile_picture_url = COALESCE($5, profile_picture_url),
             updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = $1
-        RETURNING user_id, username, display_name, bio, profile_picture_url;
+        WHERE users_id = $1
+        RETURNING users_id, username, display_name, bio, profile_picture_url;
     `;
 
     const result = await db.query(query, [userId, fullName, displayName, bio, profilePictureUrl]);

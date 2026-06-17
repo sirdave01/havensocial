@@ -39,14 +39,13 @@ export function previewProfileImage(event) {
  * Main initializer for Profile Page
  */
 export function initProfilePage() {
-    // Only run if we are on a profile page
     if (!document.querySelector('.profile-page')) {
         return;
     }
 
     console.log('✅ Profile page initialized');
 
-    // Attach event listeners properly (more reliable than inline onclick)
+    // Attach event listener (this is the reliable way)
     const fileInput = document.getElementById('profilePictureInput');
     if (fileInput) {
         fileInput.addEventListener('change', previewProfileImage);
@@ -58,6 +57,7 @@ export function initProfilePage() {
         editForm.style.display = 'none';
     }
 
-    // Make toggle available for the Edit Profile button
+    // Make both functions globally available for inline handlers (as backup)
     window.toggleEditForm = toggleEditForm;
+    window.previewProfileImage = previewProfileImage;
 }

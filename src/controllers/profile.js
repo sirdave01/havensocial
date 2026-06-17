@@ -41,7 +41,7 @@ const showProfile = async (req, res) => {
 
         }
 
-        const isOwner = req.session.user && req.session.user.user_id === profile.user_id;
+        const isOwner = req.session.user && req.session.user.users_id === profile.users_id;
 
         res.render('profile', {
 
@@ -119,7 +119,7 @@ const updateProfile = async (req, res) => {
 
         console.error('Update profile error:', error);
 
-        req.flash('error', 'Failed to update profile.');
+        req.flash('error', `Failed to update profile: ${error.message}`);
 
         res.redirect(`/profile/${req.session.user.username}`);
 
