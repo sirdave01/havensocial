@@ -40,7 +40,7 @@ profile_picture_url TEXT,
 
 verified BOOLEAN DEFAULT FALSE,
 suspended BOOLEAN DEFAULT FALSE,
-deleted_at TIMESTAMP NOT NULL,
+deleted_at TIMESTAMP,
 
 -- counters (denormalized for speed)
 follower_count INT DEFAULT 0,
@@ -50,6 +50,35 @@ post_count INT DEFAULT 0,
 role_id INT REFERENCES roles(role_id) DEFAULT 2
 
 );
+
+-- Make deleted_at nullable (allow NULL)
+ALTER TABLE users 
+ALTER COLUMN deleted_at DROP NOT NULL;
+
+-- drop verified column
+ALTER TABLE users 
+DROP COLUMN verified;
+
+--replace the verified column
+
+ALTER TABLE users 
+ADD COLUMN verified BOOLEAN GENERATED ALWAYS AS (
+    CASE 
+        WHEN role_id = 1 THEN TRUE 
+        ELSE FALSE 
+    END
+) STORED;
+
+-- Set a proper default (optional but recommended)
+ALTER TABLE users 
+ALTER COLUMN deleted_at SET DEFAULT NULL;
+
+-- adding an updated_at column for the users table
+ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+-- update the roles
+
+UPDATE users SET role_id = (SELECT role_id FROM roles WHERE role_name = 'founder') WHERE email = 'd08178084956@gmail.com';
 
 -- verify the users table and the contents are added
 
@@ -89,6 +118,8 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 PRIMARY KEY (follower_id, followee_id)
 
 );
+
+
 
 -- verify the follows table and the contents are added
 
