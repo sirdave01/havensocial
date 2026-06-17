@@ -56,6 +56,8 @@ app.use(session({
     
   store: sessionStore,
 
+  proxy: true,
+
   cookie: {
 
     maxAge: 60 * 60 * 1000, // Session expires after 1 hour of inactivity
