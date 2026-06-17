@@ -44,6 +44,7 @@ const showUserRegistrationForm = (req, res) => {
     res.render('register', { title: 'Register' });
 };
 
+// ====================== REGISTRATION ======================
 const processUserRegistrationForm = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -52,18 +53,17 @@ const processUserRegistrationForm = async (req, res) => {
     }
 
     const { username, email, password, fullName, displayName } = req.body;
-
     try {
         const salt = await bcrypt.genSalt(14);
         const passwordHash = await bcrypt.hash(password, salt);
-
+        
         const newUser = await createUser(username, email, passwordHash, fullName, displayName);
-
+        
         req.flash('success', 'Registration successful! Please log in.');
         res.redirect('/login');
     } catch (error) {
-        console.error('Registration error:', error);
-        if (error.message === 'Email already in use') {
+        console.error('Registration error:', error.message || error);  // Better logging
+        if (error.message?.includes('duplicate') || error.message === 'Email already in use') {
             req.flash('error', 'Email already in use. Please try another.');
         } else {
             req.flash('error', 'Registration failed. Please try again.');
@@ -77,28 +77,27 @@ const showLoginForm = (req, res) => {
     res.render('login', { title: 'Login' });
 };
 
+// ====================== LOGIN ======================
 const processLoginForm = async (req, res) => {
     const { email, password } = req.body;
-
     try {
         const user = await authenticateUser(email, password);
-
+        
         if (user) {
-            req.session.user = user;
-            req.flash('success', 'Login successful!');
-
-            if (process.env.NODE_ENV === 'development') {
-                console.log('Logged in user:', user);
-            }
-
-            // Redirect to Profile Page (as requested)
-            return res.redirect(`/profile/${user.username}`);
+            req.session.user = user;           // Save to session
+            req.session.save((err) => {        // ← Force save
+                if (err) {
+                    console.error('Session save error:', err);
+                }
+                req.flash('success', 'Login successful!');
+                return res.redirect(`/profile/${user.username}`);
+            });
         } else {
             req.flash('error', 'Invalid email or password.');
             return res.redirect('/login');
         }
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('Login error:', error.message || error);   // Better logging
         req.flash('error', 'Login failed. Please try again.');
         res.redirect('/login');
     }
