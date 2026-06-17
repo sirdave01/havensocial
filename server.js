@@ -4,6 +4,8 @@ import express from 'express';
 
 import session from 'express-session';
 
+import  MemoryStore from 'memorystore';
+
 import flash from './src/middleware/flash.js';
 
 import { fileURLToPath } from 'url';
@@ -37,15 +39,34 @@ const app = express();
 
 // Set up session management
 
+// Set up session management with MemoryStore
+const sessionStore = new (MemoryStore(session))({
+
+  checkPeriod: 86400000   // 24 hours - automatically clean expired sessions
+  
+});
+
 app.use(session({
 
-    secret: SESSION_SECRET,
+  secret: SESSION_SECRET,
 
-    resave: false,
+  resave: false,
 
-    saveUninitialized: true,
+  saveUninitialized: false, // Changed to false (better practice)
+    
+  store: sessionStore,
 
-  cookie: { maxAge: 60 * 60 * 1000 } // Session expires after 1 hour of inactivity
+  cookie: {
+
+    maxAge: 60 * 60 * 1000, // Session expires after 1 hour of inactivity
+
+    secure: NODE_ENV === 'production',
+
+    httpOnly: true,
+
+    sameSite: 'lax'
+
+   } 
     
 }));
 

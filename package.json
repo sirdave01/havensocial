@@ -36,6 +36,7 @@
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "express-validator": "^7.3.2",
+    "memorystore": "^1.6.8",
     "multer": "^2.2.0",
     "pg": "^8.21.0",
     "session": "^0.1.0"
