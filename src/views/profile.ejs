@@ -74,11 +74,16 @@
 
                     </div>
 
-                        <!-- Current / Preview Image -->
-                        <div id="image-preview-container" style="margin-top: 12px; display: none;">
-                            <img id="profile-preview"
-                                style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px var(--shadow);" alt="Preview">
-                        
+                        <div id="image-preview-container" style="margin-top: 16px;">
+                            <img id="profile-preview" 
+                            <% if (profile.profile_picture_url) { %>
+                                src="<%= profile.profile_picture_url %>"
+                            <% } else { %>
+                                style="display: none;"
+                            <% } %>
+                            style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px var(--shadow);"
+                            alt="Profile Picture">
+
                             <button type="button" id="remove-photo-btn" class="btn-remove">
                                 Remove Photo
                             </button>
