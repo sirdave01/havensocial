@@ -46,13 +46,18 @@ export function initProfilePage() {
 
     console.log('✅ Profile page initialized');
 
-    // Make functions available globally for EJS onclick handlers
-    window.toggleEditForm = toggleEditForm;
-    window.previewProfileImage = previewProfileImage;
+    // Attach event listeners properly (more reliable than inline onclick)
+    const fileInput = document.getElementById('profilePictureInput');
+    if (fileInput) {
+        fileInput.addEventListener('change', previewProfileImage);
+    }
 
-    // Optional: Hide edit form by default when page loads
+    // Hide edit form by default
     const editForm = document.getElementById('editForm');
     if (editForm) {
         editForm.style.display = 'none';
     }
+
+    // Make toggle available for the Edit Profile button
+    window.toggleEditForm = toggleEditForm;
 }

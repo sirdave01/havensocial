@@ -7,7 +7,7 @@ import { initDarkMode } from './modetoggle.mjs';
 
 import { initPasswordToggle } from './passwordToggle.mjs';
 
-import {toggleEditForm, previewProfileImage, initProfilePage} from './profile.mjs'
+import {initProfilePage} from './profile.mjs'
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -17,10 +17,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initPasswordToggle();
 
-    toggleEditForm();
+    // Only run profile-specific code on the profile page
 
-    previewProfileImage();
+    if (document.querySelector('.profile-page')) {
 
-    initProfilePage();
+        initProfilePage();
+        
+    }
 
 });
