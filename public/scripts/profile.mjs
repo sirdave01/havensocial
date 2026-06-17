@@ -4,52 +4,104 @@
 export function toggleEditForm() {
     const editForm = document.getElementById('editForm');
     if (editForm) {
-        editForm.style.display = 
-            (editForm.style.display === 'none' || editForm.style.display === '') 
-            ? 'block' 
-            : 'none';
+        const isHidden = editForm.style.display === 'none' || editForm.style.display === '';
+        editForm.style.display = isHidden ? 'block' : 'none';
     }
 }
 
 /**
- * Preview uploaded profile picture before submitting
+ * Handle image preview (used by both click and drag)
  */
-export function previewProfileImage(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
+function handleImagePreview(file) {
     if (!file.type.startsWith('image/')) {
-        alert('Please upload a valid image file (JPEG, PNG, etc.)');
-        event.target.value = '';
-        return;
+        alert('Please upload a valid image file (JPEG, PNG, GIF, WebP)');
+        return false;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        alert('File is too large. Maximum size is 5MB.');
+        return false;
     }
 
     const reader = new FileReader();
     reader.onload = function(e) {
         const previewImg = document.getElementById('profile-preview');
-        if (previewImg) {
+        const previewContainer = document.getElementById('image-preview-container');
+        
+        if (previewImg && previewContainer) {
             previewImg.src = e.target.result;
-            previewImg.style.display = 'block';
+            previewContainer.style.display = 'block';
         }
     };
     reader.readAsDataURL(file);
+    return true;
+}
+
+/**
+ * Initialize drag & drop + preview for profile picture
+ */
+function initProfileImageUpload() {
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('profilePictureInput');
+    const previewContainer = document.getElementById('image-preview-container');
+    const previewImg = document.getElementById('profile-preview');
+    const removeBtn = document.getElementById('remove-photo-btn');
+    const removeInput = document.getElementById('removeProfilePicture');
+
+    if (!dropzone || !fileInput) return;
+
+    // Click to upload
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    // File selected
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file && handleImagePreview(file)) {
+            // New file selected → reset remove flag
+            if (removeInput) removeInput.value = 'false';
+        }
+    });
+
+    // Drag & Drop (same as before)
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && handleImagePreview(file)) {
+            if (removeInput) removeInput.value = 'false';
+        }
+    });
+
+    // Remove Photo Button
+    if (removeBtn && removeInput) {
+        removeBtn.addEventListener('click', () => {
+            // Clear new upload
+            fileInput.value = '';
+            
+            // Hide preview image
+            if (previewImg) {
+                previewImg.style.display = 'none';
+                previewImg.src = '';
+            }
+
+            // Tell backend to delete current photo
+            removeInput.value = 'true';
+        });
+    }
 }
 
 /**
  * Main initializer for Profile Page
  */
 export function initProfilePage() {
-    if (!document.querySelector('.profile-page')) {
-        return;
-    }
+    if (!document.querySelector('.profile-page')) return;
 
     console.log('✅ Profile page initialized');
-
-    // Attach event listener (this is the reliable way)
-    const fileInput = document.getElementById('profilePictureInput');
-    if (fileInput) {
-        fileInput.addEventListener('change', previewProfileImage);
-    }
 
     // Hide edit form by default
     const editForm = document.getElementById('editForm');
@@ -57,7 +109,9 @@ export function initProfilePage() {
         editForm.style.display = 'none';
     }
 
-    // Make both functions globally available for inline handlers (as backup)
+    // Initialize image upload features
+    initProfileImageUpload();
+
+    // Make toggle globally available for inline onclick
     window.toggleEditForm = toggleEditForm;
-    window.previewProfileImage = previewProfileImage;
 }

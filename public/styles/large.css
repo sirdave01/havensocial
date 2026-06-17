@@ -48,4 +48,29 @@
         max-width: 1100px;
         margin: 0 auto;
     }
+
+        .profile-header {
+            flex-direction: row;
+            align-items: flex-start;
+            text-align: left;
+            gap: 2.5rem;
+        }
+    
+        .profile-picture {
+            width: 160px;
+            height: 160px;
+        }
+    
+        .profile-info {
+            text-align: left;
+        }
+    
+        .stats {
+            justify-content: flex-start;
+        }
+    
+        .btn-edit {
+            margin-top: 0;
+            align-self: flex-start;
+        }
 }

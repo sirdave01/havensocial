@@ -692,3 +692,82 @@ li {
     border-radius: 12px;
     box-shadow: 0 4px 12px var(--shadow);
 }
+
+/* ====================== DRAG & DROP PROFILE PICTURE ====================== */
+
+.dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 2rem 1rem;
+    text-align: center;
+    background: var(--bg);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dropzone:hover,
+.dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.dropzone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.upload-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.dropzone p {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.dropzone small {
+    color: var(--text-muted);
+}
+
+.btn-remove {
+    margin-top: 10px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.btn-remove:hover {
+    background: #dc2626;
+}
+
+/* Preview container */
+#image-preview-container {
+    text-align: center;
+}
+
+/* Small screens tweaks */
+@media screen and (max-width: 480px) {
+    .profile-picture {
+        width: 140px;
+        height: 140px;
+    }
+
+    .edit-profile-form {
+        padding: 1.25rem;
+    }
+
+    #profile-preview {
+        max-width: 220px !important;
+    }
+}

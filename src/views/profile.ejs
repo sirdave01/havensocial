@@ -45,16 +45,47 @@
 
         <!-- Edit Profile Form -->
         <% if (isOwner) { %>
+
             <div id="editForm" class="edit-profile-form" style="display: none;">
+                
                 <h2>Edit Profile</h2>
                 <form action="/profile/update" method="POST" enctype="multipart/form-data">
 
                     <div class="form-group">
-                        <label>Profile Picture</label>
-                        <input type="file" name="profilePicture" id="profilePictureInput" accept="image/*">
-                        <img id="profile-preview"
-                            style="display:none; max-width: 250px; margin-top: 10px; border-radius: 8px;">
+
+                        <label for="profilePictureInput">Profile Picture</label>
+                    
+                        <div id="dropzone" class="dropzone">
+
+                            <div class="dropzone-content">
+
+                                <span class="upload-icon">📸</span>
+
+                                <p><strong>Click to upload</strong> or drag and drop</p>
+
+                                <small>JPEG, PNG, GIF, WebP • Max 5MB</small>
+
+                            </div>
+
+                            <input type="file" name="profilePicture" id="profilePictureInput"
+                                accept="image/jpeg,image/png,image/gif,image/webp" style="display: none;">
+
+                        </div>
+
                     </div>
+
+                        <!-- Current / Preview Image -->
+                        <div id="image-preview-container" style="margin-top: 12px; display: none;">
+                            <img id="profile-preview"
+                                style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px var(--shadow);" alt="Preview">
+                        
+                            <button type="button" id="remove-photo-btn" class="btn-remove">
+                                Remove Photo
+                            </button>
+
+                            <input type="hidden" name="removeProfilePicture" id="removeProfilePicture" value="false">
+
+                        </div>
 
                     <div class="form-group">
                         <label>Full Name</label>
