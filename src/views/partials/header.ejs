@@ -101,8 +101,13 @@
             <nav id="nav-list" class="nav-bar">
                 <ul>
                     <li><a href="/feed">Feed</a></li>
-                    
-                    <li><a href="/users">Users Dashboard</a></li>
+            
+                    <!-- Show Users Dashboard link ONLY to Founder -->
+                    <% if (isFounder) { %>
+
+                        <li><a href="/users">Users Dashboard</a></li>
+
+                    <% } %>
             
                     <% if (isLoggedIn) { %>
 
@@ -110,15 +115,16 @@
 
                         <li><a href="/logout">Logout</a></li>
 
-                        <% } else { %>
+                    <% } else { %>
 
-                            <li><a href="/register">Join Now</a></li>
+                        <li><a href="/register">Join Now</a></li>
 
-                            <li><a href="/login">Log in</a></li>
+                        <li><a href="/login">Log in</a></li>
 
-                            <% } %>
+                    <% } %>
+
                 </ul>
-                
+
             </nav>
 
             <button id="nav-btn" class="hamburger"></button>

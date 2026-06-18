@@ -4,6 +4,8 @@ const setAuthLocals = async (req, res, next) => {
     
     res.locals.isLoggedIn = !!req.session?.user;
     
+    res.locals.isFounder = !!(req.session.user && req.session.user.role_name === 'founder');
+    
     if (req.session?.user) {
         try {
             // Refresh user data from database on every request

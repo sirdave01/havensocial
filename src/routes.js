@@ -62,15 +62,34 @@ router.post('/profile/update', requireLogin, upload.single('profilePicture'), pr
 // ====================== OTHER ROUTES ======================
 router.get('/test-error', testErrorPage);
 
-// Optional: Founder-only routes
-router.get('/dashboard', requireLogin, showDashboard);
-router.get('/users', requireLogin, requireRole('founder'), showUsers);
-// User Management Routes (Founder Only)
-router.get('/users', requireLogin, requireRole('founder'), showUsers);
+// Founder-only routes
+router.get('/dashboard', requireLogin, requireRole('founder'), showDashboard);
 
-router.post('/users/:userId/suspend', requireLogin, requireRole('founder'), adminSuspendUser);
-router.post('/users/:userId/verify', requireLogin, requireRole('founder'), adminVerifyUser);
-router.post('/users/:userId/delete', requireLogin, requireRole('founder'), adminDeleteUser);
+// Users Management - Founder Only
+router.get('/users', 
+    requireLogin, 
+    requireRole('founder'), 
+    showUsers
+);
+
+// User Management Actions (Founder Only)
+router.post('/users/:userId/suspend', 
+    requireLogin, 
+    requireRole('founder'), 
+    adminSuspendUser
+);
+
+router.post('/users/:userId/verify', 
+    requireLogin, 
+    requireRole('founder'), 
+    adminVerifyUser
+);
+
+router.post('/users/:userId/delete', 
+    requireLogin, 
+    requireRole('founder'), 
+    adminDeleteUser
+);
 
 
 
