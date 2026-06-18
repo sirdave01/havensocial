@@ -85,6 +85,7 @@ const findUserByEmail = async (email) => {
             u.password_hash,
             u.full_name,
             u.display_name,
+            u.profile_picture_url,
             u.verified,
             u.suspended,
             r.role_name
@@ -132,6 +133,7 @@ const getAllUsers = async () => {
             u.full_name,
             u.display_name,
             u.email,
+            u.profile_picture_url,
             u.verified,
             u.suspended,
             r.role_name,

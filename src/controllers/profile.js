@@ -80,49 +80,59 @@ const updateProfile = async (req, res) => {
 
     }
 
-    const { fullName, displayName, bio } = req.body || {};
-
     let profilePictureUrl = null;
 
-    if (req.file) {
-
-        profilePictureUrl = `/uploads/profile/${req.file.filename}`;
-
-    }
+    let removePhoto = req.body.removeProfilePicture === 'true';
 
     try {
+
+        if (req.file) {
+
+            profilePictureUrl = `/uploads/profile/${req.file.filename}`;
+
+        } else if (removePhoto) {
+
+            profilePictureUrl = null; // or default avatar path
+
+        }
 
         const updatedUser = await updateUserProfile(
 
             req.session.user.users_id,
-            fullName || null,
-            displayName || null,
-            bio || null,
+
+            req.body.fullName || null,
+
+            req.body.displayName || null,
+
+            req.body.bio || null,
+
             profilePictureUrl
 
         );
 
         // Update session
-        if (req.session.user) {
+        if (req.session.user && updatedUser) {
 
             req.session.user.display_name = updatedUser.display_name;
 
             req.session.user.full_name = updatedUser.full_name;
 
+            req.session.user.profile_picture_url = updatedUser.profile_picture_url;
+
         }
 
         req.flash('success', 'Profile updated successfully!');
-
+        
         res.redirect(`/profile/${req.session.user.username}`);
-
+        
     } catch (error) {
-
+        
         console.error('Update profile error:', error);
-
+        
         req.flash('error', `Failed to update profile: ${error.message}`);
-
+        
         res.redirect(`/profile/${req.session.user.username}`);
-
+        
     }
 
 };
