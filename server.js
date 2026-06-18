@@ -8,6 +8,8 @@ import  MemoryStore from 'memorystore';
 
 import flash from './src/middleware/flash.js';
 
+import setAuthLocals from './src/middleware/auth.js';
+
 import { fileURLToPath } from 'url';
 
 import path from 'path';
@@ -60,7 +62,7 @@ app.use(session({
 
   cookie: {
 
-    maxAge: 60 * 60 * 1000, // Session expires after 1 hour of inactivity
+    maxAge: 607 * 24 * 60 * 60 * 1000,   // ← Changed to 7 days (much better UX)
 
     secure: NODE_ENV === 'production',
 
@@ -75,6 +77,8 @@ app.use(session({
 // use flashmessage middleware to handle flash messages in the application
 
 app.use(flash);
+
+app.use(setAuthLocals);
 
 // Allow Express to receive and process common POST data
 

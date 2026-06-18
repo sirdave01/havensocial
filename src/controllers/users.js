@@ -11,7 +11,7 @@ import {
 
 // Validation middleware
 const userValidation = [
-    
+
     body('username')
         .trim()
         .notEmpty().withMessage('Username is required')
@@ -36,23 +36,35 @@ const userValidation = [
         }),
 
     body('fullName').trim().optional().isLength({ max: 100 }),
+
     body('displayName').trim().optional().isLength({ max: 100 })
+
 ];
 
 // ====================== REGISTRATION ======================
 const showUserRegistrationForm = (req, res) => {
-    res.render('register', { title: 'Register' });
+
+    res.render('register', { 
+        title: 'Register',
+        isLoggedIn: !!req.session.user,
+        user: req.session.user || null
+
+    });
+
 };
 
 // ====================== REGISTRATION ======================
 const processUserRegistrationForm = async (req, res) => {
+
     const errors = validationResult(req);
+
     if (!errors.isEmpty()) {
         errors.array().forEach(err => req.flash('error', err.msg));
         return res.redirect('/register');
     }
 
     const { username, email, password, fullName, displayName } = req.body;
+
     try {
         const salt = await bcrypt.genSalt(14);
         const passwordHash = await bcrypt.hash(password, salt);
@@ -61,20 +73,28 @@ const processUserRegistrationForm = async (req, res) => {
         
         req.flash('success', 'Registration successful! Please log in.');
         res.redirect('/login');
+
     } catch (error) {
-        console.error('Registration error:', error.message || error);  // Better logging
+        console.error('Registration error:', error.message || error);
         if (error.message?.includes('duplicate') || error.message === 'Email already in use') {
             req.flash('error', 'Email already in use. Please try another.');
         } else {
             req.flash('error', 'Registration failed. Please try again.');
         }
         res.redirect('/register');
+
     }
+
 };
 
 // ====================== LOGIN ======================
 const showLoginForm = (req, res) => {
-    res.render('login', { title: 'Login' });
+
+    res.render('login', { 
+        title: 'Login',
+        isLoggedIn: !!req.session.user,
+        user: req.session.user || null
+    });
 };
 
 // ====================== LOGIN ======================
@@ -84,11 +104,10 @@ const processLoginForm = async (req, res) => {
         const user = await authenticateUser(email, password);
         
         if (user) {
-            req.session.user = user;           // Save to session
-            req.session.save((err) => {        // ← Force save
-                if (err) {
-                    console.error('Session save error:', err);
-                }
+            req.session.user = user;
+            req.session.save((err) => {
+                if (err) console.error('Session save error:', err);
+                
                 req.flash('success', 'Login successful!');
                 return res.redirect(`/profile/${user.username}`);
             });
@@ -97,7 +116,7 @@ const processLoginForm = async (req, res) => {
             return res.redirect('/login');
         }
     } catch (error) {
-        console.error('Login error:', error.message || error);   // Better logging
+        console.error('Login error:', error.message || error);
         req.flash('error', 'Login failed. Please try again.');
         res.redirect('/login');
     }
@@ -105,8 +124,17 @@ const processLoginForm = async (req, res) => {
 
 // ====================== OTHER CONTROLLERS ======================
 const processLogout = (req, res) => {
-    req.session.destroy(() => {
+    // Set flash message BEFORE destroying the session
+    if (req.session) {
         req.flash('success', 'You have been logged out.');
+    }
+
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Session destroy error:', err);
+        }
+
+        res.clearCookie('connect.sid'); // Clear session cookie
         res.redirect('/login');
     });
 };
@@ -129,11 +157,12 @@ const requireRole = (role) => {
     };
 };
 
-// General Dashboard (optional fallback)
+// General Dashboard
 const showDashboard = (req, res) => {
     res.render('dashboard', { 
         title: 'Dashboard', 
-        user: req.session.user 
+        user: req.session.user,
+        isLoggedIn: true   // since requireLogin is usually used here
     });
 };
 
@@ -141,7 +170,7 @@ const showDashboard = (req, res) => {
 const showUsers = async (req, res) => {
     if (!req.session.user || req.session.user.role_name !== 'founder') {
         req.flash('error', 'Access denied.');
-        return res.redirect(`/profile/${req.session.user.username}`);
+        return res.redirect(`/profile/${req.session.user?.username || ''}`);
     }
 
     try {
@@ -149,7 +178,8 @@ const showUsers = async (req, res) => {
         res.render('users', { 
             title: 'All Users', 
             users,
-            user: req.session.user 
+            user: req.session.user,
+            isLoggedIn: true
         });
     } catch (error) {
         console.error('Error fetching users:', error);
