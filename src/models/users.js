@@ -197,6 +197,55 @@ const updateUserProfile = async (userId, fullName, displayName, bio, profilePict
     return result.rows[0];
 };
 
+// Suspend or Unsuspend user
+const toggleSuspendUser = async (userId, suspend) => {
+    const query = `
+        UPDATE users 
+        SET suspended = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE users_id = $2 
+        RETURNING users_id, username, suspended;
+    `;
+    const result = await db.query(query, [suspend, userId]);
+    return result.rows[0];
+};
+
+// Verify or Unverify user
+const toggleVerifyUser = async (userId, verify) => {
+    const query = `
+        UPDATE users 
+        SET verified = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE users_id = $2 
+        RETURNING users_id, username, verified;
+    `;
+    const result = await db.query(query, [verify, userId]);
+    return result.rows[0];
+};
+
+// Soft Delete user
+const deleteUser = async (userId) => {
+    const query = `
+        UPDATE users 
+        SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE users_id = $1 
+        RETURNING users_id, username;
+    `;
+    const result = await db.query(query, [userId]);
+
+    return result.rows[0];
+};
+
+// Log admin actions (Founder activities)
+const logAuditAction = async (actorId, actionType, targetId, targetType, details = {}) => {
+
+    const query = `
+        INSERT INTO audit_logs (actor_id, action_type, target_type, target_id, details)
+        VALUES ($1, $2, $3, $4, $5);
+    `;
+
+    await db.query(query, [actorId, actionType, targetType, targetId, details]);
+
+};
+
 export { 
     createUser, 
     authenticateUser, 
@@ -204,5 +253,9 @@ export {
     getUserByEmail,
     findUserByEmail,
     getUserProfile,
-    updateUserProfile
+    updateUserProfile,
+    toggleSuspendUser,
+    toggleVerifyUser,
+    deleteUser,
+    logAuditAction
 };

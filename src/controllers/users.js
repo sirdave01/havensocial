@@ -188,6 +188,142 @@ const showUsers = async (req, res) => {
     }
 };
 
+// ==================== USER MANAGEMENT (Founder Only) ====================
+
+const adminSuspendUser = async (req, res) => {
+
+    if (req.session.user?.role_name !== 'founder') {
+
+        req.flash('error', 'Access denied.');
+
+        return res.redirect('/users');
+
+    }
+
+    const { userId } = req.params;
+
+    const { action } = req.body; 
+
+    const isSuspend = action === 'suspend';
+
+    try {
+
+        await toggleSuspendUser(userId, isSuspend);
+        
+        // Audit Log
+        await logAuditAction(
+
+            req.session.user.user_id,
+
+            isSuspend ? 'suspend_user' : 'unsuspend_user',
+
+            userId,
+
+            'user',
+
+            { reason: 'Founder action via dashboard' }
+
+        );
+
+        req.flash('success', `User has been ${isSuspend ? 'suspended' : 'unsuspended'}.`);
+
+    } catch (error) {
+
+        console.error('Suspend error:', error);
+
+        req.flash('error', 'Failed to update user status.');
+
+    }
+
+    res.redirect('/users');
+
+};
+
+const adminVerifyUser = async (req, res) => {
+
+    if (req.session.user?.role_name !== 'founder') {
+
+        req.flash('error', 'Access denied.');
+
+        return res.redirect('/users');
+
+    }
+
+    const { userId } = req.params;
+    const { action } = req.body;
+    const isVerify = action === 'verify';
+
+    try {
+        await toggleVerifyUser(userId, isVerify);
+        
+        // Audit Log
+        await logAuditAction(
+
+            req.session.user.users_id,
+
+            isVerify ? 'verify_user' : 'unverify_user',
+            userId,
+            'user',
+
+            { reason: 'Founder manual verification' }
+
+        );
+
+        req.flash('success', `User has been ${isVerify ? 'verified' : 'unverified'}.`);
+
+    } catch (error) {
+
+        console.error('Verify error:', error);
+
+        req.flash('error', 'Failed to update verification status.');
+
+    }
+
+    res.redirect('/users');
+};
+
+const adminDeleteUser = async (req, res) => {
+
+    if (req.session.user?.role_name !== 'founder') {
+
+        req.flash('error', 'Access denied.');
+
+        return res.redirect('/users');
+
+    }
+
+    const { userId } = req.params;
+
+    try {
+        await deleteUser(userId);
+        
+        // Audit Log
+        await logAuditAction(
+
+            req.session.user.users_id,
+
+            'delete_user',
+            userId,
+            'user',
+
+            { reason: 'Founder initiated deletion' }
+
+        );
+
+        req.flash('success', 'User account has been soft deleted.');
+
+    } catch (error) {
+
+        console.error('Delete user error:', error);
+
+        req.flash('error', 'Failed to delete user.');
+
+    }
+
+    res.redirect('/users');
+
+};
+
 export {
     showUserRegistrationForm,
     processUserRegistrationForm,
@@ -198,5 +334,8 @@ export {
     requireRole,
     showDashboard,
     showUsers,
-    userValidation
+    userValidation,
+    adminSuspendUser,
+    adminVerifyUser,
+    adminDeleteUser
 };

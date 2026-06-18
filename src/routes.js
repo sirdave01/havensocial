@@ -12,7 +12,10 @@ import { showUserRegistrationForm,
     requireRole,
     showDashboard,
     showUsers,
-    userValidation } from "./controllers/users.js";
+    userValidation,
+    adminSuspendUser,
+    adminVerifyUser,
+    adminDeleteUser} from "./controllers/users.js";
 
 import { showHomePage } from "./controllers/index.js";
 
@@ -62,6 +65,12 @@ router.get('/test-error', testErrorPage);
 // Optional: Founder-only routes
 router.get('/dashboard', requireLogin, showDashboard);
 router.get('/users', requireLogin, requireRole('founder'), showUsers);
+// User Management Routes (Founder Only)
+router.get('/users', requireLogin, requireRole('founder'), showUsers);
+
+router.post('/users/:userId/suspend', requireLogin, requireRole('founder'), adminSuspendUser);
+router.post('/users/:userId/verify', requireLogin, requireRole('founder'), adminVerifyUser);
+router.post('/users/:userId/delete', requireLogin, requireRole('founder'), adminDeleteUser);
 
 
 
