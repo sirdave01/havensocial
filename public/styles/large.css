@@ -73,4 +73,30 @@
             margin-top: 0;
             align-self: flex-start;
         }
+
+        .table-container {
+            border-radius: var(--radius);
+        }
+        
+        .user-management-table th,
+        .user-management-table td {
+            padding: 1.1rem 1.25rem;
+        }
+        
+        .actions-cell {
+            gap: 0.6rem;
+        }
+               
+}
+
+/* Extra wide screens */
+@media screen and (min-width: 1200px) {
+    main {
+        max-width: 1450px;
+    }
+
+    .user-management-table {
+        min-width: 100%;
+        /* No forced scroll on very large screens */
+    }
 }

@@ -1,0 +1,57 @@
+
+<%- include('partials/header') %>
+
+    <main class="search-page">
+
+        <div class="page-header">
+            
+            <h1>Search Results for "<%= query %>"</h1>
+            <% if (users.length===0) { %>
+                <p>No users found matching your search.</p>
+                <% } else { %>
+                    <p>Found <%= users.length %> user(s)</p>
+                    <% } %>
+        </div>
+
+        <div class="search-results">
+            <% if (users.length> 0) { %>
+                <ul class="list-cards auto">
+                    <% users.forEach(user=> { %>
+                        <li class="card">
+                            <div class="user-result">
+                                <img src="<%= user.profile_picture_url || '/images/default-avatar.png' %>"
+                                    alt="<%= user.username %>" class="result-avatar">
+
+                                <div class="result-info">
+                                    <h3>
+                                        <a href="/profile/<%= user.username %>">
+                                            <%= user.display_name || user.username %>
+                                                <% if (user.verified) { %>✅<% } %>
+                                        </a>
+                                    </h3>
+                                    <p class="username">@<%= user.username %>
+                                    </p>
+                                    <% if (user.bio) { %>
+                                        <p class="bio">
+                                            <%= user.bio.substring(0, 120) %>
+                                                <%= user.bio.length> 120 ? '...' : '' %>
+                                        </p>
+                                        <% } %>
+                                </div>
+
+                                <!-- Follow button placeholder (future) -->
+                                <% if (user.users_id !==user.sessionUserId) { %>
+                                    <button class="btn btn-primary btn-small follow-btn"
+                                        data-user-id="<%= user.users_id %>">
+                                        Follow
+                                    </button>
+                                    <% } %>
+                            </div>
+                        </li>
+                        <% }); %>
+                </ul>
+                <% } %>
+        </div>
+    </main>
+
+    <%- include('partials/footer') %>

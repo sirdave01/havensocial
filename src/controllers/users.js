@@ -166,6 +166,73 @@ const showDashboard = (req, res) => {
     });
 };
 
+// ====================== GLOBAL SEARCH ======================
+const showSearchResults = async (req, res) => {
+
+    if (!req.session.user) {
+
+        req.flash('error', 'You must be logged in to search.');
+        
+        return res.redirect('/login');
+    }
+
+    const { q } = req.query;
+    const query = (q || '').trim();
+
+    if (!query || query.length < 2) {
+        return res.render('search', { 
+            title: 'Search', 
+            query, 
+            users: [], 
+            user: req.session.user,
+            isLoggedIn: true 
+        });
+    }
+
+    try {
+        const searchTerm = `%${query}%`;
+
+        const searchQuery = `
+            SELECT 
+                u.users_id,
+                u.username,
+                u.full_name,
+                u.display_name,
+                u.bio,
+                u.profile_picture_url,
+                u.verified,
+                r.role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.role_id
+            WHERE u.deleted_at IS NULL
+              AND (u.username ILIKE $1 
+                OR u.full_name ILIKE $1 
+                OR u.display_name ILIKE $1 
+                OR u.bio ILIKE $1)
+            ORDER BY 
+                u.username ILIKE $2 DESC,   -- exact username match first
+                u.verified DESC,
+                u.created_at DESC
+            LIMIT 50;
+        `;
+
+        const result = await db.query(searchQuery, [searchTerm, query]);
+
+        res.render('search', { 
+            title: `Search: ${query}`, 
+            query,
+            users: result.rows,
+            user: req.session.user,
+            isLoggedIn: true 
+        });
+
+    } catch (error) {
+        console.error('Search error:', error);
+        req.flash('error', 'Search failed. Please try again.');
+        res.redirect('/profile');
+    }
+};
+
 // Founder Users Management
 const showUsers = async (req, res) => {
     try {
@@ -332,5 +399,6 @@ export {
     userValidation,
     adminSuspendUser,
     adminVerifyUser,
-    adminDeleteUser
+    adminDeleteUser,
+    showSearchResults
 };

@@ -15,7 +15,8 @@ import { showUserRegistrationForm,
     userValidation,
     adminSuspendUser,
     adminVerifyUser,
-    adminDeleteUser} from "./controllers/users.js";
+    adminDeleteUser,
+    showSearchResults} from "./controllers/users.js";
 
 import { showHomePage } from "./controllers/index.js";
 
@@ -61,6 +62,8 @@ router.post('/profile/update', requireLogin, upload.single('profilePicture'), pr
 
 // ====================== OTHER ROUTES ======================
 router.get('/test-error', testErrorPage);
+
+router.get('/search', requireLogin, showSearchResults);
 
 // Founder-only routes
 router.get('/dashboard', requireLogin, requireRole('founder'), showDashboard);

@@ -7,9 +7,13 @@ import { initDarkMode } from './modetoggle.mjs';
 
 import { initPasswordToggle } from './passwordToggle.mjs';
 
-import {initProfilePage} from './profile.mjs'
+import { initProfilePage } from './profile.mjs'
+
+import { initGlobalSearch } from './searchbtn.mjs';
 
 document.addEventListener('DOMContentLoaded', () => {
+    
+    console.log('🚀 HavenSocial scripts initialized');
 
     initHamburger();
 
@@ -24,5 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
         initProfilePage();
         
     }
+
+    // Global Search (only runs if the search bar exists)
+    initGlobalSearch();
 
 });
