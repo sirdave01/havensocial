@@ -915,18 +915,6 @@ li {
     box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
 }
 
-.search-btn {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    font-size: 1.3rem;
-    cursor: pointer;
-    color: var(--text-muted);
-}
-
 /* Mobile adjustments */
 @media screen and (max-width: 43.75rem) {
 
