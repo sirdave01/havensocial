@@ -4,7 +4,7 @@
     <main class="search-page">
 
         <div class="page-header">
-            
+
             <h1>Search Results for "<%= query %>"</h1>
             <% if (users.length===0) { %>
                 <p>No users found matching your search.</p>
@@ -40,7 +40,7 @@
                                 </div>
 
                                 <!-- Follow button placeholder (future) -->
-                                <% if (user.users_id !==user.sessionUserId) { %>
+                                <% if (parseInt(user.users_id) !== parseInt(currentUserId)) { %>
                                     <button class="btn btn-primary btn-small follow-btn"
                                         data-user-id="<%= user.users_id %>">
                                         Follow

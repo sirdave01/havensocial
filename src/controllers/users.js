@@ -9,6 +9,8 @@ import {
     getAllUsers 
 } from '../models/users.js';
 
+import { db } from '../models/db.js';
+
 // Validation middleware
 const userValidation = [
 
@@ -170,9 +172,7 @@ const showDashboard = (req, res) => {
 const showSearchResults = async (req, res) => {
 
     if (!req.session.user) {
-
         req.flash('error', 'You must be logged in to search.');
-        
         return res.redirect('/login');
     }
 
@@ -210,7 +210,7 @@ const showSearchResults = async (req, res) => {
                 OR u.display_name ILIKE $1 
                 OR u.bio ILIKE $1)
             ORDER BY 
-                u.username ILIKE $2 DESC,   -- exact username match first
+                u.username ILIKE $2 DESC,
                 u.verified DESC,
                 u.created_at DESC
             LIMIT 50;
@@ -222,14 +222,14 @@ const showSearchResults = async (req, res) => {
             title: `Search: ${query}`, 
             query,
             users: result.rows,
-            user: req.session.user,
+            currentUserId: req.session.user.users_id,       // current logged-in user
             isLoggedIn: true 
         });
 
     } catch (error) {
         console.error('Search error:', error);
         req.flash('error', 'Search failed. Please try again.');
-        res.redirect('/profile');
+        res.redirect('/feed');
     }
 };
 
