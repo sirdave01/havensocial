@@ -76,6 +76,9 @@ ALTER COLUMN deleted_at SET DEFAULT NULL;
 -- adding an updated_at column for the users table
 ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
+-- adding an updated_at column for the users table
+ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
 -- update the roles
 
 UPDATE users SET role_id = (SELECT role_id FROM roles WHERE role_name = 'founder') WHERE email = 'd08178084956@gmail.com';
@@ -104,6 +107,8 @@ view_count INT DEFAULT 0
 );
 
 -- verify the tweets table and the contents are added
+
+ALTER TABLE tweets ADD COLUMN deleted_at TIMESTAMP NULL;
 
 SELECT * FROM tweets;
 
