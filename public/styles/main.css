@@ -1367,3 +1367,34 @@ body.dark-mode .tweet-card:hover {
         min-height: 160px;
     }
 }
+
+/* Enhanced Reply Modal */
+.original-tweet-preview {
+    background: var(--bg);
+    border-left: 4px solid var(--accent);
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+.reply-box {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.char-count {
+    text-align: right;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: var(--text-muted);
+}
