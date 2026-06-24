@@ -73,8 +73,11 @@ router.delete('/tweets/:tweetId', requireLogin, deleteTweetController); // Delet
 // ====================== FOLLOW ROUTES ======================
 router.post('/follow', requireLogin, followUserController);
 router.post('/unfollow', requireLogin, unfollowUserController);
-router.get('/following/:userId?', requireLogin, getFollowingController);
-router.get('/followers/:userId?', requireLogin, getFollowersController);
+router.get('/following', requireLogin, getFollowingController);
+router.get('/following/:userId', requireLogin, getFollowingController);
+
+router.get('/followers', requireLogin, getFollowersController);
+router.get('/followers/:userId', requireLogin, getFollowersController);
 
 // ====================== LIKE ROUTES ======================
 router.post('/likes', requireLogin, likeTweetController);

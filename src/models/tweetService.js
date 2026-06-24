@@ -1,11 +1,11 @@
-import { db } from "./db.js";
-import { createTweet } from "./tweet.js";
+import { pool } from "./db.js";           // ← Use raw pool for transactions
+import { createTweet } from "./tweets.js";
 import { createNotification } from "./notification.js";
 
 const createTweetWithExtras = async (userId, content, mediaUrls = null, isReplyTo = null) => {
     let client;
     try {
-        client = await db.pool.connect();
+        client = await pool.connect();
         await client.query('BEGIN');
 
         // Create the tweet
@@ -32,7 +32,13 @@ const createTweetWithExtras = async (userId, content, mediaUrls = null, isReplyT
         return tweet;
 
     } catch (error) {
-        if (client) await client.query('ROLLBACK');
+        if (client) {
+            try {
+                await client.query('ROLLBACK');
+            } catch (rollbackErr) {
+                console.error('Rollback failed:', rollbackErr);
+            }
+        }
         console.error('Tweet service error:', error);
         throw error;
     } finally {

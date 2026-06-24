@@ -90,4 +90,6 @@ const testConnection = async() => {
     }
 };
 
+export { pool };
+
 export { db };

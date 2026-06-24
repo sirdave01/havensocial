@@ -6,9 +6,15 @@ import { getTweetById, getUserTweets, getHomeFeed, deleteTweet } from '../models
 export const createTweetController = async (req, res) => {
     try {
         const { content, mediaUrls, isReplyTo } = req.body;
-        const userId = req.user.users_id; // from auth middleware
+        
+        // FIXED: Use session instead of req.user
+        if (!req.session?.user) {
+            return res.status(401).json({ message: "Unauthorized - Please log in" });
+        }
+        
+        const userId = req.session.user.users_id;
 
-        if (!content) {
+        if (!content || content.trim() === '') {
             return res.status(400).json({ message: "Content is required" });
         }
 
@@ -19,7 +25,7 @@ export const createTweetController = async (req, res) => {
             tweet
         });
     } catch (error) {
-        console.error(error);
+        console.error('Create tweet error:', error);
         res.status(500).json({ message: "Error creating tweet" });
     }
 };
@@ -55,21 +61,29 @@ export const getUserTweetsController = async (req, res) => {
 
 export const getHomeFeedController = async (req, res) => {
     try {
-        const userId = req.user.users_id;
+        if (!req.session?.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const userId = req.session.user.users_id;
         const { limit = 20, offset = 0 } = req.query;
 
         const feed = await getHomeFeed(userId, parseInt(limit), parseInt(offset));
         res.json(feed);
     } catch (error) {
-        console.error(error);
+        console.error('Home feed error:', error);
         res.status(500).json({ message: "Error fetching home feed" });
     }
 };
 
 export const deleteTweetController = async (req, res) => {
     try {
+        if (!req.session?.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
         const { tweetId } = req.params;
-        const userId = req.user.users_id;
+        const userId = req.session.user.users_id;
 
         const result = await deleteTweet(tweetId, userId);
 
