@@ -3,6 +3,8 @@ import { body, validationResult } from 'express-validator';
 
 import { getUserProfile, updateUserProfile } from '../models/users.js';
 
+import { getUserTweets } from '../models/tweets.js';   // ← Added
+
 import { upload } from '../middleware/upload.js';
 
 const profileValidation = [
@@ -26,42 +28,35 @@ const profileValidation = [
 
 // Show Profile Page
 const showProfile = async (req, res) => {
-
-    const userTweets = await getUserTweets(profile.users_id, 10);
-
-    const username = req.params.username || req.session.user?.username;
+    const username = req.params.username || req.session?.user?.username;
 
     try {
-
         const profile = await getUserProfile(username);
 
         if (!profile) {
-
             req.flash('error', 'User not found');
-
-            return res.redirect('/home');
-
+            return res.redirect('/feed');
         }
 
-        const isOwner = req.session.user && req.session.user.users_id === profile.users_id;
+        const isOwner = req.session?.user && req.session.user.users_id === profile.users_id;
+
+        // Fetch user's tweets
+        const userTweets = await getUserTweets(profile.users_id, 10, 0);
 
         res.render('profile', {
-
             title: `${profile.display_name || profile.username}'s Profile`,
             profile,
-            userTweets,
+            userTweets,        // ← Passed to view
             isOwner,
-            user: req.session.user
+            user: req.session?.user || null,
+            isLoggedIn: !!req.session?.user
         });
 
     } catch (error) {
-
         console.error('Profile error:', error);
         req.flash('error', 'Failed to load profile');
-        res.redirect('/home');
-
+        res.redirect('/feed');
     }
-
 };
 
 // Update Profile

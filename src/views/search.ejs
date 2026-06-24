@@ -39,13 +39,9 @@
                                         <% } %>
                                 </div>
 
-                                <!-- Follow button placeholder (future) -->
-                                <% if (parseInt(user.users_id) !== parseInt(currentUserId)) { %>
-                                    <button class="btn btn-primary btn-small follow-btn"
-                                        data-user-id="<%= user.users_id %>">
-                                        Follow
-                                    </button>
-                                    <% } %>
+                                <button class="follow-btn <%= user.is_following ? 'following' : '' %>" data-user-id="<%= user.users_id %>">
+                                    <%= user.is_following ? 'Following' : 'Follow' %>
+                                </button>
                             </div>
                         </li>
                         <% }); %>

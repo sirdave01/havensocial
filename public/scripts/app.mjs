@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initPasswordToggle();
     initGlobalSearch();
 
+    const isLoggedIn = !!document.body.dataset.loggedIn || false; // safety
+
+    // Set login status for tweetActions
     document.body.dataset.loggedIn = isLoggedIn ? "true" : "false";
 
     // Profile specific
@@ -23,13 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
         initProfilePage();
     }
 
-    // Feed specific (includes tweet actions + media upload)
+    // Feed specific (includes tweet actions + media upload + infinite scroll)
     if (document.querySelector('.feed-page')) {
         initFeedPage();
-    }
-
-    // Run basic tweet actions on other pages too (notifications, profile, etc.)
-    else {
-        initTweetActions();   // fallback
     }
 });

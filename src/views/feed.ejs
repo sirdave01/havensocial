@@ -4,45 +4,43 @@
 
         <% if (isGuest) { %>
             <div class="guest-banner">
-                <p>Join HavenSocial to personalize your feed, like, reply, and connect with others.</p>
-                <a href="/register" class="btn-primary">Join Now — It's Free</a>
+                <p><strong>Welcome to HavenSocial!</strong><br>
+                    Join now to post, like, reply and build your network.</p>
+                <a href="/register" class="btn-primary">Create Free Account</a>
                 <a href="/login" class="btn-secondary">Login</a>
             </div>
-            <% } else { %> 
-                
+            <% } else { %>
+                <!-- Compose Tweet - Only for logged-in users -->
                 <div class="compose-tweet">
                     <form action="/tweets" method="POST" id="tweetForm" enctype="multipart/form-data">
-                        <textarea name="content" id="tweetContent" placeholder="What's happening?" maxlength="280" required></textarea>
-                
-                        <!-- Media Upload -->
+                        <textarea name="content" id="tweetContent" placeholder="What's happening?" maxlength="280"
+                            required></textarea>
+
                         <div class="media-upload-area">
-                            <label for="tweetMedia" class="upload-label">
-                                📎 Attach media
-                            </label>
-                            <input type="file" id="tweetMedia" name="media" accept="image/*,video/*" style="display: none;">
+                            <label for="tweetMedia" class="upload-label">📎 Attach media</label>
+                            <input type="file" id="tweetMedia" name="media" accept="image/*,video/*"
+                                style="display: none;">
                             <div id="mediaPreview" class="media-preview"></div>
                         </div>
-                
+
                         <div class="compose-actions">
-                            <button type="button" class="attach-btn" onclick="document.getElementById('tweetMedia').click()">
-                                📎
-                            </button>
+                            <button type="button" class="attach-btn"
+                                onclick="document.getElementById('tweetMedia').click()">📎</button>
                             <button type="submit" class="btn-primary post-btn">Post</button>
                         </div>
                     </form>
                 </div>
-            
-            <% } %>
+                <% } %>
 
-        <div class="feed" id="feedContainer">
-            <% if (feed && feed.length> 0) { %>
-                <% feed.forEach(tweet=> { %>
-                <%- include('partials/tweet-card', { tweet }) %>
-                <% }); %>
-            <% } else { %>
-                <p class="empty-feed">No posts yet. Follow more people to see updates!</p>
-            <% } %>
-        </div>
+                    <div class="feed" id="feedContainer">
+                        <% if (feed && feed.length> 0) { %>
+                            <% feed.forEach(tweet=> { %>
+                            <%- include('partials/tweet-card', { tweet }) %>
+                            <% }); %>
+                        <% } else { %>
+                            <p class="empty-feed">No posts yet.</p>
+                        <% } %>
+                    </div>
     </main>
 
     <%- include('partials/footer') %>

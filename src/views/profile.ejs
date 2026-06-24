@@ -1,7 +1,9 @@
 <%- include('partials/header') %>
 
     <main class="profile-page">
+
         <div class="profile-header">
+
             <div class="profile-picture">
                 <% if (profile.profile_picture_url) { %>
                     <img src="<%= profile.profile_picture_url %>" alt="Profile Picture" id="current-profile-img">
@@ -110,6 +112,21 @@
                     <button type="submit" class="btn-primary">Save Changes</button>
                 </form>
             </div>
+            <% } %>
+
+        <!-- User's Posts -->
+        <% if (userTweets && userTweets.length> 0) { %>
+            <div class="user-posts-section">
+                <h2>Posts by <%= profile.display_name || profile.username %>
+                </h2>
+                <div class="feed">
+                    <% userTweets.forEach(tweet=> { %>
+                    <%- include('partials/tweet-card', { tweet }) %>
+        <% }); %>
+                </div>
+            </div>
+            <% } else { %>
+                <p class="no-posts">No posts yet.</p>
             <% } %>
     </main>
 

@@ -1,19 +1,24 @@
+
+let currentPage = 1;
+const pageSize = 10;
+let isLoading = false;
+let hasMore = true;
+
 export function initTweetActions() {
-    
     console.log('🚀 Tweet actions initialized');
 
-    if (!document.querySelector('.feed-page')) return;
+    const isLoggedIn = document.body.dataset.loggedIn === "true";
 
-    const isLoggedIn = !!document.body.dataset.loggedIn; // we'll set this
-
-    // Disable actions for guests
     if (!isLoggedIn) {
+        // Disable interactions for guests
         document.querySelectorAll('.action-btn').forEach(btn => {
-            btn.style.opacity = '0.5';
+            btn.style.opacity = '0.6';
             btn.style.cursor = 'not-allowed';
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                alert("Please log in to interact with posts");
+                if (confirm("Please log in to interact with posts.")) {
+                    window.location.href = '/login';
+                }
             });
         });
         return;
@@ -43,7 +48,7 @@ export function initTweetActions() {
         });
     });
 
-    // Reply Button - Open Modal
+    // Reply Button
     document.querySelectorAll('.reply-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const tweetId = btn.dataset.tweetId;
@@ -69,7 +74,6 @@ export function initTweetActions() {
 // Reply Modal
 function openReplyModal(tweetId, username) {
     let modal = document.getElementById('replyModal');
-    
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'replyModal';
@@ -87,7 +91,6 @@ function openReplyModal(tweetId, username) {
         `;
         document.body.appendChild(modal);
     }
-    
     modal.style.display = 'block';
 }
 
@@ -101,7 +104,7 @@ window.submitReply = async (tweetId) => {
     if (!content) return alert("Reply cannot be empty");
 
     try {
-        const res = await fetch('/tweets/reply', {
+        const res = await fetch('/tweets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content, isReplyTo: tweetId })
@@ -110,7 +113,7 @@ window.submitReply = async (tweetId) => {
         if (res.ok) {
             alert("Reply posted successfully!");
             closeReplyModal();
-            location.reload(); // Refresh feed
+            location.reload();
         } else {
             alert("Failed to post reply");
         }
@@ -120,6 +123,7 @@ window.submitReply = async (tweetId) => {
     }
 };
 
+// Media Upload Preview
 export function initMediaUpload() {
     const mediaInput = document.getElementById('tweetMedia');
     const previewContainer = document.getElementById('mediaPreview');
@@ -140,7 +144,6 @@ export function initMediaUpload() {
         reader.readAsDataURL(file);
     });
 
-    // Remove preview
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('remove-preview')) {
             previewContainer.innerHTML = '';
@@ -149,8 +152,57 @@ export function initMediaUpload() {
     });
 }
 
+// Infinite Scroll
+export function initInfiniteScroll() {
+    window.addEventListener('scroll', async () => {
+        if (isLoading || !hasMore) return;
+
+        const scrollPosition = window.innerHeight + window.scrollY;
+        const pageHeight = document.documentElement.scrollHeight;
+
+        if (scrollPosition >= pageHeight - 800) {
+            isLoading = true;
+            currentPage++;
+
+            try {
+                const res = await fetch(`/feed?limit=${pageSize}&offset=${currentPage * pageSize}`);
+                if (!res.ok) return;
+
+                const newTweets = await res.json();
+
+                if (newTweets.length > 0) {
+                    const feedContainer = document.getElementById('feedContainer');
+                    newTweets.forEach(tweet => {
+                        const tweetHTML = `
+                            <div class="tweet-card" data-tweet-id="${tweet.tweet_id}">
+                                <!-- You can enhance this by creating a renderTweetCard() function later -->
+                                <div class="tweet-header">
+                                    <img src="${tweet.profile_picture_url || '/images/default-avatar.png'}" class="tweet-avatar" alt="">
+                                    <div class="tweet-user-info">
+                                        <strong>${tweet.display_name || tweet.username}</strong>
+                                        <span class="username">@${tweet.username}</span>
+                                    </div>
+                                </div>
+                                <div class="tweet-content"><p>${tweet.content}</p></div>
+                            </div>
+                        `;
+                        feedContainer.insertAdjacentHTML('beforeend', tweetHTML);
+                    });
+                } else {
+                    hasMore = false;
+                }
+            } catch (err) {
+                console.error('Infinite scroll failed:', err);
+            } finally {
+                isLoading = false;
+            }
+        }
+    });
+}
+
 // Main initializer for Feed page
 export function initFeedPage() {
     initTweetActions();
     initMediaUpload();
+    initInfiniteScroll();
 }
