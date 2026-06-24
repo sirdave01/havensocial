@@ -1,57 +1,55 @@
 <div class="tweet-card" data-tweet-id="<%= tweet.tweet_id %>">
-
     <div class="tweet-header">
-
-        <img src="<%= tweet.profile_picture_url || '/images/default-avatar.png' %>" class="avatar"
+        <img src="<%= tweet.profile_picture_url || '/images/default-avatar.png' %>" class="tweet-avatar"
             alt="<%= tweet.username %>">
 
-        <div>
-
-            <strong>
-                <%= tweet.display_name || tweet.username %>
-            </strong>
-
-            <% if (tweet.verified) { %> <span class="verified">✓</span>
-            <% } %>
-
+        <div class="tweet-user-info">
+            <div class="user-names">
+                <strong>
+                    <%= tweet.display_name || tweet.username %>
+                </strong>
+                <% if (tweet.verified) { %>
+                    <span class="verified-badge">✓</span>
+                    <% } %>
+            </div>
             <span class="username">@<%= tweet.username %></span>
-
-            <span class="time">· <%= new Date(tweet.created_at).toLocaleDateString() %></span>
-        
+            <span class="time">· <%= new Date(tweet.created_at).toLocaleDateString('en-US', { month: 'short' ,
+                    day: 'numeric' }) %></span>
         </div>
-
     </div>
 
     <div class="tweet-content">
-
         <p>
             <%= tweet.content %>
         </p>
-
         <% if (tweet.media_url) { %>
-            <img src="<%= tweet.media_url %>" class="tweet-media" alt="Media">
-        <% } %>
-
+            <div class="tweet-media-container">
+                <img src="<%= tweet.media_url %>" class="tweet-media" alt="Tweet media">
+            </div>
+            <% } %>
     </div>
 
     <div class="tweet-actions">
+        <button class="action-btn reply-btn" data-tweet-id="<%= tweet.tweet_id %>">
+            💬 <span class="count">0</span>
+        </button>
 
-        <button class="action-btn reply-btn" data-tweet-id="<%= tweet.tweet_id %>">💬 <span
-                class="count">0</span></button>
-
-        <button class="action-btn like-btn" data-tweet-id="<%= tweet.tweet_id %>">❤️ <span class="count">
+        <button class="action-btn like-btn" data-tweet-id="<%= tweet.tweet_id %>">
+            ❤️ <span class="count">
                 <%= tweet.like_count || 0 %>
-            </span></button>
+            </span>
+        </button>
 
-        <button class="action-btn repost-btn" data-tweet-id="<%= tweet.tweet_id %>">🔄 <span
-                class="count">0</span></button>
+        <button class="action-btn repost-btn" data-tweet-id="<%= tweet.tweet_id %>">
+            🔄 <span class="count">0</span>
+        </button>
 
-        <button class="action-btn view-btn" data-tweet-id="<%= tweet.tweet_id %>">👁 <span class="count">
+        <button class="action-btn view-btn" data-tweet-id="<%= tweet.tweet_id %>">
+            👁 <span class="count">
                 <%= tweet.view_count || 0 %>
-            </span></button>
+            </span>
+        </button>
 
         <button class="action-btn share-btn" data-tweet-id="<%= tweet.tweet_id %>">↗</button>
-
     </div>
-    
 </div>

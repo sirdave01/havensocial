@@ -2,23 +2,29 @@
 
 import { createTweetWithExtras } from '../models/tweetService.js';
 import { getTweetById, getUserTweets, getHomeFeed, deleteTweet } from '../models/tweets.js';
+import { upload } from '../middleware/upload.js';
 
 export const createTweetController = async (req, res) => {
     try {
-        const { content, mediaUrls, isReplyTo } = req.body;
-        
-        // FIXED: Use session instead of req.user
         if (!req.session?.user) {
-            return res.status(401).json({ message: "Unauthorized - Please log in" });
+            return res.status(401).json({ message: "Unauthorized" });
         }
-        
+
+        const { content, isReplyTo } = req.body;
+        const mediaFile = req.file; // from multer
+
         const userId = req.session.user.users_id;
 
         if (!content || content.trim() === '') {
             return res.status(400).json({ message: "Content is required" });
         }
 
-        const tweet = await createTweetWithExtras(userId, content, mediaUrls, isReplyTo);
+        let mediaUrl = null;
+        if (mediaFile) {
+            mediaUrl = `/uploads/tweets/${mediaFile.filename}`;
+        }
+
+        const tweet = await createTweetWithExtras(userId, content, mediaUrl, isReplyTo);
         
         res.status(201).json({
             message: "Tweet created successfully",

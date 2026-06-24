@@ -2,38 +2,32 @@
 // the functionalities when the page loads
 
 import { initHamburger } from './hambutton.mjs';
-
 import { initDarkMode } from './modetoggle.mjs';
-
 import { initPasswordToggle } from './passwordToggle.mjs';
-
-import { initProfilePage } from './profile.mjs'
-
+import { initProfilePage } from './profile.mjs';
 import { initGlobalSearch } from './searchbtn.mjs';
-
-import { initTweetActions } from './tweetActions.mjs';
+import { initFeedPage } from './tweetActions.mjs';
 
 document.addEventListener('DOMContentLoaded', () => {
-    
     console.log('🚀 HavenSocial scripts initialized');
 
     initHamburger();
-
     initDarkMode();
-
     initPasswordToggle();
-
-    // Only run profile-specific code on the profile page
-
-    if (document.querySelector('.profile-page')) {
-
-        initProfilePage();
-        
-    }
-
-    // Global Search (only runs if the search bar exists)
     initGlobalSearch();
 
-    initTweetActions();
+    // Profile specific
+    if (document.querySelector('.profile-page')) {
+        initProfilePage();
+    }
 
+    // Feed specific (includes tweet actions + media upload)
+    if (document.querySelector('.feed-page')) {
+        initFeedPage();
+    }
+
+    // Run basic tweet actions on other pages too (notifications, profile, etc.)
+    else {
+        initTweetActions();   // fallback
+    }
 });
