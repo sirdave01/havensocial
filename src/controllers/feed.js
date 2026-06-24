@@ -1,16 +1,39 @@
+import { getHomeFeed } from '../models/tweets.js';
 
+export const showFeedPage = async (req, res) => {
 
-// defining controllers for the feedPage
+    try {
 
-const showFeedPage = async (req, res) => {
+        if (!req.session?.user) {
 
-    const getAllFeed = await getAllFeeds();
+            req.flash('error', 'Please log in to view your feed');
 
-    const title = 'Feed';
+            return res.redirect('/login');
 
-    res.render('feed', {title});
+        }
+
+        const userId = req.session.user.users_id;
+
+        const { limit = 20, offset = 0 } = req.query;
+
+        const feed = await getHomeFeed(userId, parseInt(limit), parseInt(offset));
+
+        res.render('feed', {
+             
+            title: 'Home Feed',
+            feed,
+            user: req.session.user,
+            isLoggedIn: true
+        });
+        
+    } catch (error) {
+        
+        console.error('Feed error:', error);
+        
+        req.flash('error', 'Failed to load feed');
+        
+        res.redirect('/home');
+        
+    }
+    
 };
-
-
-
-export { showFeedPage };

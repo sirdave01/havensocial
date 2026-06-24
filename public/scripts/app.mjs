@@ -11,6 +11,8 @@ import { initProfilePage } from './profile.mjs'
 
 import { initGlobalSearch } from './searchbtn.mjs';
 
+import { initTweetActions } from './tweetActions.mjs';
+
 document.addEventListener('DOMContentLoaded', () => {
     
     console.log('🚀 HavenSocial scripts initialized');
@@ -31,5 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Global Search (only runs if the search bar exists)
     initGlobalSearch();
+
+    initTweetActions();
 
 });

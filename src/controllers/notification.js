@@ -27,3 +27,27 @@ export const markAsReadController = async (req, res) => {
         res.status(500).json({ message: "Error marking notification as read" });
     }
 };
+
+export const showNotificationsPage = async (req, res) => {
+    try {
+        if (!req.session?.user) {
+            return res.redirect('/login');
+        }
+
+        const userId = req.session.user.users_id;
+        const { limit = 30 } = req.query;
+
+        const notifications = await getNotifications(userId, parseInt(limit));
+
+        res.render('notifications', {
+            title: 'Notifications',
+            notifications,
+            user: req.session.user,
+            isLoggedIn: true
+        });
+    } catch (error) {
+        console.error('Notifications page error:', error);
+        req.flash('error', 'Could not load notifications');
+        res.redirect('/feed');
+    }
+};

@@ -109,30 +109,35 @@
                 <% } %>
 
             <nav id="nav-list" class="nav-bar">
+
                 <ul>
-                    <li><a href="/feed">Feed</a></li>
-            
-                    <!-- Show Users Dashboard link ONLY to Founder -->
-                    <% if (isFounder) { %>
 
-                        <li><a href="/users">Users Dashboard</a></li>
-
-                    <% } %>
-            
                     <% if (isLoggedIn) { %>
+                        <!-- Protected Nav with Icons -->
+                        <li><a href="/feed" title="Feed"><span class="nav-icon">🏠</span> <span class="nav-text">Home</span></a></li>
 
-                        <li><a href="/profile/<%= user.username %>">Profile</a></li>
+                        <li><a href="/notifications" title="Notifications"><span class="nav-icon">🛎️</span> <span
 
-                        <li><a href="/logout">Logout</a></li>
+                                    class="nav-text">Notifications</span></a></li>
 
-                    <% } else { %>
+                        <li><a href="/profile/<%= user.username %>" title="Profile"><span class="nav-icon">👤</span> <span
+                                    class="nav-text">Profile</span></a></li>
 
-                        <li><a href="/register">Join Now</a></li>
+                
+                        <% if (isFounder) { %>
+                            <li><a href="/users" title="Users Dashboard"><span class="nav-icon">👑</span> <span
+                                        class="nav-text">Users</span></a></li>
+                            <% } %>
+                
+                            <li><a href="/logout" title="Logout"><span class="nav-icon">🚪</span> <span
+                                            class="nav-text">Logout</span></a></li>
 
-                        <li><a href="/login">Log in</a></li>
-
-                    <% } %>
-
+                        <% } else { %>
+                            <li><a href="/register" title="Join Now"><span class="nav-icon">✨</span> <span
+                                                class="nav-text">Join</span></a></li>
+                            <li><a href="/login" title="Log in"><span class="nav-icon">🔑</span> <span
+                                                class="nav-text">Login</span></a></li>
+                        <% } %>
                 </ul>
 
             </nav>

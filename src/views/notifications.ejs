@@ -1,0 +1,44 @@
+<%- include('partials/header') %>
+
+    <main class="notifications-page">
+        <div class="page-header">
+            <h1>Notifications</h1>
+        </div>
+
+        <div class="notifications-list" id="notificationsList">
+            <% if (notifications.length===0) { %>
+                <div class="empty-state">
+                    <p>No notifications yet</p>
+                </div>
+                <% } else { %>
+                    <% notifications.forEach(notif=> { %>
+                        <div class="notification-item <%= notif.read ? 'read' : 'unread' %>"
+                            data-notification-id="<%= notif.notifications_id %>">
+                            <div class="notif-avatar">
+                                <img src="<%= notif.actor_profile_picture || '/images/default-avatar.png' %>" alt="">
+                            </div>
+                            <div class="notif-content">
+                                <p>
+                                    <strong>@<%= notif.actor_username %></strong>
+                                    <%= notif.type==='reply' ? 'replied to your post' : notif.type==='like'
+                                        ? 'liked your post' : 'followed you' %>
+                                </p>
+                                <% if (notif.tweet_content) { %>
+                                    <p class="tweet-snippet">"<%= notif.tweet_content.substring(0, 100) %>..."</p>
+                                    <% } %>
+                                        <small>
+                                            <%= new Date(notif.created_at).toLocaleString() %>
+                                        </small>
+                            </div>
+                            <% if (!notif.read) { %>
+                                <button class="mark-read-btn" data-notification-id="<%= notif.notifications_id %>">
+                                    Mark as read
+                                </button>
+                                <% } %>
+                        </div>
+                        <% }); %>
+                            <% } %>
+        </div>
+    </main>
+
+    <%- include('partials/footer') %>
