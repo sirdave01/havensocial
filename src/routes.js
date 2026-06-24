@@ -61,11 +61,12 @@ const router = express.Router();
 router.get('/', showHomePage);
 
 // ====================== PROTECTED FEED & NOTIFICATIONS ======================
-router.get('/feed', requireLogin, showFeedPage);
+router.get('/feed', showFeedPage);
 router.get('/notifications', requireLogin, showNotificationsPage);
 
 // ====================== TWEET ROUTES ======================
-router.post('/tweets', requireLogin, upload.single('media'), createTweetController);           // Create tweet
+router.post('/tweets', requireLogin, upload.single('media'), createTweetController);// Create tweet
+router.post('/tweets/reply', requireLogin, createTweetController); //reply to tweet
 router.get('/tweets/:tweetId', getTweetController);                    // Get single tweet
 router.get('/tweets/user/:userId', getUserTweetsController);           // Get user tweets
 router.delete('/tweets/:tweetId', requireLogin, deleteTweetController); // Delete tweet

@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initPasswordToggle();
     initGlobalSearch();
 
+    document.body.dataset.loggedIn = isLoggedIn ? "true" : "false";
+
     // Profile specific
     if (document.querySelector('.profile-page')) {
         initProfilePage();

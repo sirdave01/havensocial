@@ -30,7 +30,7 @@
     </div>
 
     <div class="tweet-actions">
-        <button class="action-btn reply-btn" data-tweet-id="<%= tweet.tweet_id %>">
+        <button class="action-btn reply-btn" data-tweet-id="<%= tweet.tweet_id %>" data-username="<%= tweet.username %>">
             💬 <span class="count">0</span>
         </button>
 
@@ -41,7 +41,7 @@
         </button>
 
         <button class="action-btn repost-btn" data-tweet-id="<%= tweet.tweet_id %>">
-            🔄 <span class="count">0</span>
+            🔁 <span class="count">0</span>
         </button>
 
         <button class="action-btn view-btn" data-tweet-id="<%= tweet.tweet_id %>">

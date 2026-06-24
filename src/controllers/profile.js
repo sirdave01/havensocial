@@ -27,6 +27,8 @@ const profileValidation = [
 // Show Profile Page
 const showProfile = async (req, res) => {
 
+    const userTweets = await getUserTweets(profile.users_id, 10);
+
     const username = req.params.username || req.session.user?.username;
 
     try {
@@ -47,6 +49,7 @@ const showProfile = async (req, res) => {
 
             title: `${profile.display_name || profile.username}'s Profile`,
             profile,
+            userTweets,
             isOwner,
             user: req.session.user
         });

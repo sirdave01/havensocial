@@ -4,7 +4,7 @@ import { getNotifications, markAsRead } from '../models/notification.js';
 
 export const getNotificationsController = async (req, res) => {
     try {
-        const userId = req.user.users_id;
+        const userId = req.session.user.users_id;
         const { limit = 20 } = req.query;
 
         const notifications = await getNotifications(userId, parseInt(limit));
@@ -17,7 +17,7 @@ export const getNotificationsController = async (req, res) => {
 
 export const markAsReadController = async (req, res) => {
     try {
-        const userId = req.user.users_id;
+        const userId = req.session.user.users_id;
         const { notificationId } = req.params;
 
         await markAsRead(notificationId, userId);

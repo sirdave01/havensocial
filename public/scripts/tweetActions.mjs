@@ -1,7 +1,25 @@
 export function initTweetActions() {
+    
     console.log('🚀 Tweet actions initialized');
 
-    // Like
+    if (!document.querySelector('.feed-page')) return;
+
+    const isLoggedIn = !!document.body.dataset.loggedIn; // we'll set this
+
+    // Disable actions for guests
+    if (!isLoggedIn) {
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                alert("Please log in to interact with posts");
+            });
+        });
+        return;
+    }
+
+    // Like Button
     document.querySelectorAll('.like-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const tweetId = btn.dataset.tweetId;
@@ -25,14 +43,16 @@ export function initTweetActions() {
         });
     });
 
-    // Reply, Share, etc. (keep your existing code)
+    // Reply Button - Open Modal
     document.querySelectorAll('.reply-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const tweetId = btn.dataset.tweetId;
-            window.location.href = `/tweets/${tweetId}`; // or open reply modal
+            const username = btn.dataset.username || '@user';
+            openReplyModal(tweetId, username);
         });
     });
 
+    // Share Button
     document.querySelectorAll('.share-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const tweetId = btn.dataset.tweetId;
@@ -45,6 +65,60 @@ export function initTweetActions() {
         });
     });
 }
+
+// Reply Modal
+function openReplyModal(tweetId, username) {
+    let modal = document.getElementById('replyModal');
+    
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'replyModal';
+        modal.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <h3>Reply to ${username}</h3>
+                    <textarea id="replyContent" placeholder="Write your reply..." maxlength="280"></textarea>
+                    <div class="modal-actions">
+                        <button class="btn-secondary" onclick="closeReplyModal()">Cancel</button>
+                        <button class="btn-primary" onclick="submitReply(${tweetId})">Reply</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    modal.style.display = 'block';
+}
+
+window.closeReplyModal = () => {
+    const modal = document.getElementById('replyModal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.submitReply = async (tweetId) => {
+    const content = document.getElementById('replyContent').value.trim();
+    if (!content) return alert("Reply cannot be empty");
+
+    try {
+        const res = await fetch('/tweets/reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content, isReplyTo: tweetId })
+        });
+
+        if (res.ok) {
+            alert("Reply posted successfully!");
+            closeReplyModal();
+            location.reload(); // Refresh feed
+        } else {
+            alert("Failed to post reply");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Error posting reply");
+    }
+};
 
 export function initMediaUpload() {
     const mediaInput = document.getElementById('tweetMedia');

@@ -60,12 +60,22 @@ const getUserTweets = async (userId, limit = 20, offset = 0) => {
 const getHomeFeed = async (userId, limit = 20, offset = 0) => {
 
     const query = `
-        SELECT t.*, u.username, u.display_name, u.profile_picture_url, u.verified
+        SELECT 
+            t.*,
+            u.username, 
+            u.display_name, 
+            u.profile_picture_url, 
+            u.verified,
+            COUNT(l.user_id) AS like_count,
+            COUNT(r.user_id) AS reply_count
         FROM tweets t
         JOIN users u ON t.user_id = u.users_id
+        LEFT JOIN likes l ON l.tweet_id = t.tweet_id
+        LEFT JOIN tweets r ON r.is_reply_to = t.tweet_id
         WHERE t.deleted_at IS NULL
           AND (t.user_id = $1 
                OR t.user_id IN (SELECT followee_id FROM follows WHERE follower_id = $1))
+        GROUP BY t.tweet_id, u.users_id
         ORDER BY t.created_at DESC
         LIMIT $2 OFFSET $3;
     `;

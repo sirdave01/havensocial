@@ -1,28 +1,38 @@
 <%- include('partials/header') %>
 
     <main class="feed-page">
-        <div class="compose-tweet">
-            <form action="/tweets" method="POST" id="tweetForm" enctype="multipart/form-data">
-                <textarea name="content" id="tweetContent" placeholder="What's happening?" maxlength="280"
-                    required></textarea>
 
-                <!-- Media Upload -->
-                <div class="media-upload-area">
-                    <label for="tweetMedia" class="upload-label">
-                        📎 Attach media
-                    </label>
-                    <input type="file" id="tweetMedia" name="media" accept="image/*,video/*" style="display: none;">
-                    <div id="mediaPreview" class="media-preview"></div>
+        <% if (isGuest) { %>
+            <div class="guest-banner">
+                <p>Join HavenSocial to personalize your feed, like, reply, and connect with others.</p>
+                <a href="/register" class="btn-primary">Join Now — It's Free</a>
+                <a href="/login" class="btn-secondary">Login</a>
+            </div>
+            <% } else { %> 
+                
+                <div class="compose-tweet">
+                    <form action="/tweets" method="POST" id="tweetForm" enctype="multipart/form-data">
+                        <textarea name="content" id="tweetContent" placeholder="What's happening?" maxlength="280" required></textarea>
+                
+                        <!-- Media Upload -->
+                        <div class="media-upload-area">
+                            <label for="tweetMedia" class="upload-label">
+                                📎 Attach media
+                            </label>
+                            <input type="file" id="tweetMedia" name="media" accept="image/*,video/*" style="display: none;">
+                            <div id="mediaPreview" class="media-preview"></div>
+                        </div>
+                
+                        <div class="compose-actions">
+                            <button type="button" class="attach-btn" onclick="document.getElementById('tweetMedia').click()">
+                                📎
+                            </button>
+                            <button type="submit" class="btn-primary post-btn">Post</button>
+                        </div>
+                    </form>
                 </div>
-
-                <div class="compose-actions">
-                    <button type="button" class="attach-btn" onclick="document.getElementById('tweetMedia').click()">
-                        📎
-                    </button>
-                    <button type="submit" class="btn-primary post-btn">Post</button>
-                </div>
-            </form>
-        </div>
+            
+            <% } %>
 
         <div class="feed" id="feedContainer">
             <% if (feed && feed.length> 0) { %>

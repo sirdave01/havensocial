@@ -4,7 +4,7 @@ import { likeTweet, unlikeTweet } from '../models/like.js';
 
 export const likeTweetController = async (req, res) => {
     try {
-        const userId = req.user.users_id;
+        const userId = req.session.user.users_id;
         const { tweetId } = req.body;
 
         if (!tweetId) {
@@ -26,7 +26,7 @@ export const likeTweetController = async (req, res) => {
 
 export const unlikeTweetController = async (req, res) => {
     try {
-        const userId = req.user.users_id;
+        const userId = req.session.user.users_id;
         const { tweetId } = req.body;
 
         const result = await unlikeTweet(userId, tweetId);

@@ -4,7 +4,7 @@ import { followUser, unfollowUser, getFollowing, getFollowers } from '../models/
 
 export const followUserController = async (req, res) => {
     try {
-        const followerId = req.user.users_id;
+        const followerId = req.session.user.users_id;
         const { followeeId } = req.body;
 
         if (!followeeId) {
@@ -26,7 +26,7 @@ export const followUserController = async (req, res) => {
 
 export const unfollowUserController = async (req, res) => {
     try {
-        const followerId = req.user.users_id;
+        const followerId = req.session.user.users_id;
         const { followeeId } = req.body;
 
         const result = await unfollowUser(followerId, followeeId);
@@ -44,7 +44,7 @@ export const unfollowUserController = async (req, res) => {
 
 export const getFollowingController = async (req, res) => {
     try {
-        const userId = req.params.userId || req.user.users_id;
+        const userId = req.params.userId || req.session.user.users_id;
         const { limit = 50 } = req.query;
 
         const following = await getFollowing(userId, parseInt(limit));
@@ -57,7 +57,7 @@ export const getFollowingController = async (req, res) => {
 
 export const getFollowersController = async (req, res) => {
     try {
-        const userId = req.params.userId || req.user.users_id;
+        const userId = req.params.userId || req.session.user.users_id;
         const { limit = 50 } = req.query;
 
         const followers = await getFollowers(userId, parseInt(limit));
