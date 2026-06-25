@@ -1,7 +1,7 @@
 import { db } from "./db.js";
 
 // Follow a user
-const followUser = async (followerId, followeeId) => {
+export const followUser = async (followerId, followeeId) => {
 
     const existing = await db.query(`
         SELECT 1 FROM follows
@@ -17,11 +17,24 @@ const followUser = async (followerId, followeeId) => {
         VALUES ($1, $2)
     `, [followerId, followeeId]);
 
+    // 🔥 update counters safely
+    await db.query(`
+        UPDATE users
+        SET follower_count = COALESCE(follower_count, 0) + 1
+        WHERE users_id = $2
+    `, [followeeId]);
+
+    await db.query(`
+        UPDATE users
+        SET following_count = COALESCE(following_count, 0) + 1
+        WHERE users_id = $1
+    `, [followerId]);
+
     return { following: true, alreadyExists: false };
 };
 
 // Unfollow
-const unfollowUser = async (followerId, followeeId) => {
+export const unfollowUser = async (followerId, followeeId) => {
 
     const result = await db.query(`
         DELETE FROM follows
@@ -29,41 +42,81 @@ const unfollowUser = async (followerId, followeeId) => {
         RETURNING *
     `, [followerId, followeeId]);
 
+    if (result.rows.length > 0) {
+
+        await db.query(`
+            UPDATE users
+            SET follower_count = GREATEST(COALESCE(follower_count, 0) - 1, 0)
+            WHERE users_id = $2
+        `, [followeeId]);
+
+        await db.query(`
+            UPDATE users
+            SET following_count = GREATEST(COALESCE(following_count, 0) - 1, 0)
+            WHERE users_id = $1
+        `, [followerId]);
+    }
+
     return {
         following: false,
         removed: result.rows.length > 0
     };
 };
 
-// Following list
-const getFollowing = async (userId, limit = 50) => {
+// Improved - Get users that this user is following
+export const getFollowing = async (userId, limit = 20, offset = 0, viewerId = null) => {
     const query = `
-        SELECT u.* FROM users u
-        JOIN follows f ON u.users_id = f.followee_id
+        SELECT 
+            u.users_id,
+            u.username,
+            u.display_name,
+            u.full_name,
+            u.profile_picture_url,
+            u.bio,
+            u.follower_count,
+            u.following_count,
+            u.post_count as tweet_count,
+            EXISTS (
+                SELECT 1 FROM follows f 
+                WHERE f.follower_id = $3 AND f.followee_id = u.users_id
+            ) AS is_following
+        FROM follows f
+        JOIN users u ON f.followee_id = u.users_id
         WHERE f.follower_id = $1
-        LIMIT $2;
+          AND u.deleted_at IS NULL
+        ORDER BY f.created_at DESC
+        LIMIT $2 OFFSET $4;
     `;
 
-    const result = await db.query(query, [userId, limit]);
+    const result = await db.query(query, [userId, limit, viewerId || null, offset]);
     return result.rows;
 };
 
-// Followers list
-const getFollowers = async (userId, limit = 50) => {
+// Improved - Get followers of this user
+export const getFollowers = async (userId, limit = 20, offset = 0, viewerId = null) => {
     const query = `
-        SELECT u.* FROM users u
-        JOIN follows f ON u.users_id = f.follower_id
+        SELECT 
+            u.users_id,
+            u.username,
+            u.display_name,
+            u.full_name,
+            u.profile_picture_url,
+            u.bio,
+            u.follower_count,
+            u.following_count,
+            u.post_count as tweet_count,
+            EXISTS (
+                SELECT 1 FROM follows f 
+                WHERE f.follower_id = $3 AND f.followee_id = u.users_id
+            ) AS is_following
+        FROM follows f
+        JOIN users u ON f.follower_id = u.users_id
         WHERE f.followee_id = $1
-        LIMIT $2;
+          AND u.deleted_at IS NULL
+        ORDER BY f.created_at DESC
+        LIMIT $2 OFFSET $4;
     `;
 
-    const result = await db.query(query, [userId, limit]);
+    const result = await db.query(query, [userId, limit, viewerId || null, offset]);
     return result.rows;
-};
-
-export {
-    followUser,
-    unfollowUser,
-    getFollowing,
-    getFollowers
 };

@@ -325,6 +325,72 @@ CREATE TRIGGER trigger_reply_count
 AFTER INSERT ON tweets
 FOR EACH ROW EXECUTE FUNCTION update_reply_count();
 
+-- =============================================
+-- USER COUNTER TRIGGERS
+-- =============================================
+
+-- 1. Post Count Trigger (when user creates a tweet)
+CREATE OR REPLACE FUNCTION update_user_post_count() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE users 
+        SET post_count = post_count + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE users_id = NEW.user_id;
+        
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE users 
+        SET post_count = GREATEST(post_count - 1, 0),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE users_id = OLD.user_id;
+    END IF;
+    
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_user_post_count
+AFTER INSERT OR DELETE ON tweets
+FOR EACH ROW EXECUTE FUNCTION update_user_post_count();
+
+
+-- 2. Follow Counters Trigger
+CREATE OR REPLACE FUNCTION update_follow_counters() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        -- Increment followee's follower_count
+        UPDATE users 
+        SET follower_count = follower_count + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE users_id = NEW.followee_id;
+
+        -- Increment follower's following_count
+        UPDATE users 
+        SET following_count = following_count + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE users_id = NEW.follower_id;
+
+    ELSIF TG_OP = 'DELETE' THEN
+        -- Decrement followee's follower_count
+        UPDATE users 
+        SET follower_count = GREATEST(follower_count - 1, 0),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE users_id = OLD.followee_id;
+
+        -- Decrement follower's following_count
+        UPDATE users 
+        SET following_count = GREATEST(following_count - 1, 0),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE users_id = OLD.follower_id;
+    END IF;
+    
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_follow_counters
+AFTER INSERT OR DELETE ON follows
+FOR EACH ROW EXECUTE FUNCTION update_follow_counters();
 
 
 

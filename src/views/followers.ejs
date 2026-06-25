@@ -1,0 +1,55 @@
+<%- include('partials/header') %>
+
+    <main class="profile-page">
+        <div class="profile-header">
+           
+            <h1><%= title %></h1>
+            
+        </div>
+
+        <div class="users-list">
+            <% if (users && users.length> 0) { %>
+                <% users.forEach(user=> { %>
+                    <div class="user-row">
+                        <div class="user-avatar">
+                            <% if (user.profile_picture_url) { %>
+                                <img src="<%= user.profile_picture_url %>" alt="<%= user.username %>">
+                                <% } else { %>
+                                    <div class="placeholder-avatar">👤</div>
+                                    <% } %>
+                        </div>
+
+                        <div class="user-details">
+                            <div class="user-name-row">
+                                <strong>
+                                    <%= user.display_name || user.username %>
+                                </strong>
+                                <% if (user.verified) { %>
+                                    <span class="verified-badge">✓</span>
+                                    <% } %>
+                                        <span class="username">@<%= user.username %></span>
+                            </div>
+
+                            <% if (user.bio) { %>
+                                <p class="user-bio">
+                                    <%= user.bio.substring(0, 120) %>
+                                        <%= user.bio.length> 120 ? '...' : '' %>
+                                </p>
+                                <% } %>
+
+                                    <div class="user-stats-small">
+                                        <%= user.follower_count || 0 %> Followers
+                                    </div>
+                        </div>
+
+                    </div>
+                    <% }); %>
+                        <% } else { %>
+                            <div class="empty-state">
+                                <p>No followers yet.</p>
+                            </div>
+                            <% } %>
+        </div>
+    </main>
+
+    <%- include('partials/footer') %>

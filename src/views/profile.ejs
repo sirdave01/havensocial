@@ -28,15 +28,26 @@
                             <% } %>
 
                                 <div class="stats">
-                                    <span><strong>
+                                    <span>
+                                        <strong>
+                                            <%= profile.tweet_count || 0 %>
+                                        </strong>
+                                        Tweets
+                                    </span>
+                                
+                                    <a href="/<%= profile.username %>/followers">
+                                        <strong>
                                             <%= profile.follower_count || 0 %>
-                                        </strong> Followers</span>
-                                    <span><strong>
+                                        </strong>
+                                        Followers
+                                    </a>
+                                
+                                    <a href="/<%= profile.username %>/following">
+                                        <strong>
                                             <%= profile.following_count || 0 %>
-                                        </strong> Following</span>
-                                    <span><strong>
-                                            <%= profile.post_count || 0 %>
-                                        </strong> Tweets</span>
+                                        </strong>
+                                        Following
+                                    </a>
                                 </div>
             </div>
 

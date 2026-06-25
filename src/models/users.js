@@ -151,23 +151,30 @@ const getAllUsers = async () => {
 
 // Get user profile by username
 const getUserProfile = async (username, viewerId = null) => {
-    
-  const query = `
-    SELECT u.*,
-           EXISTS (
-             SELECT 1
-             FROM follows f
-             WHERE f.follower_id = $2
-               AND f.followee_id = u.users_id
-           ) AS is_following
-    FROM users u
-    JOIN roles r ON u.role_id = r.role_id
-    WHERE u.username = $1
-      AND u.deleted_at IS NULL;
-  `;
+    const query = `
+        SELECT 
+            u.*,
+            r.role_name,
+            
+            COALESCE(u.post_count, 0) AS tweet_count,        -- Important: alias as tweet_count
+            COALESCE(u.follower_count, 0) AS follower_count,
+            COALESCE(u.following_count, 0) AS following_count,
+            
+            EXISTS (
+                SELECT 1 FROM follows f 
+                WHERE f.follower_id = $2 
+                  AND f.followee_id = u.users_id
+            ) AS is_following
 
-  const result = await db.query(query, [username, viewerId]);
-  return result.rows[0];
+        FROM users u
+        JOIN roles r ON u.role_id = r.role_id
+        WHERE u.username = $1
+          AND u.deleted_at IS NULL
+        LIMIT 1;
+    `;
+
+    const result = await db.query(query, [username, viewerId]);
+    return result.rows[0] || null;
 };
 
 // Update user profile (bio, profile picture, display name, etc.)

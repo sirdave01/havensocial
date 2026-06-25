@@ -50,7 +50,9 @@ import { testErrorPage } from "./controllers/errors.js";
 import { 
     showProfile, 
     updateProfile, 
-    profileValidation 
+    profileValidation,
+    showFollowers,
+    showFollowing
 } from "./controllers/profile.js";
 
 import { upload } from './middleware/upload.js';
@@ -97,6 +99,8 @@ router.get('/logout', processLogout);
 
 // ====================== PROFILE ROUTES ======================
 router.get('/profile/:username', requireLogin, showProfile);
+router.get('/:username/followers', requireLogin, showFollowers);
+router.get('/:username/following', requireLogin, showFollowing);
 router.post('/profile/update', requireLogin, upload.single('profilePicture'), profileValidation, updateProfile);
 
 // ====================== OTHER ROUTES ======================
