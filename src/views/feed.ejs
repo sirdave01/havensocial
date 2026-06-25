@@ -1,6 +1,6 @@
 <%- include('partials/header') %>
 
-    <main class="feed-page">
+    <main class="feed-page" data-logged-in="<%= isLoggedIn ? 'true' : 'false' %>">
 
         <% if (isGuest) { %>
             <div class="guest-banner">

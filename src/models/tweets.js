@@ -58,32 +58,33 @@ const getUserTweets = async (userId, limit = 20, offset = 0) => {
 
 // Get Home Feed
 const getHomeFeed = async (userId, limit = 20, offset = 0) => {
+  const query = `
+    SELECT 
+      t.*,
+      u.username, 
+      u.display_name, 
+      u.profile_picture_url, 
+      u.verified,
+      COUNT(DISTINCT l.user_id) AS like_count,
+      COUNT(DISTINCT r.tweet_id) AS reply_count,
+      EXISTS(
+        SELECT 1 FROM likes 
+        WHERE user_id = $1 AND tweet_id = t.tweet_id
+      ) AS liked_by_user
+    FROM tweets t
+    JOIN users u ON t.user_id = u.users_id
+    LEFT JOIN likes l ON l.tweet_id = t.tweet_id
+    LEFT JOIN tweets r ON r.is_reply_to = t.tweet_id
+    WHERE t.deleted_at IS NULL
+    GROUP BY t.tweet_id, u.users_id
+    ORDER BY 
+      u.verified DESC,
+      t.created_at DESC
+    LIMIT $2 OFFSET $3;
+  `;
 
-    const query = `
-        SELECT 
-            t.*,
-            u.username, 
-            u.display_name, 
-            u.profile_picture_url, 
-            u.verified,
-            COUNT(l.user_id) AS like_count,
-            COUNT(r.user_id) AS reply_count
-        FROM tweets t
-        JOIN users u ON t.user_id = u.users_id
-        LEFT JOIN likes l ON l.tweet_id = t.tweet_id
-        LEFT JOIN tweets r ON r.is_reply_to = t.tweet_id
-        WHERE t.deleted_at IS NULL
-          AND (t.user_id = $1 
-               OR t.user_id IN (SELECT followee_id FROM follows WHERE follower_id = $1))
-        GROUP BY t.tweet_id, u.users_id
-        ORDER BY t.created_at DESC
-        LIMIT $2 OFFSET $3;
-    `;
-
-    const result = await db.query(query, [userId, limit, offset]);
-
-    return result.rows;
-
+  const result = await db.query(query, [userId, limit, offset]);
+  return result.rows;
 };
 
 // Soft Delete Tweet
@@ -103,10 +104,71 @@ const deleteTweet = async (tweetId, userId) => {
     
 };
 
+const getPublicFeed = async (limit = 20, offset = 0) => {
+  const query = `
+    SELECT 
+      t.*,
+      u.username, 
+      u.display_name, 
+      u.profile_picture_url, 
+      u.verified,
+      COUNT(DISTINCT l.user_id) AS like_count,
+      COUNT(DISTINCT r.tweet_id) AS reply_count
+    FROM tweets t
+    JOIN users u ON t.user_id = u.users_id
+    LEFT JOIN likes l ON l.tweet_id = t.tweet_id
+    LEFT JOIN tweets r ON r.is_reply_to = t.tweet_id
+    WHERE t.deleted_at IS NULL
+    GROUP BY t.tweet_id, u.users_id
+    ORDER BY
+      (u.verified::int * 5)
+      + COUNT(DISTINCT l.user_id)
+      + COUNT(DISTINCT r.tweet_id) DESC,
+      t.created_at DESC
+    LIMIT $1 OFFSET $2;
+  `;
+
+  const result = await db.query(query, [limit, offset]);
+  return result.rows;
+};
+
+const getFollowingFeed = async (userId, limit = 20, offset = 0) => {
+  const query = `
+    SELECT
+      t.*,
+      u.username,
+      u.display_name,
+      u.profile_picture_url,
+      u.verified,
+      COUNT(DISTINCT l.user_id) AS like_count,
+      COUNT(DISTINCT r.tweet_id) AS reply_count,
+      EXISTS (
+        SELECT 1 FROM likes
+        WHERE user_id = $1 AND tweet_id = t.tweet_id
+      ) AS liked_by_user
+    FROM tweets t
+    JOIN users u ON t.user_id = u.users_id
+    JOIN follows f ON f.followee_id = t.user_id
+    LEFT JOIN likes l ON l.tweet_id = t.tweet_id
+    LEFT JOIN tweets r ON r.is_reply_to = t.tweet_id
+    WHERE
+      f.follower_id = $1
+      AND t.deleted_at IS NULL
+    GROUP BY t.tweet_id, u.users_id
+    ORDER BY t.created_at DESC
+    LIMIT $2 OFFSET $3;
+  `;
+
+  const result = await db.query(query, [userId, limit, offset]);
+  return result.rows;
+};
+
 export {
     createTweet,
     getTweetById,
     getUserTweets,
     getHomeFeed,
-    deleteTweet
+    deleteTweet,
+    getPublicFeed,
+    getFollowingFeed
 };

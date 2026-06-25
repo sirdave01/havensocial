@@ -16,11 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initPasswordToggle();
     initGlobalSearch();
 
-    const isLoggedIn = !!document.body.dataset.loggedIn || false; // safety
-
-    // Set login status for tweetActions
-    document.body.dataset.loggedIn = isLoggedIn ? "true" : "false";
-
     // Profile specific
     if (document.querySelector('.profile-page')) {
         initProfilePage();
@@ -30,4 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.querySelector('.feed-page')) {
         initFeedPage();
     }
+
+    const isLoggedIn = document.body.dataset.loggedIn === 'true' || document.querySelector('.feed-page')?.dataset.loggedIn === 'true';
+
+    document.body.dataset.loggedIn = isLoggedIn ? "true" : "false";
+
 });

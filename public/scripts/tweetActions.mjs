@@ -25,27 +25,52 @@ export function initTweetActions() {
 
     // Like Button
     document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const tweetId = btn.dataset.tweetId;
+        const countSpan = btn.querySelector('.count');
+        const isLiked = btn.classList.contains('liked');
+
+        try {
+            const res = await fetch(isLiked ? '/likes/unlike' : '/likes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tweetId })
+            });
+
+            if (res.ok) {
+                btn.classList.toggle('liked');
+                let count = parseInt(countSpan.textContent) || 0;
+                countSpan.textContent = isLiked ? Math.max(0, count - 1) : count + 1;
+            }
+        } catch (err) {
+            console.error('Like failed:', err);
+        }
+    });
+        
+        // Follow Button Handler
+    document.querySelectorAll('.follow-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            const tweetId = btn.dataset.tweetId;
-            const countSpan = btn.querySelector('.count');
+            const followeeId = btn.dataset.userId;
+            const isFollowing = btn.classList.contains('following');
 
             try {
-                const res = await fetch('/likes', {
+                const res = await fetch(isFollowing ? '/follows/unfollow' : '/follows', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tweetId })
+                    body: JSON.stringify({ followeeId })
                 });
 
                 if (res.ok) {
-                    btn.classList.toggle('liked');
-                    let count = parseInt(countSpan.textContent) || 0;
-                    countSpan.textContent = btn.classList.contains('liked') ? count + 1 : Math.max(0, count - 1);
+                    btn.classList.toggle('following');
+                    btn.textContent = isFollowing ? 'Follow' : 'Following';
                 }
             } catch (err) {
-                console.error('Like failed:', err);
+                console.error('Follow failed:', err);
             }
         });
     });
+
+});
 
     // Reply Button - Open Modal with Original Tweet
     document.querySelectorAll('.reply-btn').forEach(btn => {
@@ -174,9 +199,52 @@ export function initMediaUpload() {
     });
 }
 
-// Infinite Scroll (unchanged)
+// Infinite Scroll
 export function initInfiniteScroll() {
-    // ... your existing infinite scroll code
+    window.addEventListener('scroll', async () => {
+        if (isLoading || !hasMore) return;
+
+        const scrollPosition = window.innerHeight + window.scrollY;
+        const pageHeight = document.documentElement.scrollHeight;
+
+        if (scrollPosition >= pageHeight - 800) {
+            isLoading = true;
+            currentPage++;
+
+            try {
+                const res = await fetch(`/feed?limit=${pageSize}&offset=${currentPage * pageSize}`);
+                if (!res.ok) return;
+
+                const newTweets = await res.json();
+
+                if (newTweets.length > 0) {
+                    const feedContainer = document.getElementById('feedContainer');
+                    newTweets.forEach(tweet => {
+                        const tweetHTML = `
+                            <div class="tweet-card" data-tweet-id="${tweet.tweet_id}">
+                                <!-- You can enhance this by creating a renderTweetCard() function later -->
+                                <div class="tweet-header">
+                                    <img src="${tweet.profile_picture_url || '/images/default-avatar.png'}" class="tweet-avatar" alt="">
+                                    <div class="tweet-user-info">
+                                        <strong>${tweet.display_name || tweet.username}</strong>
+                                        <span class="username">@${tweet.username}</span>
+                                    </div>
+                                </div>
+                                <div class="tweet-content"><p>${tweet.content}</p></div>
+                            </div>
+                        `;
+                        feedContainer.insertAdjacentHTML('beforeend', tweetHTML);
+                    });
+                } else {
+                    hasMore = false;
+                }
+            } catch (err) {
+                console.error('Infinite scroll failed:', err);
+            } finally {
+                isLoading = false;
+            }
+        }
+    });
 }
 
 // Main initializer
