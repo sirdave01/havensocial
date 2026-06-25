@@ -2,28 +2,40 @@ import { db } from "./db.js";
 
 // Follow a user
 const followUser = async (followerId, followeeId) => {
-    const query = `
+
+    const existing = await db.query(`
+        SELECT 1 FROM follows
+        WHERE follower_id = $1 AND followee_id = $2
+    `, [followerId, followeeId]);
+
+    if (existing.rows.length > 0) {
+        return { following: true, alreadyExists: true };
+    }
+
+    await db.query(`
         INSERT INTO follows (follower_id, followee_id)
         VALUES ($1, $2)
-        ON CONFLICT DO NOTHING
-        RETURNING *;
-    `;
-    const result = await db.query(query, [followerId, followeeId]);
-    return result.rows[0];
+    `, [followerId, followeeId]);
+
+    return { following: true, alreadyExists: false };
 };
 
-// Unfollow a user
+// Unfollow
 const unfollowUser = async (followerId, followeeId) => {
-    const query = `
-        DELETE FROM follows 
-        WHERE follower_id = $1 AND followee_id = $2 
-        RETURNING *;
-    `;
-    const result = await db.query(query, [followerId, followeeId]);
-    return result.rows[0];
+
+    const result = await db.query(`
+        DELETE FROM follows
+        WHERE follower_id = $1 AND followee_id = $2
+        RETURNING *
+    `, [followerId, followeeId]);
+
+    return {
+        following: false,
+        removed: result.rows.length > 0
+    };
 };
 
-// Get users that a person is following
+// Following list
 const getFollowing = async (userId, limit = 50) => {
     const query = `
         SELECT u.* FROM users u
@@ -31,11 +43,12 @@ const getFollowing = async (userId, limit = 50) => {
         WHERE f.follower_id = $1
         LIMIT $2;
     `;
+
     const result = await db.query(query, [userId, limit]);
     return result.rows;
 };
 
-// Get followers of a user
+// Followers list
 const getFollowers = async (userId, limit = 50) => {
     const query = `
         SELECT u.* FROM users u
@@ -43,6 +56,7 @@ const getFollowers = async (userId, limit = 50) => {
         WHERE f.followee_id = $1
         LIMIT $2;
     `;
+
     const result = await db.query(query, [userId, limit]);
     return result.rows;
 };

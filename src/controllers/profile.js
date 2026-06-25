@@ -28,34 +28,36 @@ const profileValidation = [
 
 // Show Profile Page
 const showProfile = async (req, res) => {
-    const username = req.params.username || req.session?.user?.username;
-
     try {
-        const profile = await getUserProfile(username);
+        const username = req.params.username || req.session?.user?.username;
 
-        if (!profile) {
-            req.flash('error', 'User not found');
-            return res.redirect('/feed');
+        if (!username) {
+            return res.redirect('/login');
         }
 
-        const isOwner = req.session?.user && req.session.user.users_id === profile.users_id;
+        const profile = await getUserProfile(username, viewerId);
 
-        // Fetch user's tweets
+        if (!profile) {
+            return res.status(404).send("User not found");
+        }
+
+        const isOwner =
+            req.session?.user?.users_id === profile.users_id;
+
         const userTweets = await getUserTweets(profile.users_id, 10, 0);
 
         res.render('profile', {
             title: `${profile.display_name || profile.username}'s Profile`,
             profile,
-            userTweets,        // ← Passed to view
+            userTweets,
             isOwner,
             user: req.session?.user || null,
             isLoggedIn: !!req.session?.user
         });
 
     } catch (error) {
-        console.error('Profile error:', error);
-        req.flash('error', 'Failed to load profile');
-        res.redirect('/feed');
+        console.error(error);
+        res.status(500).send("Profile error");
     }
 };
 
@@ -107,17 +109,6 @@ const updateProfile = async (req, res) => {
             profilePictureUrl
 
         );
-
-        // Update session
-        if (req.session.user && updatedUser) {
-
-            req.session.user.display_name = updatedUser.display_name;
-
-            req.session.user.full_name = updatedUser.full_name;
-
-            req.session.user.profile_picture_url = updatedUser.profile_picture_url;
-
-        }
 
         req.flash('success', 'Profile updated successfully!');
         

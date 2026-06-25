@@ -1,17 +1,9 @@
 <%- include('partials/header') %>
 
-    <main class="feed-page" data-logged-in="<%= isLoggedIn ? 'true' : 'false' %>">
-
-        <% if (isGuest) { %>
-            <div class="guest-banner">
-                <p><strong>Welcome to HavenSocial!</strong><br>
-                    Join now to post, like, reply and build your network.</p>
-                <a href="/register" class="btn-primary">Create Free Account</a>
-                <a href="/login" class="btn-secondary">Login</a>
-            </div>
-            <% } else { %>
+    <main class="feed-page">
                 <!-- Compose Tweet - Only for logged-in users -->
                 <div class="compose-tweet">
+                    
                     <form action="/tweets" method="POST" id="tweetForm" enctype="multipart/form-data">
                         <textarea name="content" id="tweetContent" placeholder="What's happening?" maxlength="280"
                             required></textarea>
@@ -30,17 +22,30 @@
                         </div>
                     </form>
                 </div>
-                <% } %>
+                
 
-                    <div class="feed" id="feedContainer">
-                        <% if (feed && feed.length> 0) { %>
-                            <% feed.forEach(tweet=> { %>
-                            <%- include('partials/tweet-card', { tweet }) %>
-                            <% }); %>
-                        <% } else { %>
-                            <p class="empty-feed">No posts yet.</p>
-                        <% } %>
-                    </div>
+                <div class="feed-tabs">
+                    <a href="/feed?tab=for-you" class="tab <%= activeTab === 'for-you' ? 'active' : '' %>">
+                        For You
+                    </a>
+                
+    
+                    <a href="/feed?tab=following" class="tab <%= activeTab === 'following' ? 'active' : '' %>">
+                        Following
+                    </a>
+                        
+                </div>
+
+                <div class="feed" id="feedContainer">
+                    <% if (feed && feed.length> 0) { %>
+                        <% feed.forEach(tweet=> { %>
+                        <%- include('partials/tweet-card', { tweet }) %>
+                        <% }); %>
+                    <% } else { %>
+                        <p class="empty-feed">No posts yet.</p>
+                    <% } %>
+                </div>
+
     </main>
 
     <%- include('partials/footer') %>

@@ -55,6 +55,8 @@ import {
 
 import { upload } from './middleware/upload.js';
 
+import { requireAuth } from './middleware/auth.js';
+
 const router = express.Router();
 
 // ====================== MAIN PUBLIC ROUTES ======================
@@ -86,6 +88,7 @@ router.post('/likes/unlike', requireLogin, unlikeTweetController);   // or use D
 
 // ====================== AUTH ROUTES ======================
 router.get('/register', showUserRegistrationForm);
+router.get('/feed', requireAuth, showFeedPage);
 router.post('/register', userValidation, processUserRegistrationForm);
 
 router.get('/login', showLoginForm);

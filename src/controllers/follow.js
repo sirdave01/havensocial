@@ -3,24 +3,21 @@
 import { followUser, unfollowUser, getFollowing, getFollowers } from '../models/follow.js';
 
 export const followUserController = async (req, res) => {
+
     try {
         const followerId = req.session.user.users_id;
         const { followeeId } = req.body;
 
-        if (!followeeId) {
-            return res.status(400).json({ message: "followeeId is required" });
-        }
-
         const result = await followUser(followerId, followeeId);
 
-        if (!result) {
-            return res.status(400).json({ message: "Already following or invalid user" });
-        }
+        return res.json({
+            success: true,
+            ...result
+        });
 
-        res.status(201).json({ message: "Followed successfully" });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Error following user" });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ success: false });
     }
 };
 
@@ -31,14 +28,14 @@ export const unfollowUserController = async (req, res) => {
 
         const result = await unfollowUser(followerId, followeeId);
 
-        if (!result) {
-            return res.status(400).json({ message: "Not following this user" });
-        }
+        return res.json({
+            success: true,
+            ...result
+        });
 
-        res.json({ message: "Unfollowed successfully" });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Error unfollowing user" });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ success: false });
     }
 };
 

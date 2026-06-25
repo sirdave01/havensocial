@@ -17,6 +17,10 @@ INSERT INTO roles (role_name, role_description)
 
 -- verify the roles table and the contents are added
 
+-- update the roles
+
+UPDATE users SET role_id = (SELECT role_id FROM roles WHERE role_name = 'founder') WHERE email = 'd08178084956@gmail.com';
+
 SELECT * FROM roles;
 
 
@@ -79,9 +83,6 @@ ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 -- adding an updated_at column for the users table
 ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
--- update the roles
-
-UPDATE users SET role_id = (SELECT role_id FROM roles WHERE role_name = 'founder') WHERE email = 'd08178084956@gmail.com';
 
 -- verify the users table and the contents are added
 
@@ -109,6 +110,9 @@ view_count INT DEFAULT 0
 -- verify the tweets table and the contents are added
 
 ALTER TABLE tweets ADD COLUMN deleted_at TIMESTAMP NULL;
+
+ALTER TABLE tweets ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;
+ALTER TABLE tweets ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP;
 
 SELECT * FROM tweets;
 
@@ -231,6 +235,27 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 SELECT * FROM audit_logs;
 
+-- creating the tweet_views table for realtime alogrithm and not for fakes
+CREATE TABLE IF NOT EXISTS tweet_views (
+  view_id BIGSERIAL PRIMARY KEY,
+  tweet_id BIGINT REFERENCES tweets(tweet_id) ON DELETE CASCADE,
+  user_id BIGINT REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+SELECT * FROM tweet_views;
+
+-- creating the bookmarks table like X
+
+CREATE TABLE IF NOT EXISTS bookmarks (
+  user_id BIGINT REFERENCES users(users_id),
+  tweet_id BIGINT REFERENCES tweets(tweet_id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(user_id, tweet_id)
+);
+
+SELECT * FROM bookmarks;
+
 
 -- =============================================
 -- RECOMMENDED INDEXES (Performance)
@@ -243,7 +268,62 @@ CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read);
 CREATE INDEX IF NOT EXISTS idx_likes_tweet ON likes(tweet_id);
 
+-- =============================================
+-- TRIGGERS FOR AUTO-UPDATING COUNTERS
+-- =============================================
 
+-- 1. Like Count Trigger
+CREATE OR REPLACE FUNCTION update_like_count() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE tweets SET like_count = like_count + 1 
+        WHERE tweet_id = NEW.tweet_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE tweets SET like_count = like_count - 1 
+        WHERE tweet_id = OLD.tweet_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_like_count
+AFTER INSERT OR DELETE ON likes
+FOR EACH ROW EXECUTE FUNCTION update_like_count();
+
+
+-- 2. Retweet Count Trigger
+CREATE OR REPLACE FUNCTION update_retweet_count() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE tweets SET retweet_count = retweet_count + 1 
+        WHERE tweet_id = NEW.original_tweet_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE tweets SET retweet_count = retweet_count - 1 
+        WHERE tweet_id = OLD.original_tweet_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_retweet_count
+AFTER INSERT OR DELETE ON retweets
+FOR EACH ROW EXECUTE FUNCTION update_retweet_count();
+
+
+-- 3. Reply Count Trigger
+CREATE OR REPLACE FUNCTION update_reply_count() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' AND NEW.is_reply_to IS NOT NULL THEN
+        UPDATE tweets SET reply_count = reply_count + 1 
+        WHERE tweet_id = NEW.is_reply_to;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_reply_count
+AFTER INSERT ON tweets
+FOR EACH ROW EXECUTE FUNCTION update_reply_count();
 
 
 

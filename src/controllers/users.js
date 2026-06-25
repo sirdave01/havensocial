@@ -6,7 +6,11 @@ import { body, validationResult } from 'express-validator';
 import { 
     createUser, 
     authenticateUser, 
-    getAllUsers 
+    getAllUsers,
+    toggleSuspendUser,
+    toggleVerifyUser,
+    deleteUser,
+    logAuditAction
 } from '../models/users.js';
 
 import { db } from '../models/db.js';
@@ -99,28 +103,39 @@ const showLoginForm = (req, res) => {
     });
 };
 
-// ====================== LOGIN ======================
 const processLoginForm = async (req, res) => {
     const { email, password } = req.body;
+
     try {
         const user = await authenticateUser(email, password);
-        
-        if (user) {
-            req.session.user = user;
-            req.session.save((err) => {
-                if (err) console.error('Session save error:', err);
-                
-                req.flash('success', 'Login successful!');
-                return res.redirect(`/profile/${user.username}`);
-            });
-        } else {
+
+        if (!user) {
             req.flash('error', 'Invalid email or password.');
             return res.redirect('/login');
         }
+
+        // 🔐 SESSION FIX
+        req.session.user = {
+            users_id: user.users_id,
+            username: user.username,
+            role_name: user.role_name
+        };
+
+        // 🚀 IMPORTANT: ensure session is saved before redirect
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                req.flash('error', 'Login failed. Please try again.');
+                return res.redirect('/login');
+            }
+
+            return res.redirect('/feed');
+        });
+
     } catch (error) {
         console.error('Login error:', error.message || error);
         req.flash('error', 'Login failed. Please try again.');
-        res.redirect('/login');
+        return res.redirect('/login');
     }
 };
 
@@ -275,7 +290,7 @@ const adminSuspendUser = async (req, res) => {
         // Audit Log
         await logAuditAction(
 
-            req.session.user.user_id,
+            req.session.user.users_id,
 
             isSuspend ? 'suspend_user' : 'unsuspend_user',
 

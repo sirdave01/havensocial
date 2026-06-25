@@ -86,7 +86,7 @@
         rel="stylesheet" />
 </head>
 
-<body>
+<body data-logged-in="<%= isLoggedIn ? 'true' : 'false' %>">
 
     <header>
 
@@ -100,7 +100,7 @@
 
             <!-- Global Search - ONLY visible to logged-in users -->
              
-            <% if (isLoggedIn) { %>
+            <% if (locals.isLoggedIn) { %>
                 <div class="global-search-container">
                     <input type="text" id="globalSearch" placeholder="Search users, posts..." class="global-search-input"
                         autocomplete="off">
@@ -112,10 +112,10 @@
 
                 <ul>
 
-                    <li><a href="/feed" title="Feed"><span class="nav-icon">🏠</span> <span class="nav-text">Home</span></a></li>
-
-                    <% if (isLoggedIn) { %>
+                    <% if (locals.isLoggedIn) { %>
                         <!-- Protected Nav with Icons -->
+
+                        <li><a href="/feed" title="Feed"><span class="nav-icon">🏠</span> <span class="nav-text">Home</span></a></li>
 
                         <li><a href="/notifications" title="Notifications"><span class="nav-icon">🛎️</span> <span
 
@@ -125,7 +125,7 @@
                                     class="nav-text">Profile</span></a></li>
 
                 
-                        <% if (isFounder) { %>
+                        <% if (locals.isFounder) { %>
                             <li><a href="/users" title="Users Dashboard"><span class="nav-icon">👑</span> <span
                                         class="nav-text">Users</span></a></li>
                             <% } %>

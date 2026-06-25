@@ -1,4 +1,5 @@
 <div class="tweet-card" data-tweet-id="<%= tweet.tweet_id %>">
+    
     <div class="tweet-header">
         <img src="<%= tweet.profile_picture_url || '/images/default-avatar.png' %>" class="tweet-avatar"
             alt="<%= tweet.username %>">
@@ -12,10 +13,18 @@
                     <span class="verified-badge">✓</span>
                     <% } %>
             </div>
+
             <span class="username">@<%= tweet.username %></span>
             <span class="time">· <%= new Date(tweet.created_at).toLocaleDateString('en-US', { month: 'short' ,
                     day: 'numeric' }) %></span>
         </div>
+
+        <% if (tweet.user_id !==user?.users_id) { %>
+            <button class="follow-btn <%= tweet.is_following ? 'following' : '' %>" data-user-id="<%= tweet.user_id %>">
+                <%= tweet.is_following ? 'Following' : 'Follow' %>
+            </button>
+        <% } %>
+
     </div>
 
     <div class="tweet-content">
@@ -51,5 +60,6 @@
         </button>
 
         <button class="action-btn share-btn" data-tweet-id="<%= tweet.tweet_id %>">↗</button>
+
     </div>
 </div>

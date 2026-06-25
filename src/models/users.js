@@ -150,31 +150,24 @@ const getAllUsers = async () => {
 };
 
 // Get user profile by username
-const getUserProfile = async (username) => {
+const getUserProfile = async (username, viewerId = null) => {
+    
+  const query = `
+    SELECT u.*,
+           EXISTS (
+             SELECT 1
+             FROM follows f
+             WHERE f.follower_id = $2
+               AND f.followee_id = u.users_id
+           ) AS is_following
+    FROM users u
+    JOIN roles r ON u.role_id = r.role_id
+    WHERE u.username = $1
+      AND u.deleted_at IS NULL;
+  `;
 
-    const query = `
-        SELECT 
-            u.users_id,
-            u.username,
-            u.full_name,
-            u.display_name,
-            u.bio,
-            u.profile_picture_url,
-            u.verified,
-            u.follower_count,
-            u.following_count,
-            u.post_count,
-            r.role_name
-        FROM users u
-        JOIN roles r ON u.role_id = r.role_id
-        WHERE u.username = $1 
-          AND u.deleted_at IS NULL;
-    `;
-
-    const result = await db.query(query, [username]);
-
-    return result.rows[0] || null;
-
+  const result = await db.query(query, [username, viewerId]);
+  return result.rows[0];
 };
 
 // Update user profile (bio, profile picture, display name, etc.)
@@ -189,7 +182,7 @@ const updateUserProfile = async (userId, fullName, displayName, bio, profilePict
             profile_picture_url = COALESCE($5, profile_picture_url),
             updated_at = CURRENT_TIMESTAMP
         WHERE users_id = $1
-        RETURNING users_id, username, display_name, bio, profile_picture_url;
+        RETURNING *;
     `;
 
     const result = await db.query(query, [userId, fullName, displayName, bio, profilePictureUrl]);
