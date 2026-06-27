@@ -1398,3 +1398,23 @@ body.dark-mode .tweet-card:hover {
     cursor: pointer;
     color: var(--text-muted);
 }
+
+.image-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.image-modal img {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 12px;
+}
+
+.js-profile-avatar {
+    cursor: pointer;
+}

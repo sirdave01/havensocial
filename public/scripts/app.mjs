@@ -7,6 +7,7 @@ import { initPasswordToggle } from './passwordToggle.mjs';
 import { initProfilePage } from './profile.mjs';
 import { initGlobalSearch } from './searchbtn.mjs';
 import { initFeedPage } from './tweetActions.mjs';
+import { initProfileImageModal } from './imageModal.mjs';
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 HavenSocial scripts initialized');
@@ -15,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDarkMode();
     initPasswordToggle();
     initGlobalSearch();
+    initProfileImageModal();
 
     // Profile specific
     if (document.querySelector('.profile-page')) {

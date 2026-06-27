@@ -4,14 +4,14 @@
 
         <div class="profile-header">
 
-            <div class="profile-picture">
-                <% if (profile.profile_picture_url) { %>
-                    <img src="<%= profile.profile_picture_url %>" alt="Profile Picture"
-                        onerror="this.src='/images/default-avatar.jpg'">
-                    <% } else { %>
-                        <div class="placeholder-avatar">👤</div>
-                        <% } %>
-            </div>
+        <div class="profile-picture">
+            <% if (profile.profile_picture_url) { %>
+                <img src="<%= profile.profile_picture_url %>" alt="Profile Picture" class="js-profile-avatar"
+                    data-full="<%= profile.profile_picture_url %>" onerror="this.src='/images/default-avatar.jpg'">
+                <% } else { %>
+                    <div class="placeholder-avatar">👤</div>
+                    <% } %>
+        </div>
 
             <div class="profile-info">
                 <h1>
@@ -141,5 +141,9 @@
                 <p class="no-posts">No posts yet.</p>
             <% } %>
     </main>
+
+    <div class="image-modal" id="imageModal">
+        <img id="modalImage" />
+    </div>
 
     <%- include('partials/footer') %>
