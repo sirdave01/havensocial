@@ -8,7 +8,7 @@ import  MemoryStore from 'memorystore';
 
 import flash from './src/middleware/flash.js';
 
-import setAuthLocals from './src/middleware/auth.js';
+import {setAuthLocals} from './src/middleware/auth.js';
 
 import { fileURLToPath } from 'url';
 
@@ -89,6 +89,8 @@ app.use(express.json());
 // Serve static files from the public directory
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Set EJS as the templating engine
 app.set('view engine', 'ejs');

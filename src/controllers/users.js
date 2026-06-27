@@ -318,42 +318,46 @@ const adminSuspendUser = async (req, res) => {
 
 const adminVerifyUser = async (req, res) => {
 
-    if (req.session.user?.role_name !== 'founder') {
+    const actorId = req.session.user?.users_id;
 
-        req.flash('error', 'Access denied.');
-
-        return res.redirect('/users');
-
+    // safety check
+    if (!actorId) {
+        req.flash('error', 'You must be logged in.');
+        return res.redirect('/login');
     }
 
     const { userId } = req.params;
     const { action } = req.body;
+
     const isVerify = action === 'verify';
 
     try {
-        await toggleVerifyUser(userId, isVerify);
-        
+        await toggleVerifyUser(actorId, userId, isVerify);
+
         // Audit Log
         await logAuditAction(
-
-            req.session.user.users_id,
-
+            actorId,
             isVerify ? 'verify_user' : 'unverify_user',
             userId,
             'user',
-
-            { reason: 'Founder manual verification' }
-
+            { reason: 'Role-based verification action' }
         );
 
-        req.flash('success', `User has been ${isVerify ? 'verified' : 'unverified'}.`);
+        req.flash(
+            'success',
+            `User has been ${isVerify ? 'verified' : 'unverified'}.`
+        );
 
     } catch (error) {
 
-        console.error('Verify error:', error);
+        console.error('Verify error:', error.message);
 
-        req.flash('error', 'Failed to update verification status.');
-
+        // handles "Not authorized to verify users"
+        if (error.message === 'Not authorized to verify users') {
+            req.flash('error', 'You are not allowed to verify users.');
+        } else {
+            req.flash('error', 'Failed to update verification status.');
+        }
     }
 
     res.redirect('/users');

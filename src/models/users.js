@@ -210,14 +210,31 @@ const toggleSuspendUser = async (userId, suspend) => {
 };
 
 // Verify or Unverify user
-const toggleVerifyUser = async (userId, verify) => {
+const toggleVerifyUser = async (actorUser, targetUserId, verify) => {
+
+    // 1. Get actor role
+    const actorQuery = `
+        SELECT role_id FROM users WHERE users_id = $1
+    `;
+    const actorResult = await db.query(actorQuery, [actorUser]);
+
+    const roleId = actorResult.rows[0]?.role_id;
+
+    // 2. Only founder (1) or admin (3) can verify users
+    if (![1, 3].includes(roleId)) {
+        throw new Error('Not authorized to verify users');
+    }
+
+    // 3. Proceed with update
     const query = `
         UPDATE users 
         SET verified = $1, updated_at = CURRENT_TIMESTAMP
         WHERE users_id = $2 
         RETURNING users_id, username, verified;
     `;
-    const result = await db.query(query, [verify, userId]);
+
+    const result = await db.query(query, [verify, targetUserId]);
+
     return result.rows[0];
 };
 

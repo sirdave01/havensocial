@@ -12,14 +12,14 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 -- inserting into the roles table
 
 INSERT INTO roles (role_name, role_description)
+	VALUES ('admin', 'Administrative user with moderation privileges'),
+('moderator', 'Content moderation privileges');
+
+INSERT INTO roles (role_name, role_description)
 	VALUES ('founder', 'Platform founder with full access including user management and dashboard'),
 ('user', 'Standard user with basic access');
 
 -- verify the roles table and the contents are added
-
--- update the roles
-
-UPDATE users SET role_id = (SELECT role_id FROM roles WHERE role_name = 'founder') WHERE email = 'd08178084956@gmail.com';
 
 SELECT * FROM roles;
 
@@ -83,6 +83,21 @@ ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 -- adding an updated_at column for the users table
 ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
+-- update the roles
+
+UPDATE users SET role_id = (SELECT role_id FROM roles WHERE role_name = 'founder') WHERE email = 'd08178084956@gmail.com';
+
+
+UPDATE users
+SET profile_picture_url = NULL
+WHERE profile_picture_url NOT LIKE '%/uploads/profile/%';
+
+ALTER TABLE users
+ALTER COLUMN bio DROP NOT NULL;
+
+UPDATE users
+SET bio = NULL
+WHERE bio = '';
 
 -- verify the users table and the contents are added
 
@@ -107,6 +122,10 @@ view_count INT DEFAULT 0
 
 );
 
+SELECT column_name, data_type, column_default
+FROM information_schema.columns
+WHERE table_name = 'users';
+
 -- verify the tweets table and the contents are added
 
 ALTER TABLE tweets ADD COLUMN deleted_at TIMESTAMP NULL;
@@ -128,7 +147,8 @@ PRIMARY KEY (follower_id, followee_id)
 
 );
 
-
+ALTER TABLE follows
+ADD CONSTRAINT unique_follow_pair UNIQUE (follower_id, followee_id);
 
 -- verify the follows table and the contents are added
 
@@ -256,7 +276,6 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 
 SELECT * FROM bookmarks;
 
-
 -- =============================================
 -- RECOMMENDED INDEXES (Performance)
 -- =============================================
@@ -324,6 +343,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trigger_reply_count
 AFTER INSERT ON tweets
 FOR EACH ROW EXECUTE FUNCTION update_reply_count();
+
 
 -- =============================================
 -- USER COUNTER TRIGGERS

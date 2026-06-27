@@ -6,7 +6,8 @@
 
             <div class="profile-picture">
                 <% if (profile.profile_picture_url) { %>
-                    <img src="<%= profile.profile_picture_url %>" alt="Profile Picture" id="current-profile-img">
+                    <img src="<%= profile.profile_picture_url %>" alt="Profile Picture"
+                        onerror="this.src='/images/default-avatar.jpg'">
                     <% } else { %>
                         <div class="placeholder-avatar">👤</div>
                         <% } %>

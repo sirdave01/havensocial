@@ -65,32 +65,32 @@ const router = express.Router();
 router.get('/', showHomePage);
 
 // ====================== PROTECTED FEED & NOTIFICATIONS ======================
-router.get('/feed', showFeedPage);
-router.get('/notifications', requireLogin, showNotificationsPage);
+router.get('/feed', requireAuth, showFeedPage);
+router.get('/notifications', requireAuth, showNotificationsPage);
 
 // ====================== TWEET ROUTES ======================
-router.post('/tweets', requireLogin, upload.single('media'), createTweetController);// Create tweet
-router.post('/tweets/reply', requireLogin, createTweetController); //reply to tweet
-router.get('/tweets/:tweetId', getTweetController);                    // Get single tweet
-router.get('/tweets/user/:userId', getUserTweetsController);           // Get user tweets
-router.delete('/tweets/:tweetId', requireLogin, deleteTweetController); // Delete tweet
+router.post('/tweets', requireAuth, upload.single('media'), createTweetController);// Create tweet
+router.post('/tweets/reply', requireAuth, createTweetController); //reply to tweet
+router.get('/tweets/:tweetId', requireAuth, getTweetController);                    // Get single tweet
+router.get('/tweets/user/:userId', requireAuth, getUserTweetsController);           // Get user tweets
+router.delete('/tweets/:tweetId', requireAuth, deleteTweetController); // Delete tweet
 
 // ====================== FOLLOW ROUTES ======================
-router.post('/follow', requireLogin, followUserController);
-router.post('/unfollow', requireLogin, unfollowUserController);
-router.get('/following', requireLogin, getFollowingController);
-router.get('/following/:userId', requireLogin, getFollowingController);
-
-router.get('/followers', requireLogin, getFollowersController);
-router.get('/followers/:userId', requireLogin, getFollowersController);
+router.post('/follow', requireAuth, followUserController);
+router.post('/unfollow', requireAuth, unfollowUserController);
+// Following
+router.get('/following/:userId', requireAuth, getFollowingController);
+router.get('/following', requireAuth, getFollowingController);
+// Followers
+router.get('/followers/:userId', requireAuth, getFollowersController);
+router.get('/followers', requireAuth, getFollowersController);
 
 // ====================== LIKE ROUTES ======================
-router.post('/likes', requireLogin, likeTweetController);
-router.post('/likes/unlike', requireLogin, unlikeTweetController);   // or use DELETE
+router.post('/likes', requireAuth, likeTweetController);
+router.post('/likes/unlike', requireAuth, unlikeTweetController);   // or use DELETE
 
 // ====================== AUTH ROUTES ======================
 router.get('/register', showUserRegistrationForm);
-router.get('/feed', requireAuth, showFeedPage);
 router.post('/register', userValidation, processUserRegistrationForm);
 
 router.get('/login', showLoginForm);
@@ -98,21 +98,21 @@ router.post('/login', processLoginForm);
 router.get('/logout', processLogout);
 
 // ====================== PROFILE ROUTES ======================
-router.get('/profile/:username', requireLogin, showProfile);
-router.get('/:username/followers', requireLogin, showFollowers);
-router.get('/:username/following', requireLogin, showFollowing);
-router.post('/profile/update', requireLogin, upload.single('profilePicture'), profileValidation, updateProfile);
+router.get('/profile/:username', requireAuth, showProfile);
+router.get('/:username/followers', requireAuth, showFollowers);
+router.get('/:username/following', requireAuth, showFollowing);
+router.post('/profile/update', requireAuth, upload.single('profilePicture'), profileValidation, updateProfile);
 
 // ====================== OTHER ROUTES ======================
-router.get('/search', requireLogin, showSearchResults);
+router.get('/search', requireAuth, showSearchResults);
 router.get('/test-error', testErrorPage);
 
 // Founder-only routes
-router.get('/dashboard', requireLogin, requireRole('founder'), showDashboard);
-router.get('/users', requireLogin, requireRole('founder'), showUsers);
+router.get('/dashboard', requireAuth, requireRole('founder'), showDashboard);
+router.get('/users', requireAuth, requireRole('founder'), showUsers);
 
-router.post('/users/:userId/suspend', requireLogin, requireRole('founder'), adminSuspendUser);
-router.post('/users/:userId/verify', requireLogin, requireRole('founder'), adminVerifyUser);
-router.post('/users/:userId/delete', requireLogin, requireRole('founder'), adminDeleteUser);
+router.post('/users/:userId/suspend', requireAuth, requireRole('founder'), adminSuspendUser);
+router.post('/users/:userId/verify', requireAuth, requireRole('founder'), adminVerifyUser);
+router.post('/users/:userId/delete', requireAuth, requireRole('founder'), adminDeleteUser);
 
 export default router;

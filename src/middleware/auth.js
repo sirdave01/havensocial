@@ -1,18 +1,21 @@
 import { getUserProfile } from '../models/users.js';
 
-const setAuthLocals = async (req, res, next) => {
+export const setAuthLocals = async (req, res, next) => {
+    
     res.locals.isLoggedIn = !!req.session?.user;
     res.locals.user = req.session?.user || null;
     res.locals.isFounder = req.session?.user?.role_name === 'founder';
 
-    // OPTIONAL: only enrich, NEVER overwrite session
-    if (req.session?.user) {
+    // Only run DB query for HTML pages (NOT assets / API)
+    const isPageRequest = req.accepts('html');
+
+    if (req.session?.user && isPageRequest) {
         try {
-            const viewerId = req.session?.user?.users_id || null;
+            const viewerId = req.session.user.users_id || null;
             const profile = await getUserProfile(req.session.user.username, viewerId);
 
             if (profile) {
-                res.locals.profile = profile; // ONLY for views
+                res.locals.profile = profile;
             }
         } catch (err) {
             console.error('Auth middleware error:', err);
@@ -28,5 +31,3 @@ export function requireAuth(req, res, next) {
   }
   next();
 }
-
-export default setAuthLocals;
