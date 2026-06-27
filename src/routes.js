@@ -99,6 +99,7 @@ router.get('/logout', processLogout);
 
 // ====================== PROFILE ROUTES ======================
 router.get('/profile/:username', requireAuth, showProfile);
+router.get('/:username', showProfile);
 router.get('/:username/followers', requireAuth, showFollowers);
 router.get('/:username/following', requireAuth, showFollowing);
 router.post('/profile/update', requireAuth, upload.single('profilePicture'), profileValidation, updateProfile);

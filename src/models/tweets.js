@@ -41,7 +41,11 @@ const getTweetById = async (tweetId) => {
 const getUserTweets = async (userId, limit = 20, offset = 0) => {
 
     const query = `
-        SELECT t.*, u.username, u.display_name
+        SELECT t.*, 
+               u.username, 
+               u.display_name, 
+               u.profile_picture_url,     -- ← This was missing
+               u.verified                 -- ← Nice to have for the badge
         FROM tweets t
         JOIN users u ON t.user_id = u.users_id
         WHERE t.user_id = $1 
