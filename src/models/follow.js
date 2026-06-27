@@ -50,8 +50,9 @@ export const getFollowing = async (userId, limit = 20, offset = 0, viewerId = nu
             u.following_count,
             u.post_count as tweet_count,
             EXISTS (
-                SELECT 1 FROM follows f 
-                WHERE f.follower_id = $3 AND f.followee_id = u.users_id
+                SELECT 1 FROM follows f2
+                WHERE f2.follower_id = $3::BIGINT
+                  AND f2.followee_id = u.users_id
             ) AS is_following
         FROM follows f
         JOIN users u ON f.followee_id = u.users_id
@@ -61,7 +62,7 @@ export const getFollowing = async (userId, limit = 20, offset = 0, viewerId = nu
         LIMIT $2 OFFSET $4;
     `;
 
-    const result = await db.query(query, [userId, limit, viewerId || null, offset]);
+    const result = await db.query(query, [userId, limit, viewerId, offset]);
     return result.rows;
 };
 
@@ -79,8 +80,9 @@ export const getFollowers = async (userId, limit = 20, offset = 0, viewerId = nu
             u.following_count,
             u.post_count as tweet_count,
             EXISTS (
-                SELECT 1 FROM follows f 
-                WHERE f.follower_id = $3 AND f.followee_id = u.users_id
+                SELECT 1 FROM follows f2
+                WHERE f2.follower_id = $3::BIGINT
+                  AND f2.followee_id = u.users_id
             ) AS is_following
         FROM follows f
         JOIN users u ON f.follower_id = u.users_id
@@ -90,6 +92,6 @@ export const getFollowers = async (userId, limit = 20, offset = 0, viewerId = nu
         LIMIT $2 OFFSET $4;
     `;
 
-    const result = await db.query(query, [userId, limit, viewerId || null, offset]);
+    const result = await db.query(query, [userId, limit, viewerId, offset]);
     return result.rows;
 };
