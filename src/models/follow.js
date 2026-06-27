@@ -17,18 +17,6 @@ export const followUser = async (followerId, followeeId) => {
         VALUES ($1, $2)
     `, [followerId, followeeId]);
 
-    // 🔥 update counters safely
-    await db.query(`
-        UPDATE users
-        SET follower_count = COALESCE(follower_count, 0) + 1
-        WHERE users_id = $2
-    `, [followeeId]);
-
-    await db.query(`
-        UPDATE users
-        SET following_count = COALESCE(following_count, 0) + 1
-        WHERE users_id = $1
-    `, [followerId]);
 
     return { following: true, alreadyExists: false };
 };
@@ -41,21 +29,6 @@ export const unfollowUser = async (followerId, followeeId) => {
         WHERE follower_id = $1 AND followee_id = $2
         RETURNING *
     `, [followerId, followeeId]);
-
-    if (result.rows.length > 0) {
-
-        await db.query(`
-            UPDATE users
-            SET follower_count = GREATEST(COALESCE(follower_count, 0) - 1, 0)
-            WHERE users_id = $2
-        `, [followeeId]);
-
-        await db.query(`
-            UPDATE users
-            SET following_count = GREATEST(COALESCE(following_count, 0) - 1, 0)
-            WHERE users_id = $1
-        `, [followerId]);
-    }
 
     return {
         following: false,
