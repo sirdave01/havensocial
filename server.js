@@ -141,7 +141,6 @@ app.get('/images/favicon/site.webmanifest', (req, res) => res.status(204).end())
 
 app.use(router); // Use the router for all routes defined in src/routes.js
 
-
 // adding the catch-all error route for 404 errors
 
 app.use((req, res, next) => {
