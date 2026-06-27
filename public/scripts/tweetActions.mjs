@@ -7,29 +7,20 @@ let hasMore = true;
 export function initTweetActions() {
     console.log('🚀 Tweet actions initialized');
 
-    /* ===== LIKE ===== */
+    // ================= LIKE =================
     document.querySelectorAll('.like-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const tweetId = btn.dataset.tweetId;
-            const countSpan = btn.querySelector('.count');
-            if (!tweetId || !countSpan) return;
+            const count = btn.querySelector('.count');
 
-            const isLiked = btn.classList.contains('liked');
+            const res = await fetch('/likes', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ tweetId })
+            });
 
-            try {
-                const res = await fetch(isLiked ? '/likes/unlike' : '/likes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tweetId })
-                });
-
-                if (res.ok) {
-                    btn.classList.toggle('liked');
-                    const count = parseInt(countSpan.textContent) || 0;
-                    countSpan.textContent = isLiked ? Math.max(0, count - 1) : count + 1;
-                }
-            } catch (err) {
-                console.error(err);
+            if (res.ok) {
+                count.textContent = parseInt(count.textContent) + 1;
             }
         });
     });
@@ -59,21 +50,74 @@ export function initTweetActions() {
         });
     });
 
-    /* ===== REPLY ===== */
+    // ================= REPLY =================
     document.querySelectorAll('.reply-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             openReplyModal(btn.dataset.tweetId, btn.dataset.username);
         });
     });
 
-    /* ===== SHARE ===== */
+    // ================= RETWEET =================
+    document.querySelectorAll('.repost-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const tweetId = btn.dataset.tweetId;
+            const count = btn.querySelector('.count');
+
+            const res = await fetch('/retweets', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ tweetId })
+            });
+
+            if (res.ok) {
+                count.textContent = parseInt(count.textContent) + 1;
+            }
+        });
+    });
+
+    // ================= VIEWS =================
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const tweetId = btn.dataset.tweetId;
+            const count = btn.querySelector('.count');
+
+            await fetch(`/tweets/${tweetId}/view`, { method: 'POST' });
+
+            count.textContent = parseInt(count.textContent) + 1;
+        });
+    });
+
+    // ================= PIN =================
+    document.querySelectorAll('.pin-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const tweetId = btn.dataset.tweetId;
+
+            const res = await fetch('/tweets/pin', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ tweetId })
+            });
+
+            if (res.ok) {
+                btn.classList.toggle('pinned');
+            }
+        });
+    });
+
+    // ================= SHARE (X STYLE) =================
     document.querySelectorAll('.share-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const tweetId = btn.dataset.tweetId;
             const url = `${location.origin}/tweets/${tweetId}`;
-            navigator.clipboard?.writeText(url)
-                .then(() => alert('Link copied!'))
-                .catch(() => alert('Could not copy link'));
+
+            if (navigator.share) {
+                navigator.share({ url, title: "Tweet" });
+            } else {
+                await navigator.clipboard.writeText(url);
+
+                btn.textContent = "✓";
+                setTimeout(() => btn.textContent = "🔗", 1000);
+            }
         });
     });
 

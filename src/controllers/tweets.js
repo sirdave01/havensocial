@@ -1,5 +1,5 @@
 // import the tweets model db handler
-
+import { db } from "../models/db.js";
 import { createTweetWithExtras } from '../models/tweetService.js';
 import { getTweetById, getUserTweets, getHomeFeed, deleteTweet, updateTweet } from '../models/tweets.js';
 import { upload } from '../middleware/upload.js';
@@ -169,5 +169,85 @@ export const replyTweetController = async (req, res) => {
     } catch (error) {
         console.error("Reply error:", error);
         res.status(500).json({ message: "Error creating reply" });
+    }
+};
+
+export const incrementViewController = async (req, res) => {
+    try {
+        const { tweetId } = req.params;
+
+        await db.query(
+            `UPDATE tweets 
+             SET view_count = view_count + 1
+             WHERE tweet_id = $1`,
+            [tweetId]
+        );
+
+        res.json({ ok: true });
+
+    } catch (err) {
+        console.error("View error:", err);
+        res.status(500).json({ message: "Failed to update views" });
+    }
+};
+
+export const pinTweetController = async (req, res) => {
+    try {
+        const userId = req.session.user.users_id;
+        const { tweetId } = req.body;
+
+        const result = await db.query(
+            `UPDATE tweets
+             SET is_pinned = NOT is_pinned
+             WHERE tweet_id = $1 AND user_id = $2
+             RETURNING *`,
+            [tweetId, userId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(403).json({ message: "Not allowed" });
+        }
+
+        res.json({ message: "Pin updated", tweet: result.rows[0] });
+
+    } catch (err) {
+        console.error("Pin error:", err);
+        res.status(500).json({ message: "Pin failed" });
+    }
+};
+
+export const retweetController = async (req, res) => {
+    try {
+        const userId = req.session.user.users_id;
+        const { tweetId } = req.body;
+
+        const exists = await db.query(
+            `SELECT 1 FROM retweets
+             WHERE user_id = $1 AND original_tweet_id = $2`,
+            [userId, tweetId]
+        );
+
+        if (exists.rows.length > 0) {
+            return res.status(400).json({ message: "Already retweeted" });
+        }
+
+        await db.query(
+            `INSERT INTO retweets (user_id, original_tweet_id)
+             VALUES ($1, $2)`,
+            [userId, tweetId]
+        );
+
+        await db.query(
+            `UPDATE tweets
+             SET retweet_count = retweet_count + 1
+             WHERE tweet_id = $1`,
+            [tweetId]
+        );
+
+        res.json({ message: "Retweeted successfully" });
+
+    } catch (err) {
+        console.error("Retweet error:", err);
+        res.status(500).json({ message: "Retweet failed" });
     }
 };

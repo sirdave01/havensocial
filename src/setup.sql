@@ -11,12 +11,10 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 -- inserting into the roles table
 
-INSERT INTO roles (role_name, role_description)
-	VALUES ('admin', 'Administrative user with moderation privileges'),
-('moderator', 'Content moderation privileges');
-
-INSERT INTO roles (role_name, role_description)
+INSERT INTO roles IF NOT (role_name, role_description)
 	VALUES ('founder', 'Platform founder with full access including user management and dashboard'),
+	('admin', 'Administrative user with moderation privileges'),
+('moderator', 'Content moderation privileges'),
 ('user', 'Standard user with basic access');
 
 -- verify the roles table and the contents are added
@@ -122,18 +120,67 @@ view_count INT DEFAULT 0
 
 );
 
-SELECT column_name, data_type, column_default
-FROM information_schema.columns
-WHERE table_name = 'users';
-
 -- verify the tweets table and the contents are added
+CREATE OR REPLACE FUNCTION scrub_deleted_tweet()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.deleted_at IS NOT NULL THEN
+        NEW.content := NULL;
+        NEW.media_url := NULL;
+        NEW.is_deleted := TRUE;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_scrub_deleted_tweet ON tweets;
+
+CREATE TRIGGER trigger_scrub_deleted_tweet
+BEFORE UPDATE ON tweets
+FOR EACH ROW
+EXECUTE FUNCTION scrub_deleted_tweet();
+
+CREATE INDEX IF NOT EXISTS idx_tweets_not_deleted
+ON tweets (created_at DESC)
+WHERE deleted_at IS NULL;
+
+ALTER TABLE tweets
+ALTER COLUMN content DROP NOT NULL;
+
+ALTER TABLE tweets
+ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE tweets
+ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 
 ALTER TABLE tweets ADD COLUMN deleted_at TIMESTAMP NULL;
 
 ALTER TABLE tweets ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;
 ALTER TABLE tweets ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP;
 
+ALTER TABLE tweets 
+ALTER COLUMN media_url DROP NOT NULL;
+
 SELECT * FROM tweets;
+
+
+-- creating the follows table
+
+CREATE TABLE IF NOT EXISTS follows (
+
+follower_id BIGINT NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
+followee_id BIGINT NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+PRIMARY KEY (follower_id, followee_id)
+
+);
+
+ALTER TABLE follows
+ADD CONSTRAINT unique_follow_pair UNIQUE (follower_id, followee_id);
+
+-- verify the follows table and the contents are added
+
+SELECT * FROM follows;
 
 
 -- creating likes table
@@ -215,6 +262,26 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 -- verify the notifications table and the contents are added
 
 SELECT * FROM notifications;
+
+
+
+-- create audit_logs table
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+
+logs_id BIGSERIAL PRIMARY KEY,
+actor_id BIGINT REFERENCES users(users_id),
+action_type VARCHAR(100) NOT NULL,
+target_type VARCHAR(100),
+target_id BIGINT,
+details JSONB,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+);
+
+-- verify the audit_logs table and the contents are added
+
+SELECT * FROM audit_logs;
 
 -- creating the tweet_views table for realtime alogrithm and not for fakes
 CREATE TABLE IF NOT EXISTS tweet_views (
@@ -372,45 +439,6 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trigger_follow_counters
 AFTER INSERT OR DELETE ON follows
 FOR EACH ROW EXECUTE FUNCTION update_follow_counters();
-
--- create audit_logs table
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-
-logs_id BIGSERIAL PRIMARY KEY,
-actor_id BIGINT REFERENCES users(users_id),
-action_type VARCHAR(100) NOT NULL,
-target_type VARCHAR(100),
-target_id BIGINT,
-details JSONB,
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
--- verify the audit_logs table and the contents are added
-
-SELECT * FROM audit_logs;
-
-
--- creating the follows table
-
-CREATE TABLE IF NOT EXISTS follows (
-
-follower_id BIGINT NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
-followee_id BIGINT NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-PRIMARY KEY (follower_id, followee_id)
-
-);
-
-ALTER TABLE follows
-ADD CONSTRAINT unique_follow_pair UNIQUE (follower_id, followee_id);
-
--- verify the follows table and the contents are added
-
-SELECT * FROM follows;
-
-
 
 
 

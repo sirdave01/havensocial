@@ -4,39 +4,43 @@ import { showFeedPage } from "./controllers/feed.js";
 import { showNotificationsPage } from "./controllers/notification.js";
 
 import { tweetUpload } from './middleware/tweetupload.js';
+import { upload } from './middleware/upload.js';
+import { requireAuth } from './middleware/auth.js';
 
-// Tweet Controllers
-import { 
+// ================= TWEETS =================
+import {
     createTweetController,
     getTweetController,
     getUserTweetsController,
     deleteTweetController,
     updateTweetController,
-    replyTweetController
+    replyTweetController,
+    incrementViewController,
+    pinTweetController,
+    retweetController
 } from "./controllers/tweets.js";
 
-// Follow Controllers
-import { 
+// ================= FOLLOW =================
+import {
     followUserController,
     unfollowUserController,
     getFollowingController,
-    getFollowersController 
+    getFollowersController
 } from "./controllers/follow.js";
 
-// Like Controllers
-import { 
+// ================= LIKE =================
+import {
     likeTweetController,
-    unlikeTweetController 
+    unlikeTweetController
 } from "./controllers/like.js";
 
-// User & Auth Controllers
-import { 
+// ================= USERS =================
+import {
     showUserRegistrationForm,
     processUserRegistrationForm,
     showLoginForm,
     processLoginForm,
     processLogout,
-    requireLogin,
     requireRole,
     showDashboard,
     showUsers,
@@ -47,54 +51,68 @@ import {
     showSearchResults
 } from "./controllers/users.js";
 
-import { showHomePage } from "./controllers/index.js";
-import { testErrorPage } from "./controllers/errors.js";
-
-// Profile Controller
-import { 
-    showProfile, 
-    updateProfile, 
+// ================= PROFILE =================
+import {
+    showProfile,
+    updateProfile,
     profileValidation,
     showFollowers,
     showFollowing
 } from "./controllers/profile.js";
 
-import { upload } from './middleware/upload.js';
-
-import { requireAuth } from './middleware/auth.js';
+// ================= OTHER =================
+import { showHomePage } from "./controllers/index.js";
+import { testErrorPage } from "./controllers/errors.js";
 
 const router = express.Router();
 
-// ====================== MAIN PUBLIC ROUTES ======================
+// ================= HOME =================
 router.get('/', showHomePage);
 
-// ====================== PROTECTED FEED & NOTIFICATIONS ======================
+// ================= FEED =================
 router.get('/feed', requireAuth, showFeedPage);
+
+// ================= NOTIFICATIONS =================
 router.get('/notifications', requireAuth, showNotificationsPage);
 
-// ====================== TWEET ROUTES ======================
-router.post('/tweets', requireAuth, tweetUpload.single('media'), createTweetController);// Create tweet
-router.post('/tweets/reply', requireAuth, replyTweetController); //reply to tweet
-router.get('/tweets/:tweetId', requireAuth, getTweetController);                    // Get single tweet
-router.get('/tweets/user/:userId', requireAuth, getUserTweetsController);           // Get user tweets
-router.delete('/tweets/:tweetId', requireAuth, deleteTweetController); // Delete tweet
-router.patch('/tweets/:tweetId', requireAuth, updateTweetController); //update tweet
+// ================= TWEETS =================
+router.post('/tweets', requireAuth, tweetUpload.single('media'), createTweetController);
 
-// ====================== FOLLOW ROUTES ======================
+router.get('/tweets/:tweetId', requireAuth, getTweetController);
+
+router.get('/tweets/user/:userId', requireAuth, getUserTweetsController);
+
+router.delete('/tweets/:tweetId', requireAuth, deleteTweetController);
+
+router.patch('/tweets/:tweetId', requireAuth, updateTweetController);
+
+// replies
+router.post('/tweets/reply', requireAuth, replyTweetController);
+
+// views
+router.post('/tweets/:tweetId/view', requireAuth, incrementViewController);
+
+// pin
+router.post('/tweets/pin', requireAuth, pinTweetController);
+
+// retweet
+router.post('/retweets', requireAuth, retweetController);
+
+// ================= LIKES =================
+router.post('/likes', requireAuth, likeTweetController);
+router.post('/likes/unlike', requireAuth, unlikeTweetController);
+
+// ================= FOLLOW =================
 router.post('/follow', requireAuth, followUserController);
 router.post('/unfollow', requireAuth, unfollowUserController);
-// Following
+
 router.get('/following/:userId', requireAuth, getFollowingController);
 router.get('/following', requireAuth, getFollowingController);
-// Followers
+
 router.get('/followers/:userId', requireAuth, getFollowersController);
 router.get('/followers', requireAuth, getFollowersController);
 
-// ====================== LIKE ROUTES ======================
-router.post('/likes', requireAuth, likeTweetController);
-router.post('/likes/unlike', requireAuth, unlikeTweetController);   // or use DELETE
-
-// ====================== AUTH ROUTES ======================
+// ================= AUTH =================
 router.get('/register', showUserRegistrationForm);
 router.post('/register', userValidation, processUserRegistrationForm);
 
@@ -102,18 +120,20 @@ router.get('/login', showLoginForm);
 router.post('/login', processLoginForm);
 router.get('/logout', processLogout);
 
-// ====================== PROFILE ROUTES ======================
+// ================= PROFILE =================
 router.get('/profile/:username', requireAuth, showProfile);
 router.get('/:username', showProfile);
+
 router.get('/:username/followers', requireAuth, showFollowers);
 router.get('/:username/following', requireAuth, showFollowing);
+
 router.post('/profile/update', requireAuth, upload.single('profilePicture'), profileValidation, updateProfile);
 
-// ====================== OTHER ROUTES ======================
+// ================= OTHER =================
 router.get('/search', requireAuth, showSearchResults);
 router.get('/test-error', testErrorPage);
 
-// Founder-only routes
+// ================= ADMIN =================
 router.get('/dashboard', requireAuth, requireRole('founder'), showDashboard);
 router.get('/users', requireAuth, requireRole('founder'), showUsers);
 

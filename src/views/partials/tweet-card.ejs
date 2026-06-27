@@ -1,78 +1,51 @@
 <div class="tweet-card <%= tweet.is_deleted ? 'deleted' : '' %>" data-tweet-id="<%= tweet.tweet_id %>">
 
     <div class="tweet-header">
-        <img src="<%= tweet.profile_picture_url || '/images/default-avatar.jpg' %>" class="tweet-avatar"
-            alt="<%= tweet.username %>">
+        <img src="<%= tweet.profile_picture_url || '/images/default-avatar.jpg' %>" class="tweet-avatar">
 
         <div class="tweet-user-info">
-            <div class="user-names">
-                <a href="/<%= tweet.username %>" class="user-link">
-                    <strong>
-                        <%= tweet.display_name || tweet.username %>
-                    </strong>
-                </a>
-
-                <% if (tweet.verified) { %>
-                    <span class="verified-badge">✓</span>
-                    <% } %>
-            </div>
-
-            <span class="username">@<%= tweet.username %></span>
-            <span class="time">
-                · <%= new Date(tweet.created_at).toLocaleDateString( 'en-US' , { month: 'short' , day: 'numeric' } ) %>
-            </span>
+            <strong>
+                <%= tweet.display_name || tweet.username %>
+            </strong>
+            <span>@<%= tweet.username %></span>
         </div>
 
-        <!-- Owner Controls vs Follow Button -->
         <% if (!tweet.is_deleted && tweet.user_id===user?.users_id) { %>
             <div class="tweet-owner-actions">
-                <button class="edit-btn" data-tweet-id="<%= tweet.tweet_id %>" title="Edit">✏️</button>
-
-                <button class="delete-btn" data-tweet-id="<%= tweet.tweet_id %>" title="Delete">🗑</button>
-            </div>
-
-            <% } else if (!tweet.is_deleted) { %>
-                <button class="follow-btn <%= tweet.is_following ? 'following' : '' %>"
-                    data-user-id="<%= tweet.user_id %>">
-                    <%= tweet.is_following ? 'Following' : 'Follow' %>
+                <button class="pin-btn" data-tweet-id="<%= tweet.tweet_id %>" title="Pin Tweet">
+                    📌
                 </button>
-                <% } %>
+                <button class="edit-btn" data-tweet-id="<%= tweet.tweet_id %>">✏️</button>
+                <button class="delete-btn" data-tweet-id="<%= tweet.tweet_id %>">🗑</button>
+            </div>
+            <% } %>
     </div>
 
     <div class="tweet-content">
-        <% if (tweet.is_deleted) { %>
-            <p class="deleted-tweet">
-                This post was deleted
-            </p>
-            <% } else { %>
-                <p>
-                    <%= tweet.content %>
-                </p>
-
-                <% if (tweet.media_url && tweet.media_url.length> 0) { %>
-                    <div class="tweet-media-container">
-                        <img src="<%= tweet.media_url[0] %>" class="tweet-media" alt="Tweet media">
-                    </div>
-                    <% } %>
-                        <% } %>
+        <p>
+            <%= tweet.content %>
+        </p>
     </div>
 
     <div class="tweet-actions">
-        <button class="action-btn reply-btn" data-tweet-id="<%= tweet.tweet_id %>" data-username="<%= tweet.username %>"
-            <%=tweet.is_deleted ? 'disabled' : '' %>>
-            💬 <span class="count">0</span>
+
+        <button class="action-btn reply-btn" data-tweet-id="<%= tweet.tweet_id %>"
+            data-username="<%= tweet.username %>">
+            💬 <span class="count">
+                <%= tweet.reply_count || 0 %>
+            </span>
         </button>
 
-        <button class="action-btn like-btn" data-tweet-id="<%= tweet.tweet_id %>" <%=tweet.is_deleted ? 'disabled' : ''
-            %>>
+        <button class="action-btn like-btn" data-tweet-id="<%= tweet.tweet_id %>">
             ❤️ <span class="count">
                 <%= tweet.like_count || 0 %>
             </span>
         </button>
 
-        <button class="action-btn repost-btn" data-tweet-id="<%= tweet.tweet_id %>" <%=tweet.is_deleted ? 'disabled'
-            : '' %>>
-            🔁 <span class="count">0</span>
+        <button class="action-btn repost-btn" data-tweet-id="<%= tweet.tweet_id %>">
+            🔁 <span class="count">
+                <%= tweet.retweet_count || 0 %>
+            </span>
         </button>
 
         <button class="action-btn view-btn" data-tweet-id="<%= tweet.tweet_id %>">
@@ -81,8 +54,8 @@
             </span>
         </button>
 
-        <button class="action-btn share-btn" data-tweet-id="<%= tweet.tweet_id %>">
-            ↗
+        <button class="action-btn share-btn" data-tweet-id="<%= tweet.tweet_id %>" title="Share">
+            🔗
         </button>
     </div>
 </div>
