@@ -10,7 +10,9 @@ import {
     createTweetController,
     getTweetController,
     getUserTweetsController,
-    deleteTweetController 
+    deleteTweetController,
+    updateTweetController,
+    replyTweetController
 } from "./controllers/tweets.js";
 
 // Follow Controllers
@@ -72,10 +74,11 @@ router.get('/notifications', requireAuth, showNotificationsPage);
 
 // ====================== TWEET ROUTES ======================
 router.post('/tweets', requireAuth, tweetUpload.single('media'), createTweetController);// Create tweet
-router.post('/tweets/reply', requireAuth, createTweetController); //reply to tweet
+router.post('/tweets/reply', requireAuth, replyTweetController); //reply to tweet
 router.get('/tweets/:tweetId', requireAuth, getTweetController);                    // Get single tweet
 router.get('/tweets/user/:userId', requireAuth, getUserTweetsController);           // Get user tweets
 router.delete('/tweets/:tweetId', requireAuth, deleteTweetController); // Delete tweet
+router.patch('/tweets/:tweetId', requireAuth, updateTweetController); //update tweet
 
 // ====================== FOLLOW ROUTES ======================
 router.post('/follow', requireAuth, followUserController);

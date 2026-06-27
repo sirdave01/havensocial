@@ -7,36 +7,26 @@ let hasMore = true;
 export function initTweetActions() {
     console.log('🚀 Tweet actions initialized');
 
-    // ===================== LIKE =====================
+    /* ===== LIKE ===== */
     document.querySelectorAll('.like-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const tweetId = btn.dataset.tweetId;
             const countSpan = btn.querySelector('.count');
-
-            if (!tweetId || !countSpan) {
-                console.error('Like button missing data');
-                return;
-            }
+            if (!tweetId || !countSpan) return;
 
             const isLiked = btn.classList.contains('liked');
 
             try {
-                const res = await fetch(
-                    isLiked ? '/likes/unlike' : '/likes',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tweetId })
-                    }
-                );
+                const res = await fetch(isLiked ? '/likes/unlike' : '/likes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tweetId })
+                });
 
                 if (res.ok) {
                     btn.classList.toggle('liked');
                     const count = parseInt(countSpan.textContent) || 0;
-                    countSpan.textContent = Math.max(
-                        0,
-                        isLiked ? count - 1 : count + 1
-                    );
+                    countSpan.textContent = isLiked ? Math.max(0, count - 1) : count + 1;
                 }
             } catch (err) {
                 console.error(err);
@@ -44,26 +34,20 @@ export function initTweetActions() {
         });
     });
 
-    // ===================== FOLLOW =====================
+    /* ===== FOLLOW ===== */
     document.querySelectorAll('.follow-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const followeeId = btn.dataset.userId;
-            if (!followeeId) {
-                console.error('Follow button missing userId');
-                return;
-            }
+            if (!followeeId) return;
 
             const isFollowing = btn.classList.contains('following');
 
             try {
-                const res = await fetch(
-                    isFollowing ? '/unfollow' : '/follow',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ followeeId })
-                    }
-                );
+                const res = await fetch(isFollowing ? '/unfollow' : '/follow', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ followeeId })
+                });
 
                 if (res.ok) {
                     btn.classList.toggle('following');
@@ -75,27 +59,25 @@ export function initTweetActions() {
         });
     });
 
-    // ===================== REPLY =====================
+    /* ===== REPLY ===== */
     document.querySelectorAll('.reply-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             openReplyModal(btn.dataset.tweetId, btn.dataset.username);
         });
     });
 
-    // ===================== SHARE =====================
+    /* ===== SHARE ===== */
     document.querySelectorAll('.share-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const tweetId = btn.dataset.tweetId;
             const url = `${location.origin}/tweets/${tweetId}`;
-
-            navigator.clipboard?.writeText(url).then(
-                () => alert('Link copied!'),
-                () => alert('Could not copy link')
-            );
+            navigator.clipboard?.writeText(url)
+                .then(() => alert('Link copied!'))
+                .catch(() => alert('Could not copy link'));
         });
     });
 
-    // ===================== DELETE =====================
+    /* ===== DELETE ===== */
     document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             if (!confirm('Delete this tweet? This cannot be undone.')) return;
@@ -113,7 +95,7 @@ export function initTweetActions() {
         });
     });
 
-    // ===================== EDIT =====================
+    /* ===== EDIT ===== */
     document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             openEditModal(btn.dataset.tweetId);
@@ -133,24 +115,31 @@ function openEditModal(tweetId) {
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>Edit Tweet</h3>
-                        <button onclick="closeEditModal()" class="close-modal">✕</button>
+                        <button class="close-modal">✕</button>
                     </div>
 
                     <textarea id="editContent" maxlength="280"
                         style="width:100%; height:120px;"></textarea>
 
                     <div class="modal-actions">
-                        <button onclick="closeEditModal()">Cancel</button>
-                        <button onclick="saveEdit('${tweetId}')" class="btn-primary">
-                            Save Changes
-                        </button>
+                        <button class="cancel-edit">Cancel</button>
+                        <button class="save-edit btn-primary">Save Changes</button>
                     </div>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
+
+        modal.querySelector('.close-modal').onclick = closeEditModal;
+        modal.querySelector('.cancel-edit').onclick = closeEditModal;
+
+        modal.querySelector('.save-edit').onclick = async () => {
+            const id = modal.dataset.tweetId;
+            await saveEdit(id);
+        };
     }
 
+    modal.dataset.tweetId = tweetId;
     modal.style.display = 'block';
 
     fetch(`/tweets/${tweetId}`)
@@ -161,12 +150,7 @@ function openEditModal(tweetId) {
         .catch(() => alert('Could not load tweet content'));
 }
 
-window.closeEditModal = () => {
-    const modal = document.getElementById('editModal');
-    if (modal) modal.style.display = 'none';
-};
-
-window.saveEdit = async (tweetId) => {
+async function saveEdit(tweetId) {
     const content = document.getElementById('editContent').value.trim();
     if (!content) return alert('Content cannot be empty');
 
@@ -186,14 +170,19 @@ window.saveEdit = async (tweetId) => {
     } catch (err) {
         console.error(err);
     }
-};
+}
+
+function closeEditModal() {
+    const modal = document.getElementById('editModal');
+    if (modal) modal.style.display = 'none';
+}
 
 /* ===================== TWEET CREATION ===================== */
 export function initTweetCreation() {
     const form = document.getElementById('tweetForm');
     if (!form) return;
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
         e.preventDefault();
 
         const submitBtn = form.querySelector('.post-btn');
@@ -239,7 +228,7 @@ function openReplyModal(tweetId, username) {
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>Reply to ${username}</h3>
-                        <button onclick="closeReplyModal()" class="close-modal">✕</button>
+                        <button class="close-modal">✕</button>
                     </div>
 
                     <textarea id="replyContent" maxlength="280"
@@ -250,19 +239,26 @@ function openReplyModal(tweetId, username) {
                     </div>
 
                     <div class="modal-actions">
-                        <button onclick="closeReplyModal()">Cancel</button>
-                        <button onclick="submitReply('${tweetId}')">Reply</button>
+                        <button class="cancel-reply">Cancel</button>
+                        <button class="submit-reply btn-primary">Reply</button>
                     </div>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
+
+        modal.querySelector('.close-modal').onclick = closeReplyModal;
+        modal.querySelector('.cancel-reply').onclick = closeReplyModal;
+        modal.querySelector('.submit-reply').onclick = async () => {
+            await submitReply(modal.dataset.tweetId);
+        };
     }
 
+    modal.dataset.tweetId = tweetId;
     modal.style.display = 'block';
 
-    const textarea = document.getElementById('replyContent');
-    const counter = document.getElementById('replyCharCount');
+    const textarea = modal.querySelector('#replyContent');
+    const counter = modal.querySelector('#replyCharCount');
 
     textarea.value = '';
     counter.textContent = '0';
@@ -272,12 +268,12 @@ function openReplyModal(tweetId, username) {
     };
 }
 
-window.closeReplyModal = () => {
+function closeReplyModal() {
     const modal = document.getElementById('replyModal');
     if (modal) modal.style.display = 'none';
-};
+}
 
-window.submitReply = async (tweetId) => {
+async function submitReply(tweetId) {
     const content = document.getElementById('replyContent').value.trim();
     if (!content) return alert('Reply cannot be empty');
 
@@ -297,7 +293,7 @@ window.submitReply = async (tweetId) => {
     } catch (err) {
         console.error(err);
     }
-};
+}
 
 /* ===================== MEDIA UPLOAD ===================== */
 export function initMediaUpload() {

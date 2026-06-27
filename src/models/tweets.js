@@ -136,6 +136,28 @@ const deleteTweet = async (tweetId, userId) => {
     
 };
 
+// ==================== UPDATE TWEET ====================
+const updateTweet = async (tweetId, userId, content) => {
+    const query = `
+        UPDATE tweets
+        SET content = $1,
+            updated_at = CURRENT_TIMESTAMP,
+            edited_at = CURRENT_TIMESTAMP
+        WHERE tweet_id = $2
+          AND user_id = $3
+          AND deleted_at IS NULL
+        RETURNING *;
+    `;
+
+    const result = await db.query(query, [
+        content,
+        tweetId,
+        userId
+    ]);
+
+    return result.rows[0];
+};
+
 
 const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
   const query = `
@@ -190,5 +212,6 @@ export {
     getUserTweets,
     getHomeFeed,
     deleteTweet,
-    getFollowingFeed
+    getFollowingFeed,
+    updateTweet
 };

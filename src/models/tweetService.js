@@ -1,37 +1,67 @@
-import { pool } from "./db.js";           // ← Use raw pool for transactions
-import { createTweet } from "./tweets.js";
+import { pool } from "./db.js";
 import { createNotification } from "./notification.js";
 
-export const createTweetWithExtras = async (userId, content, mediaUrl = null, isReplyTo = null) => {
+// IMPORTANT: we move tweet insert here so we can use the SAME client
+export const createTweetWithExtras = async (
+    userId,
+    content,
+    mediaUrl = null,
+    isReplyTo = null
+) => {
+
     let client;
+
     try {
         client = await pool.connect();
         await client.query('BEGIN');
 
-        console.log('🔄 Creating tweet with extras:', { userId, hasMedia: !!mediaUrl, isReplyTo });
+        console.log('🔄 Creating tweet with extras:', {
+            userId,
+            hasMedia: !!mediaUrl,
+            isReplyTo
+        });
 
-        // Create the tweet
-        const tweet = await createTweet(userId, content, mediaUrl, isReplyTo);
+        // ===================== CREATE TWEET =====================
+        const tweetResult = await client.query(
+            `
+            INSERT INTO tweets (
+                user_id,
+                content,
+                media_url,
+                is_reply_to
+            )
+            VALUES ($1, $2, $3, $4)
+            RETURNING *;
+            `,
+            [userId, content, mediaUrl ? [mediaUrl] : null, isReplyTo]
+        );
 
-        // Create notification if it's a reply
+        const tweet = tweetResult.rows[0];
+
+        // ===================== REPLY NOTIFICATION =====================
         if (isReplyTo) {
             const original = await client.query(
-                'SELECT user_id FROM tweets WHERE tweet_id = $1', 
+                `SELECT user_id FROM tweets WHERE tweet_id = $1`,
                 [isReplyTo]
             );
 
-            if (original.rows.length > 0 && original.rows[0].user_id !== userId) {
+            const originalTweet = original.rows[0];
+
+            if (originalTweet && originalTweet.user_id !== userId) {
                 await createNotification(
-                    original.rows[0].user_id,
+                    originalTweet.user_id,
                     userId,
                     'reply',
-                    tweet.tweet_id
+                    tweet.tweet_id,
+                    client // 🔥 pass transaction client (important)
                 );
             }
         }
 
         await client.query('COMMIT');
+
         console.log('✅ Tweet created successfully:', tweet.tweet_id);
+
         return tweet;
 
     } catch (error) {
@@ -42,9 +72,11 @@ export const createTweetWithExtras = async (userId, content, mediaUrl = null, is
                 console.error('Rollback failed:', rollbackErr);
             }
         }
+
         console.error('❌ Tweet service error:', error.message);
         console.error(error.stack);
         throw error;
+
     } finally {
         if (client) client.release();
     }
