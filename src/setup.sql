@@ -136,25 +136,6 @@ ALTER TABLE tweets ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP;
 SELECT * FROM tweets;
 
 
--- creating the follows table
-
-CREATE TABLE IF NOT EXISTS follows (
-
-follower_id BIGINT NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
-followee_id BIGINT NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-PRIMARY KEY (follower_id, followee_id)
-
-);
-
-ALTER TABLE follows
-ADD CONSTRAINT unique_follow_pair UNIQUE (follower_id, followee_id);
-
--- verify the follows table and the contents are added
-
-SELECT * FROM follows;
-
-
 -- creating likes table
 
 CREATE TABLE IF NOT EXISTS likes (
@@ -234,26 +215,6 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 -- verify the notifications table and the contents are added
 
 SELECT * FROM notifications;
-
-
-
--- create audit_logs table
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-
-logs_id BIGSERIAL PRIMARY KEY,
-actor_id BIGINT REFERENCES users(users_id),
-action_type VARCHAR(100) NOT NULL,
-target_type VARCHAR(100),
-target_id BIGINT,
-details JSONB,
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
--- verify the audit_logs table and the contents are added
-
-SELECT * FROM audit_logs;
 
 -- creating the tweet_views table for realtime alogrithm and not for fakes
 CREATE TABLE IF NOT EXISTS tweet_views (
@@ -411,6 +372,45 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trigger_follow_counters
 AFTER INSERT OR DELETE ON follows
 FOR EACH ROW EXECUTE FUNCTION update_follow_counters();
+
+-- create audit_logs table
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+
+logs_id BIGSERIAL PRIMARY KEY,
+actor_id BIGINT REFERENCES users(users_id),
+action_type VARCHAR(100) NOT NULL,
+target_type VARCHAR(100),
+target_id BIGINT,
+details JSONB,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+);
+
+-- verify the audit_logs table and the contents are added
+
+SELECT * FROM audit_logs;
+
+
+-- creating the follows table
+
+CREATE TABLE IF NOT EXISTS follows (
+
+follower_id BIGINT NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
+followee_id BIGINT NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+PRIMARY KEY (follower_id, followee_id)
+
+);
+
+ALTER TABLE follows
+ADD CONSTRAINT unique_follow_pair UNIQUE (follower_id, followee_id);
+
+-- verify the follows table and the contents are added
+
+SELECT * FROM follows;
+
+
 
 
 

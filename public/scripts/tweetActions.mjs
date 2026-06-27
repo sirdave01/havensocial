@@ -94,10 +94,48 @@ export function initTweetActions() {
     });
 }
 
-function redirectToLogin() {
-  if (confirm('Please log in to interact')) {
-    location.href = '/login';
-  }
+// ===================== TWEET CREATION =====================
+export function initTweetCreation() {
+    const form = document.getElementById('tweetForm');
+    if (!form) return;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('.post-btn');
+        const originalText = submitBtn.textContent;
+
+        try {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Posting...';
+
+            const response = await fetch('/tweets', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Success - Clear form
+                form.reset();
+                const preview = document.getElementById('mediaPreview');
+                if (preview) preview.innerHTML = '';
+
+                // Refresh feed to show the new tweet
+                location.reload();   // Simple & works well for now
+            } else {
+                alert(data.message || "Failed to post tweet");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error posting tweet. Please try again.");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    });
 }
 
 // ===================== REPLY MODAL =====================

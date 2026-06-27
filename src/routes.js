@@ -3,6 +3,8 @@ import express from 'express';
 import { showFeedPage } from "./controllers/feed.js";
 import { showNotificationsPage } from "./controllers/notification.js";
 
+import { tweetUpload } from './middleware/tweetupload.js';
+
 // Tweet Controllers
 import { 
     createTweetController,
@@ -69,7 +71,7 @@ router.get('/feed', requireAuth, showFeedPage);
 router.get('/notifications', requireAuth, showNotificationsPage);
 
 // ====================== TWEET ROUTES ======================
-router.post('/tweets', requireAuth, upload.single('media'), createTweetController);// Create tweet
+router.post('/tweets', requireAuth, tweetUpload.single('media'), createTweetController);// Create tweet
 router.post('/tweets/reply', requireAuth, createTweetController); //reply to tweet
 router.get('/tweets/:tweetId', requireAuth, getTweetController);                    // Get single tweet
 router.get('/tweets/user/:userId', requireAuth, getUserTweetsController);           // Get user tweets

@@ -2,18 +2,25 @@ import { db } from "./db.js"
 
 // ==================== TWEET MODELS ====================
 
-// Create Tweet
-const createTweet = async (userId, content, mediaUrls = null, isReplyTo = null) => {
+// Create Tweet - Future-proof for multiple media
+const createTweet = async (userId, content, mediaUrl = null, isReplyTo = null) => {
+    // Convert single URL to array for DB (TEXT[])
+    const mediaArray = mediaUrl ? [mediaUrl] : null;
 
     const query = `
-        INSERT INTO tweets (user_id, content, media_url, is_reply_to)
+        INSERT INTO tweets (
+            user_id, 
+            content, 
+            media_url, 
+            is_reply_to
+        )
         VALUES ($1, $2, $3, $4)
         RETURNING *;
     `;
-    const result = await db.query(query, [userId, content, mediaUrls, isReplyTo]);
+
+    const result = await db.query(query, [userId, content, mediaArray, isReplyTo]);
 
     return result.rows[0];
-
 };
 
 // Get Single Tweet

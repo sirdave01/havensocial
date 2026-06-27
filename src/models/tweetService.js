@@ -2,14 +2,16 @@ import { pool } from "./db.js";           // ← Use raw pool for transactions
 import { createTweet } from "./tweets.js";
 import { createNotification } from "./notification.js";
 
-const createTweetWithExtras = async (userId, content, mediaUrls = null, isReplyTo = null) => {
+export const createTweetWithExtras = async (userId, content, mediaUrl = null, isReplyTo = null) => {
     let client;
     try {
         client = await pool.connect();
         await client.query('BEGIN');
 
+        console.log('🔄 Creating tweet with extras:', { userId, hasMedia: !!mediaUrl, isReplyTo });
+
         // Create the tweet
-        const tweet = await createTweet(userId, content, mediaUrls, isReplyTo);
+        const tweet = await createTweet(userId, content, mediaUrl, isReplyTo);
 
         // Create notification if it's a reply
         if (isReplyTo) {
@@ -29,6 +31,7 @@ const createTweetWithExtras = async (userId, content, mediaUrls = null, isReplyT
         }
 
         await client.query('COMMIT');
+        console.log('✅ Tweet created successfully:', tweet.tweet_id);
         return tweet;
 
     } catch (error) {
@@ -39,11 +42,10 @@ const createTweetWithExtras = async (userId, content, mediaUrls = null, isReplyT
                 console.error('Rollback failed:', rollbackErr);
             }
         }
-        console.error('Tweet service error:', error);
+        console.error('❌ Tweet service error:', error.message);
+        console.error(error.stack);
         throw error;
     } finally {
         if (client) client.release();
     }
 };
-
-export { createTweetWithExtras };
