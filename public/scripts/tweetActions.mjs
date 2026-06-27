@@ -3,98 +3,192 @@ const pageSize = 10;
 let isLoading = false;
 let hasMore = true;
 
+/* ===================== TWEET ACTIONS ===================== */
 export function initTweetActions() {
     console.log('🚀 Tweet actions initialized');
 
-    const isLoggedIn = window.__USER__ !== null;
-
-    console.log('Logged in:', isLoggedIn);
-
     // ===================== LIKE =====================
-  document.querySelectorAll('.like-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!isLoggedIn) return redirectToLogin();
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const tweetId = btn.dataset.tweetId;
+            const countSpan = btn.querySelector('.count');
 
-      const tweetId = btn.dataset.tweetId;
-      const countSpan = btn.querySelector('.count');
+            if (!tweetId || !countSpan) {
+                console.error('Like button missing data');
+                return;
+            }
 
-      if (!tweetId || !countSpan) {
-        console.error('Like button missing data');
-        return;
-      }
+            const isLiked = btn.classList.contains('liked');
 
-      const isLiked = btn.classList.contains('liked');
+            try {
+                const res = await fetch(
+                    isLiked ? '/likes/unlike' : '/likes',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tweetId })
+                    }
+                );
 
-      const res = await fetch(
-        isLiked ? '/likes/unlike' : '/likes',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tweetId })
-        }
-      );
-
-      if (res.ok) {
-        btn.classList.toggle('liked');
-        const count = parseInt(countSpan.textContent) || 0;
-          countSpan.textContent = isLiked ? count - 1 : count + 1;
-          
-        }
-        
+                if (res.ok) {
+                    btn.classList.toggle('liked');
+                    const count = parseInt(countSpan.textContent) || 0;
+                    countSpan.textContent = Math.max(
+                        0,
+                        isLiked ? count - 1 : count + 1
+                    );
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
     });
-      
-  });
 
     // ===================== FOLLOW =====================
     document.querySelectorAll('.follow-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            if (!isLoggedIn) return redirectToLogin();
-
-        const followeeId = btn.dataset.userId;
+            const followeeId = btn.dataset.userId;
             if (!followeeId) {
                 console.error('Follow button missing userId');
                 return;
             }
 
-        const isFollowing = btn.classList.contains('following');
+            const isFollowing = btn.classList.contains('following');
 
-        const res = await fetch(
-            isFollowing ? '/unfollow' : '/follow',
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ followeeId })
-            }
-        );
+            try {
+                const res = await fetch(
+                    isFollowing ? '/unfollow' : '/follow',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ followeeId })
+                    }
+                );
 
-        if (res.ok) {
-            btn.classList.toggle('following');
-            btn.textContent = isFollowing ? 'Follow' : 'Following';
+                if (res.ok) {
+                    btn.classList.toggle('following');
+                    btn.textContent = isFollowing ? 'Follow' : 'Following';
+                }
+            } catch (err) {
+                console.error(err);
             }
-            
+        });
     });
-  });
 
     // ===================== REPLY =====================
     document.querySelectorAll('.reply-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-        if (!isLoggedIn) return redirectToLogin();
-        openReplyModal(btn.dataset.tweetId, btn.dataset.username);
+            openReplyModal(btn.dataset.tweetId, btn.dataset.username);
         });
     });
 
     // ===================== SHARE =====================
     document.querySelectorAll('.share-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-        const tweetId = btn.dataset.tweetId;
-        const url = `${location.origin}/tweets/${tweetId}`;
-        navigator.clipboard.writeText(url);
-        alert('Link copied!');
+            const tweetId = btn.dataset.tweetId;
+            const url = `${location.origin}/tweets/${tweetId}`;
+
+            navigator.clipboard?.writeText(url).then(
+                () => alert('Link copied!'),
+                () => alert('Could not copy link')
+            );
+        });
+    });
+
+    // ===================== DELETE =====================
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('Delete this tweet? This cannot be undone.')) return;
+
+            const tweetId = btn.dataset.tweetId;
+            const tweetCard = btn.closest('.tweet-card');
+
+            try {
+                const res = await fetch(`/tweets/${tweetId}`, { method: 'DELETE' });
+                if (res.ok) tweetCard?.remove();
+                else alert('Failed to delete tweet');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    });
+
+    // ===================== EDIT =====================
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            openEditModal(btn.dataset.tweetId);
         });
     });
 }
 
-// ===================== TWEET CREATION =====================
+/* ===================== EDIT MODAL ===================== */
+function openEditModal(tweetId) {
+    let modal = document.getElementById('editModal');
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'editModal';
+        modal.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Edit Tweet</h3>
+                        <button onclick="closeEditModal()" class="close-modal">✕</button>
+                    </div>
+
+                    <textarea id="editContent" maxlength="280"
+                        style="width:100%; height:120px;"></textarea>
+
+                    <div class="modal-actions">
+                        <button onclick="closeEditModal()">Cancel</button>
+                        <button onclick="saveEdit('${tweetId}')" class="btn-primary">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    modal.style.display = 'block';
+
+    fetch(`/tweets/${tweetId}`)
+        .then(r => r.json())
+        .then(tweet => {
+            document.getElementById('editContent').value = tweet.content;
+        })
+        .catch(() => alert('Could not load tweet content'));
+}
+
+window.closeEditModal = () => {
+    const modal = document.getElementById('editModal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.saveEdit = async (tweetId) => {
+    const content = document.getElementById('editContent').value.trim();
+    if (!content) return alert('Content cannot be empty');
+
+    try {
+        const res = await fetch(`/tweets/${tweetId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+
+        if (res.ok) {
+            closeEditModal();
+            location.reload();
+        } else {
+            alert('Failed to update tweet');
+        }
+    } catch (err) {
+        console.error(err);
+    }
+};
+
+/* ===================== TWEET CREATION ===================== */
 export function initTweetCreation() {
     const form = document.getElementById('tweetForm');
     if (!form) return;
@@ -102,35 +196,30 @@ export function initTweetCreation() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const formData = new FormData(form);
         const submitBtn = form.querySelector('.post-btn');
         const originalText = submitBtn.textContent;
+        const formData = new FormData(form);
 
         try {
             submitBtn.disabled = true;
             submitBtn.textContent = 'Posting...';
 
-            const response = await fetch('/tweets', {
+            const res = await fetch('/tweets', {
                 method: 'POST',
                 body: formData
             });
 
-            const data = await response.json();
+            const data = await res.json();
 
-            if (response.ok) {
-                // Success - Clear form
+            if (res.ok) {
                 form.reset();
-                const preview = document.getElementById('mediaPreview');
-                if (preview) preview.innerHTML = '';
-
-                // Refresh feed to show the new tweet
-                location.reload();   // Simple & works well for now
+                document.getElementById('mediaPreview')?.replaceChildren();
+                location.reload();
             } else {
-                alert(data.message || "Failed to post tweet");
+                alert(data.message || 'Failed to post tweet');
             }
         } catch (err) {
             console.error(err);
-            alert("Error posting tweet. Please try again.");
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = originalText;
@@ -138,7 +227,7 @@ export function initTweetCreation() {
     });
 }
 
-// ===================== REPLY MODAL =====================
+/* ===================== REPLY MODAL ===================== */
 function openReplyModal(tweetId, username) {
     let modal = document.getElementById('replyModal');
 
@@ -153,17 +242,16 @@ function openReplyModal(tweetId, username) {
                         <button onclick="closeReplyModal()" class="close-modal">✕</button>
                     </div>
 
-                    <div class="reply-box">
-                        <textarea id="replyContent" maxlength="280"
-                            placeholder="Write your reply..."></textarea>
-                        <div class="char-count">
-                            <span id="replyCharCount">0</span>/280
-                        </div>
+                    <textarea id="replyContent" maxlength="280"
+                        placeholder="Write your reply..."></textarea>
+
+                    <div class="char-count">
+                        <span id="replyCharCount">0</span>/280
                     </div>
 
                     <div class="modal-actions">
                         <button onclick="closeReplyModal()">Cancel</button>
-                        <button onclick="submitReply(${tweetId})">Reply</button>
+                        <button onclick="submitReply('${tweetId}')">Reply</button>
                     </div>
                 </div>
             </div>
@@ -174,13 +262,13 @@ function openReplyModal(tweetId, username) {
     modal.style.display = 'block';
 
     const textarea = document.getElementById('replyContent');
-    const countSpan = document.getElementById('replyCharCount');
+    const counter = document.getElementById('replyCharCount');
 
     textarea.value = '';
-    countSpan.textContent = '0';
+    counter.textContent = '0';
 
     textarea.oninput = () => {
-        countSpan.textContent = textarea.value.length;
+        counter.textContent = textarea.value.length;
     };
 }
 
@@ -191,7 +279,7 @@ window.closeReplyModal = () => {
 
 window.submitReply = async (tweetId) => {
     const content = document.getElementById('replyContent').value.trim();
-    if (!content) return alert("Reply cannot be empty");
+    if (!content) return alert('Reply cannot be empty');
 
     try {
         const res = await fetch('/tweets/reply', {
@@ -204,19 +292,18 @@ window.submitReply = async (tweetId) => {
             closeReplyModal();
             location.reload();
         } else {
-            alert("Failed to post reply");
+            alert('Failed to post reply');
         }
     } catch (err) {
         console.error(err);
-        alert("Error posting reply");
     }
 };
 
-// ===================== MEDIA UPLOAD =====================
+/* ===================== MEDIA UPLOAD ===================== */
 export function initMediaUpload() {
     const mediaInput = document.getElementById('tweetMedia');
-    const previewContainer = document.getElementById('mediaPreview');
-    if (!mediaInput || !previewContainer) return;
+    const preview = document.getElementById('mediaPreview');
+    if (!mediaInput || !preview) return;
 
     mediaInput.addEventListener('change', e => {
         const file = e.target.files[0];
@@ -224,7 +311,7 @@ export function initMediaUpload() {
 
         const reader = new FileReader();
         reader.onload = ev => {
-            previewContainer.innerHTML = `
+            preview.innerHTML = `
                 <img src="${ev.target.result}" class="preview-image">
                 <button class="remove-preview">×</button>
             `;
@@ -234,20 +321,21 @@ export function initMediaUpload() {
 
     document.addEventListener('click', e => {
         if (e.target.classList.contains('remove-preview')) {
-            previewContainer.innerHTML = '';
+            preview.innerHTML = '';
             mediaInput.value = '';
         }
     });
 }
 
-// ===================== INFINITE SCROLL (DISABLED SAFELY) =====================
+/* ===================== INFINITE SCROLL ===================== */
 export function initInfiniteScroll() {
-    console.warn('Infinite scroll disabled until /api/feed is added');
+    console.warn('Infinite scroll disabled until API is ready');
 }
 
-// ===================== PAGE INIT =====================
+/* ===================== PAGE INIT ===================== */
 export function initFeedPage() {
     initTweetActions();
+    initTweetCreation();
     initMediaUpload();
     initInfiniteScroll();
 }

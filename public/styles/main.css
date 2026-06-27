@@ -1431,3 +1431,12 @@ body.dark-mode .tweet-card:hover {
     color: #1d9bf0;
     /* Twitter-like blue */
 }
+
+.tweet-card.deleted {
+    opacity: 0.85;
+}
+
+.deleted-tweet {
+    color: #6b7280;
+    font-style: italic;
+}
