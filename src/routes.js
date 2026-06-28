@@ -17,7 +17,8 @@ import {
     replyTweetController,
     incrementViewController,
     pinTweetController,
-    retweetController
+    retweetController,
+    showTweetDetailPage
 } from "./controllers/tweets.js";
 
 // ================= FOLLOW =================
@@ -85,6 +86,8 @@ router.get('/tweets/user/:userId', requireAuth, getUserTweetsController);
 router.delete('/tweets/:tweetId', requireAuth, deleteTweetController);
 
 router.patch('/tweets/:tweetId', requireAuth, updateTweetController);
+
+router.get('/tweet/:tweetId', requireAuth, showTweetDetailPage);
 
 // replies
 router.post('/tweets/reply', requireAuth, replyTweetController);

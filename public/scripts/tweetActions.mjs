@@ -108,7 +108,7 @@ export function initTweetActions() {
     document.querySelectorAll('.share-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const tweetId = btn.dataset.tweetId;
-            const url = `${location.origin}/tweets/${tweetId}`;
+            const url = `${location.origin}/tweet/${tweetId}`;
 
             if (navigator.share) {
                 navigator.share({ url, title: "Tweet" });

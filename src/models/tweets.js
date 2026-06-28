@@ -2,6 +2,62 @@ import { db } from "./db.js"
 
 // ==================== TWEET MODELS ====================
 
+// Get Single Tweet + Replies (for detail page)
+export const getTweetWithReplies = async (tweetId) => {
+    // Main tweet with full user info + counts
+    const mainQuery = `
+        SELECT 
+            t.*,
+            u.username,
+            u.display_name,
+            u.profile_picture_url,
+            u.verified,
+
+            -- Counts
+            COALESCE((SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id), 0) AS like_count,
+            COALESCE((SELECT COUNT(*) FROM tweets r WHERE r.is_reply_to = t.tweet_id), 0) AS reply_count,
+            COALESCE((SELECT COUNT(*) FROM retweets rt WHERE rt.original_tweet_id = t.tweet_id), 0) AS retweet_count,
+
+            -- Viewer interaction (if we pass viewerId later)
+            FALSE AS liked_by_user
+        FROM tweets t
+        JOIN users u ON t.user_id = u.users_id
+        WHERE t.tweet_id = $1 
+          AND t.deleted_at IS NULL;
+    `;
+
+    const mainResult = await db.query(mainQuery, [tweetId]);
+    const tweet = mainResult.rows[0];
+
+    if (!tweet) return null;
+
+    // Fetch replies (direct replies only, ordered by newest)
+    const repliesQuery = `
+        SELECT 
+            t.*,
+            u.username,
+            u.display_name,
+            u.profile_picture_url,
+            u.verified,
+            COALESCE((SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id), 0) AS like_count,
+            COALESCE((SELECT COUNT(*) FROM tweets r WHERE r.is_reply_to = t.tweet_id), 0) AS reply_count
+        FROM tweets t
+        JOIN users u ON t.user_id = u.users_id
+        WHERE t.is_reply_to = $1 
+          AND t.deleted_at IS NULL
+        ORDER BY t.created_at DESC
+        LIMIT 50;
+    `;
+
+    const repliesResult = await db.query(repliesQuery, [tweetId]);
+    const replies = repliesResult.rows;
+
+    return {
+        ...tweet,
+        replies
+    };
+};
+
 // Create Tweet - Future-proof for multiple media
 const createTweet = async (userId, content, mediaUrl = null, isReplyTo = null) => {
     // Convert single URL to array for DB (TEXT[])

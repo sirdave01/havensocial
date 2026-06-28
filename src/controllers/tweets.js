@@ -1,7 +1,10 @@
 // import the tweets model db handler
 import { db } from "../models/db.js";
 import { createTweetWithExtras } from '../models/tweetService.js';
-import { getTweetById, getUserTweets, getHomeFeed, deleteTweet, updateTweet } from '../models/tweets.js';
+import {
+    getTweetById, getUserTweets, getHomeFeed,
+    deleteTweet, updateTweet, getTweetWithReplies
+} from '../models/tweets.js';
 import { upload } from '../middleware/upload.js';
 
 export const createTweetController = async (req, res) => {
@@ -249,5 +252,42 @@ export const retweetController = async (req, res) => {
     } catch (err) {
         console.error("Retweet error:", err);
         res.status(500).json({ message: "Retweet failed" });
+    }
+};
+
+// ===================== SHARED TWEET DETAILS PAGE =====================
+
+export const showTweetDetailPage = async (req, res) => {
+    try {
+        const { tweetId } = req.params;
+        const user = req.session?.user;
+
+        if (!user) return res.redirect('/login');
+
+        const data = await getTweetWithReplies(tweetId);
+
+        if (!data) {
+            return res.status(404).render('errors/404', { 
+                title: 'Tweet Not Found',
+                message: 'This tweet may have been deleted or never existed.' 
+            });
+        }
+
+        const { replies, ...tweet } = data;
+
+        res.render('tweet', {
+            title: `Post by @${tweet.username}`,
+            tweet,
+            replies,
+            user,
+            isLoggedIn: true
+        });
+
+    } catch (err) {
+        console.error('Tweet detail error:', err);
+        res.status(500).render('errors/500', { 
+            title: 'Server Error',
+            error: 'Could not load tweet'
+        });
     }
 };
