@@ -87,7 +87,7 @@ router.delete('/tweets/:tweetId', requireAuth, deleteTweetController);
 
 router.patch('/tweets/:tweetId', requireAuth, updateTweetController);
 
-router.get('/tweet/:tweetId', requireAuth, showTweetDetailPage);
+router.get('/tweet/:tweetId', showTweetDetailPage);
 
 // replies
 router.post('/tweets/reply', requireAuth, replyTweetController);
