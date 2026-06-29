@@ -1440,3 +1440,23 @@ body.dark-mode .tweet-card:hover {
     color: #6b7280;
     font-style: italic;
 }
+
+.modal-content,
+.reply-composer,
+.edit-profile-form {
+    color: var(--text);
+    background: var(--surface);
+}
+
+.modal-content textarea,
+.modal-content input,
+.modal-content select {
+    color: var(--text);
+    background: var(--bg);
+    border-color: var(--border);
+}
+
+body.dark-mode .modal-content textarea,
+body.dark-mode .modal-content input {
+    color: #f1f5f9 !important;
+}

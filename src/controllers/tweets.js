@@ -94,10 +94,33 @@ export const deleteTweetController = async (req, res) => {
         const { tweetId } = req.params;
         const userId = req.session.user.users_id;
 
+        // Fetch for reply handling
+        const tweetInfo = await db.query(
+            `SELECT is_reply_to FROM tweets WHERE tweet_id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+            [tweetId, userId]
+        );
+        const isReplyTo = tweetInfo.rows[0]?.is_reply_to;
+
         const result = await deleteTweet(tweetId, userId);
 
         if (!result) {
             return res.status(404).json({ message: "Tweet not found or unauthorized" });
+        }
+
+        // Update user's tweet count
+        await db.query(`
+            UPDATE users 
+            SET post_count = GREATEST(post_count - 1, 0) 
+            WHERE users_id = $1
+        `, [userId]);
+
+        // If reply, update parent
+        if (isReplyTo) {
+            await db.query(`
+                UPDATE tweets 
+                SET reply_count = GREATEST(reply_count - 1, 0)
+                WHERE tweet_id = $1
+            `, [isReplyTo]);
         }
 
         res.json({ message: "Tweet deleted successfully" });

@@ -4,9 +4,12 @@
         <img src="<%= tweet.profile_picture_url || '/images/default-avatar.jpg' %>" class="tweet-avatar">
 
         <div class="tweet-user-info">
-            <strong>
-                <%= tweet.display_name || tweet.username %>
-            </strong>
+            <a href="/<%= tweet.username %>" class="user-link">
+                
+                <strong>
+                    <%= tweet.display_name || tweet.username %>
+                </strong>
+            </a>
             <span>@<%= tweet.username %></span>
         </div>
 
@@ -48,11 +51,12 @@
             </span>
         </button>
 
-        <button class="action-btn view-btn" data-tweet-id="<%= tweet.tweet_id %>">
+    <!-- View count (non-interactive) -->
+        <span class="action-btn view-count" style="cursor: default;">
             👁 <span class="count">
                 <%= tweet.view_count || 0 %>
             </span>
-        </button>
+        </span>
 
         <button class="action-btn share-btn" data-tweet-id="<%= tweet.tweet_id %>" title="Share">
             🔗
