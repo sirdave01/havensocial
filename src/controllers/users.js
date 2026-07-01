@@ -166,7 +166,8 @@ const requireLogin = (req, res, next) => {
 
 const requireRole = (role) => {
     return (req, res, next) => {
-        if (req.session.user && req.session.user.role_name === role) {
+        const roles = Array.isArray(role) ? role : [role];
+        if (req.session.user && roles.includes(req.session.user.role_name)) {
             return next();
         }
         req.flash('error', 'You do not have permission to access this page.');
@@ -252,9 +253,21 @@ const showSearchResults = async (req, res) => {
 const showUsers = async (req, res) => {
     try {
         const users = await getAllUsers();
+        const stats = {
+            total: users.length,
+            verified: users.filter(user => user.verified).length,
+            suspended: users.filter(user => user.suspended).length,
+            joinedToday: users.filter(user => {
+                const createdAt = new Date(user.created_at);
+                const today = new Date();
+                return createdAt.toDateString() === today.toDateString();
+            }).length
+        };
+
         res.render('users', { 
             title: 'All Users', 
             users,
+            stats,
             user: req.session.user,
             isLoggedIn: true
         });
@@ -269,7 +282,7 @@ const showUsers = async (req, res) => {
 
 const adminSuspendUser = async (req, res) => {
 
-    if (req.session.user?.role_name !== 'founder') {
+    if (!['founder', 'admin'].includes(req.session.user?.role_name)) {
 
         req.flash('error', 'Access denied.');
 
@@ -365,7 +378,7 @@ const adminVerifyUser = async (req, res) => {
 
 const adminDeleteUser = async (req, res) => {
 
-    if (req.session.user?.role_name !== 'founder') {
+    if (!['founder', 'admin'].includes(req.session.user?.role_name)) {
 
         req.flash('error', 'Access denied.');
 

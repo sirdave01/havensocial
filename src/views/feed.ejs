@@ -1,9 +1,7 @@
 <%- include('partials/header') %>
 
     <main class="feed-page">
-                <!-- Compose Tweet - Only for logged-in users -->
                 <div class="compose-tweet">
-                    
                     <form action="/tweets" method="POST" id="tweetForm" enctype="multipart/form-data">
                         <textarea name="content" id="tweetContent" placeholder="What's happening?" maxlength="280"
                             required></textarea>

@@ -5,6 +5,7 @@ import {
     getTweetById, getUserTweets, getHomeFeed,
     deleteTweet, updateTweet, getTweetWithReplies
 } from '../models/tweets.js';
+import { createNotification } from '../models/notification.js';
 import { upload } from '../middleware/upload.js';
 
 export const createTweetController = async (req, res) => {
@@ -247,6 +248,10 @@ export const retweetController = async (req, res) => {
         const userId = req.session.user.users_id;
         const { tweetId } = req.body;
 
+        if (!tweetId) {
+            return res.status(400).json({ message: "tweetId is required" });
+        }
+
         const exists = await db.query(
             `SELECT 1 FROM retweets
              WHERE user_id = $1 AND original_tweet_id = $2`,
@@ -254,7 +259,16 @@ export const retweetController = async (req, res) => {
         );
 
         if (exists.rows.length > 0) {
-            return res.status(400).json({ message: "Already retweeted" });
+            return res.status(409).json({ message: "Already retweeted" });
+        }
+
+        const original = await db.query(
+            `SELECT user_id FROM tweets WHERE tweet_id = $1 AND deleted_at IS NULL`,
+            [tweetId]
+        );
+
+        if (!original.rows[0]) {
+            return res.status(404).json({ message: "Tweet not found" });
         }
 
         await db.query(
@@ -270,7 +284,11 @@ export const retweetController = async (req, res) => {
             [tweetId]
         );
 
-        res.json({ message: "Retweeted successfully" });
+        if (original.rows[0].user_id !== userId) {
+            await createNotification(original.rows[0].user_id, userId, 'retweet', tweetId);
+        }
+
+        res.status(201).json({ message: "Retweeted successfully" });
 
     } catch (err) {
         console.error("Retweet error:", err);

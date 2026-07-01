@@ -7,6 +7,22 @@ let hasMore = true;
 export function initTweetActions() {
     console.log('🚀 Tweet actions initialized');
 
+    document.querySelectorAll('.menu-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const menu = document.querySelector(`[data-menu-for="${btn.dataset.tweetId}"]`);
+            document.querySelectorAll('.tweet-menu.show').forEach(openMenu => {
+                if (openMenu !== menu) openMenu.classList.remove('show');
+            });
+            menu?.classList.toggle('show');
+        });
+    });
+
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.tweet-owner-actions')) {
+            document.querySelectorAll('.tweet-menu.show').forEach(menu => menu.classList.remove('show'));
+        }
+    });
+
     // ================= LIKE =================
     document.querySelectorAll('.like-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -69,22 +85,23 @@ export function initTweetActions() {
                 body: JSON.stringify({ tweetId })
             });
 
+            const data = await res.json().catch(() => ({}));
+
             if (res.ok) {
-                count.textContent = parseInt(count.textContent) + 1;
+                count.textContent = parseInt(count.textContent || '0') + 1;
+                btn.classList.add('active');
+            } else {
+                alert(data.message || 'Unable to retweet right now');
             }
         });
     });
 
     // ================= VIEWS =================
-    document.querySelectorAll('.view-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const tweetId = btn.dataset.tweetId;
-            const count = btn.querySelector('.count');
+    document.querySelectorAll('.view-count').forEach(view => {
+        const tweetId = view.closest('.tweet-card')?.dataset.tweetId;
+        if (!tweetId) return;
 
-            await fetch(`/tweets/${tweetId}/view`, { method: 'POST' });
-
-            count.textContent = parseInt(count.textContent) + 1;
-        });
+        fetch(`/tweets/${tweetId}/view`, { method: 'POST' }).catch(() => {});
     });
 
     // ================= PIN =================

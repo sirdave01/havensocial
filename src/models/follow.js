@@ -1,4 +1,5 @@
 import { db } from "./db.js";
+import { createNotification } from "./notification.js";
 
 // Follow a user
 export const followUser = async (followerId, followeeId) => {
@@ -17,6 +18,9 @@ export const followUser = async (followerId, followeeId) => {
         VALUES ($1, $2)
     `, [followerId, followeeId]);
 
+    if (followerId !== followeeId) {
+        await createNotification(followeeId, followerId, 'follow', null);
+    }
 
     return { following: true, alreadyExists: false };
 };

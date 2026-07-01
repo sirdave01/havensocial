@@ -6,9 +6,29 @@
             <h1>
                 <%= title %>
             </h1>
-            <p class="page-subtitle">Welcome, Founder. You have full control over user accounts.</p>
-
+            <p class="page-subtitle">Manage accounts, moderation, and verification from one place.</p>
         </div>
+
+        <% if (locals.stats) { %>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <strong><%= stats.total %></strong>
+                    <span>Total users</span>
+                </div>
+                <div class="stat-card">
+                    <strong><%= stats.verified %></strong>
+                    <span>Verified</span>
+                </div>
+                <div class="stat-card">
+                    <strong><%= stats.suspended %></strong>
+                    <span>Suspended</span>
+                </div>
+                <div class="stat-card">
+                    <strong><%= stats.joinedToday %></strong>
+                    <span>Joined today</span>
+                </div>
+            </div>
+        <% } %>
 
         <div class="table-container">
             <table class="user-management-table" id="usersTable">

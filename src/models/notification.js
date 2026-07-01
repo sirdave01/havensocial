@@ -1,12 +1,13 @@
 import { db } from "./db.js";
 
-const createNotification = async (userId, actorId, type, tweetId = null) => {
+const createNotification = async (userId, actorId, type, tweetId = null, client = null) => {
     const query = `
         INSERT INTO notifications (user_id, actor_id, type, tweet_id)
         VALUES ($1, $2, $3, $4)
         RETURNING *;
     `;
-    const result = await db.query(query, [userId, actorId, type, tweetId]);
+    const executor = client || db;
+    const result = await executor.query(query, [userId, actorId, type, tweetId]);
     return result.rows[0];
 };
 
@@ -15,6 +16,7 @@ const getNotifications = async (userId, limit = 20) => {
         SELECT n.*, 
                u.username as actor_username, 
                u.display_name as actor_display_name,
+               u.profile_picture_url as actor_profile_picture,
                t.content as tweet_content
         FROM notifications n
         JOIN users u ON n.actor_id = u.users_id

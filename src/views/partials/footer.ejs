@@ -1,4 +1,16 @@
     
+    <% if (locals.isLoggedIn) { %>
+        <nav class="bottom-nav" aria-label="Mobile navigation">
+            <a href="/feed" class="bottom-nav-link">🏠<span>Home</span></a>
+            <a href="/notifications" class="bottom-nav-link">🔔<span>Alerts</span></a>
+            <a href="/profile/<%= locals.user?.username %>" class="bottom-nav-link">👤<span>Profile</span></a>
+            <% if (locals.isFounder) { %>
+                <a href="/users" class="bottom-nav-link">👑<span>Users</span></a>
+            <% } %>
+            <a href="/logout" class="bottom-nav-link">🚪<span>Logout</span></a>
+        </nav>
+    <% } %>
+
     <footer class="main-footer">
 
         <p>&copy; <%= new Date().getFullYear() %> HavenSocial by ByteHaven Tech Solutions Ltd

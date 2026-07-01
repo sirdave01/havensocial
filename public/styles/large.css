@@ -1,54 +1,6 @@
 @media screen and (min-width: 43.75rem) {
-
-    .hamburger {
-        display: none;
-    }
-
-    header {
-        flex-wrap: nowrap;
-    }
-
-        #nav-list {
-            display: flex !important;
-            width: auto;
-            background: transparent;
-            border-top: none;
-            box-shadow: none;
-            margin-top: 0;
-            flex-direction: row;
-            align-items: center;
-            gap: 0.5rem;
-        }
-    
-        #nav-list ul {
-            display: flex;
-            flex-direction: row;
-            gap: 0.5rem;
-        }
-    
-        #nav-list li a {
-            padding: 10px 18px;
-            border-radius: 9999px;
-            border-bottom: none;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-    
-        #nav-list li a:hover,
-        #nav-list li a[aria-current="page"] {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--accent);
-        }
-    
-        .nav-cta {
-            background: var(--accent) !important;
-            color: white !important;
-            font-weight: 600;
-        }
-
-    header h1 {
-        text-align: left;
-        flex: none;
+    .header-container {
+        gap: 1rem;
     }
 
     main {
@@ -56,44 +8,59 @@
         margin: 0 auto;
     }
 
-        .profile-header {
-            flex-direction: row;
-            align-items: flex-start;
-            text-align: left;
-            gap: 2.5rem;
-        }
-    
-        .profile-picture {
-            width: 160px;
-            height: 160px;
-        }
-    
-        .profile-info {
-            text-align: left;
-        }
-    
-        .stats {
-            justify-content: flex-start;
-        }
-    
-        .btn-edit {
-            margin-top: 0;
-            align-self: flex-start;
-        }
+    .profile-header {
+        flex-direction: row;
+        align-items: flex-start;
+        text-align: left;
+        gap: 2.5rem;
+    }
 
-        .table-container {
-            border-radius: var(--radius);
-        }
-        
-        .user-management-table th,
-        .user-management-table td {
-            padding: 1.1rem 1.25rem;
-        }
-        
-        .actions-cell {
-            gap: 0.6rem;
-        }
-               
+    .profile-picture {
+        width: 160px;
+        height: 160px;
+    }
+
+    .profile-info {
+        text-align: left;
+    }
+
+    .stats {
+        justify-content: flex-start;
+    }
+
+    .btn-edit {
+        margin-top: 0;
+        align-self: flex-start;
+    }
+
+    .table-container {
+        border-radius: var(--radius);
+    }
+
+    .user-management-table th,
+    .user-management-table td {
+        padding: 1.1rem 1.25rem;
+    }
+
+    .actions-cell {
+        gap: 0.6rem;
+    }
+}
+
+@media screen and (max-width: 800px) {
+    .hero-section {
+        grid-template-columns: 1fr;
+    }
+
+    .header-container {
+        flex-wrap: wrap;
+    }
+
+    .global-search-container {
+        order: 3;
+        max-width: none;
+        width: 100%;
+    }
 }
 
 /* Extra wide screens */

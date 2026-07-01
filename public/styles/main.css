@@ -1,10 +1,5 @@
 /* ============================================
-   BYTEHAVEN HAVENSOCIAL - FINAL FIXED CSS
-   Clean, Responsive, Centered & Professional
-   ============================================ */
-
-/* ============================================
-   Fixed Nested CSS - Proper Nav Behavior
+   BYTEHAVEN HAVENSOCIAL - RESPONSIVE UI
    ============================================ */
 
 :root {
@@ -58,96 +53,91 @@ body {
 header {
     position: sticky;
     top: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: var(--spacing-md);
+    padding: 0.8rem 1rem;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     box-shadow: 0 4px 12px var(--shadow);
     z-index: 100;
-    flex-wrap: wrap;
-    gap: 10px;
-
-    h1 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--text);
-        flex: 1;
-        text-align: center;
-    }
-
-    button {
-        background: none;
-        border: none;
-        color: var(--text);
-        font-size: 1.6rem;
-        padding: 10px;
-        border-radius: 50%;
-        cursor: pointer;
-
-        &:hover {
-            background: rgba(16, 185, 129, 0.1);
-        }
-    }
 }
 
-/* Hamburger */
-.hamburger {
-    font-size: 1.9rem;
-    color: var(--gold);
-    padding: 8px;
+.header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 700;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.logo img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+}
+
+.header-actions button,
+#dark-mode-toggle {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 1.2rem;
+    padding: 0.6rem;
+    border-radius: 50%;
     cursor: pointer;
-
-    &::before {
-        content: "☰";
-    }
-
-    &.show::before {
-        content: "✕";
-    }
 }
 
-/* Navigation */
-#nav-list {
+.header-actions button:hover,
+#dark-mode-toggle:hover {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.global-search-container {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 1;
+    max-width: 420px;
+}
+
+.global-search-input {
     width: 100%;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    box-shadow: 0 4px 12px var(--shadow);
-    display: none;
-    flex-direction: column;
-    z-index: 99;
-    margin-top: 10px;
+    min-height: 2.7rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+}
 
-    &.show {
-        display: flex;
-    }
+.nav-bar ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    list-style: none;
+}
 
-    ul {
-        list-style: none;
-        width: 100%;
-    }
+.nav-bar li a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 999px;
+    color: var(--text);
+    text-decoration: none;
+}
 
-    li a {
-        display: block;
-        padding: 18px 24px;
-        color: var(--text);
-        text-decoration: none;
-        font-size: 1.1rem;
-        border-bottom: 1px solid var(--border);
-        transition: all 0.2s ease;
-
-        &:last-child {
-            border-bottom: none;
-        }
-
-        &:hover,
-        &[aria-current="page"] {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--accent);
-            padding-left: 32px;
-        }
-    }
+.nav-bar li a:hover,
+.nav-bar li a[aria-current="page"] {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent);
 }
 
 /* Flash message styles */
@@ -244,6 +234,165 @@ form {
     border: 1px solid var(--border);
     border-radius: calc(var(--radius) - 4px);
     box-shadow: 0 18px 32px rgba(15, 23, 42, 0.08);
+}
+
+.hero-section {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 2rem;
+    align-items: center;
+    padding: 2.5rem 0;
+}
+
+.hero-logo {
+    width: min(220px, 70vw);
+    margin-bottom: 1rem;
+}
+
+.hero-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: 0 20px 40px var(--shadow);
+}
+
+.compose-tweet,
+.tweet-card,
+.stat-card,
+.table-container,
+.notification-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 24px var(--shadow);
+}
+
+.compose-tweet {
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.tweet-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.tweet-header {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.tweet-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+.tweet-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+}
+
+.action-btn,
+.reply-btn,
+.like-btn,
+.repost-btn,
+.share-btn,
+.menu-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.35rem 0.55rem;
+    border-radius: 999px;
+}
+
+.action-btn:hover,
+.reply-btn:hover,
+.like-btn:hover,
+.repost-btn:hover,
+.share-btn:hover,
+.menu-btn:hover {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent);
+}
+
+.tweet-owner-actions {
+    margin-left: auto;
+    position: relative;
+}
+
+.tweet-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 110%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.35rem;
+    min-width: 130px;
+    z-index: 20;
+}
+
+.tweet-menu.show {
+    display: flex;
+    flex-direction: column;
+}
+
+.tweet-menu button {
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.tweet-menu button:hover {
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 1.25rem;
+}
+
+.stat-card {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.user-management-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.user-management-table th,
+.user-management-table td {
+    padding: 0.8rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+
+.actions-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.btn-small {
+    min-height: 2.4rem;
+    padding: 0 0.8rem;
+    font-size: 0.9rem;
 }
 
 form .form-group {
@@ -345,6 +494,33 @@ footer {
     color: var(--text-muted);
     border-top: 1px solid var(--border);
     margin-top: auto;
+}
+
+.bottom-nav {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0.65rem 0.5rem;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    gap: 0.25rem;
+    z-index: 90;
+}
+
+.bottom-nav-link {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.8rem;
+}
+
+.bottom-nav-link:hover {
+    color: var(--accent);
 }
 
 form input[type="checkbox"] {
