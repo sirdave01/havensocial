@@ -204,6 +204,10 @@ export const incrementViewController = async (req, res) => {
         const { tweetId } = req.params;
         const viewerId = req.session?.user?.users_id;
 
+        if (!viewerId) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
         const original = await db.query(
             `SELECT user_id FROM tweets WHERE tweet_id = $1 AND deleted_at IS NULL`,
             [tweetId]
@@ -216,6 +220,20 @@ export const incrementViewController = async (req, res) => {
         if (original.rows[0].user_id === viewerId) {
             return res.status(200).json({ ok: true, message: 'Owner views are not counted' });
         }
+
+        const alreadyViewed = await db.query(
+            `SELECT view_id FROM tweet_views WHERE tweet_id = $1 AND user_id = $2`,
+            [tweetId, viewerId]
+        );
+
+        if (alreadyViewed.rowCount > 0) {
+            return res.status(200).json({ ok: true, message: 'View already counted' });
+        }
+
+        await db.query(
+            `INSERT INTO tweet_views (tweet_id, user_id) VALUES ($1, $2)`,
+            [tweetId, viewerId]
+        );
 
         await db.query(
             `UPDATE tweets 

@@ -1357,7 +1357,13 @@ body.dark-mode .tweet-card:hover {
 
 .like-btn.liked {
     color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+    box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.18);
     animation: pop 0.3s ease;
+}
+
+.like-btn.liked:hover {
+    background: rgba(239, 68, 68, 0.22);
 }
 
 @keyframes pop {

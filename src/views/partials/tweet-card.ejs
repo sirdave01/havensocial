@@ -1,7 +1,8 @@
 <div class="tweet-card <%= tweet.is_deleted ? 'deleted' : '' %>" data-tweet-id="<%= tweet.tweet_id %>">
 
     <div class="tweet-header">
-        <img src="<%= tweet.profile_picture_url || '/images/default-avatar.jpg' %>" class="tweet-avatar">
+        <img src="<%= tweet.profile_picture_url || '/images/default-avatar.jpg' %>" class="tweet-avatar"
+            onerror="this.onerror=null; this.src='/images/default-avatar.jpg'">
 
         <div class="tweet-user-info">
             <a href="/<%= tweet.username %>" class="user-link">

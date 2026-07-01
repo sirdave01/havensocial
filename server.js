@@ -15,6 +15,7 @@ import {setAuthLocals} from './src/middleware/auth.js';
 import { fileURLToPath } from 'url';
 
 import path from 'path';
+import fs from 'fs';
 
 import router from './src/routes.js';
 
@@ -87,6 +88,22 @@ app.use(setAuthLocals);
 app.use(express.urlencoded({ extended: true }));
 
 app.use(express.json());
+
+// Serve profile uploads with fallback to the default avatar when the file is missing.
+app.use('/uploads/profile', (req, res, next) => {
+    const uploadsDir = path.join(__dirname, 'public', 'uploads', 'profile');
+    const requestedFile = path.normalize(path.join(uploadsDir, decodeURIComponent(req.path)));
+
+    if (!requestedFile.startsWith(uploadsDir)) {
+        return next();
+    }
+
+    if (!fs.existsSync(requestedFile)) {
+        return res.sendFile(path.join(__dirname, 'public', 'images', 'default-avatar.jpg'));
+    }
+
+    next();
+});
 
 // Serve static files from the public directory
 
