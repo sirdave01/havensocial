@@ -28,15 +28,23 @@ export function initTweetActions() {
         btn.addEventListener('click', async () => {
             const tweetId = btn.dataset.tweetId;
             const count = btn.querySelector('.count');
+            const liked = btn.classList.contains('liked');
+            const url = liked ? '/likes/unlike' : '/likes';
 
-            const res = await fetch('/likes', {
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({ tweetId })
             });
 
+            const data = await res.json().catch(() => ({}));
+
             if (res.ok) {
-                count.textContent = parseInt(count.textContent) + 1;
+                const currentCount = parseInt(count.textContent || '0', 10);
+                count.textContent = String(currentCount + (liked ? -1 : 1));
+                btn.classList.toggle('liked');
+            } else {
+                alert(data.message || 'Unable to update like status');
             }
         });
     });
@@ -97,12 +105,8 @@ export function initTweetActions() {
     });
 
     // ================= VIEWS =================
-    document.querySelectorAll('.view-count').forEach(view => {
-        const tweetId = view.closest('.tweet-card')?.dataset.tweetId;
-        if (!tweetId) return;
-
-        fetch(`/tweets/${tweetId}/view`, { method: 'POST' }).catch(() => {});
-    });
+    // Views are counted only when a tweet detail page is opened.
+    // This prevents feed rendering from artificially inflating views.
 
     // ================= PIN =================
     document.querySelectorAll('.pin-btn').forEach(btn => {
@@ -382,6 +386,25 @@ export function initMediaUpload() {
             mediaInput.value = '';
         }
     });
+}
+
+/* ===================== TWEET DETAIL VIEW COUNT ===================== */
+export function initTweetDetailPage() {
+    const tweetCard = document.querySelector('.main-tweet .tweet-card') || document.querySelector('.tweet-card');
+    const viewCounter = tweetCard?.querySelector('.view-count .count');
+    const tweetId = tweetCard?.dataset.tweetId;
+
+    if (!tweetId) return;
+
+    fetch(`/tweets/${tweetId}/view`, { method: 'POST' })
+        .then(async res => {
+            if (!res.ok) return;
+            const currentValue = parseInt(viewCounter?.textContent || '0', 10);
+            if (viewCounter && !Number.isNaN(currentValue)) {
+                viewCounter.textContent = String(currentValue + 1);
+            }
+        })
+        .catch(() => {});
 }
 
 /* ===================== INFINITE SCROLL ===================== */

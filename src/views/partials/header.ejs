@@ -107,30 +107,7 @@
                 </div>
                 <% } %>
 
-            <nav id="nav-list" class="nav-bar">
-
-                <ul>
-
-                    <% if (locals.isLoggedIn) { %>
-                        <li><a href="/feed" title="Feed"><span class="nav-text">Home</span></a></li>
-
-                        <li><a href="/notifications" title="Notifications"><span class="nav-text">Notifications</span></a></li>
-
-                        <li><a href="/profile/<%= user.username %>" title="Profile"><span class="nav-text">Profile</span></a></li>
-
-                        <% if (locals.isFounder) { %>
-                            <li><a href="/users" title="Users Dashboard"><span class="nav-text">Users</span></a></li>
-                        <% } %>
-
-                        <li><a href="/logout" title="Logout"><span class="nav-text">Logout</span></a></li>
-
-                    <% } else { %>
-                        <li><a href="/register" title="Join Now"><span class="nav-text">Join</span></a></li>
-                        <li><a href="/login" title="Log in"><span class="nav-text">Login</span></a></li>
-                    <% } %>
-                </ul>
-
-            </nav>
+            <!-- Header navigation removed; footer contains the mobile and desktop navigation icons. -->
 
             <div class="header-actions">
 

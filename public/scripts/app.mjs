@@ -6,7 +6,7 @@ import { initDarkMode } from './modetoggle.mjs';
 import { initPasswordToggle } from './passwordToggle.mjs';
 import { initProfilePage } from './profile.mjs';
 import { initGlobalSearch } from './searchbtn.mjs';
-import { initFeedPage } from './tweetActions.mjs';
+import { initFeedPage, initTweetDetailPage } from './tweetActions.mjs';
 import { initProfileImageModal } from './imageModal.mjs';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,6 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Feed specific (includes tweet actions + media upload + infinite scroll)
     if (document.querySelector('.feed-page')) {
         initFeedPage();
+    }
+
+    // Tweet detail page should count views only on actual post view.
+    if (document.querySelector('.tweet-detail-page')) {
+        initTweetDetailPage();
     }
 
     const isLoggedIn = document.body.dataset.loggedIn === 'true' || document.querySelector('.feed-page')?.dataset.loggedIn === 'true';

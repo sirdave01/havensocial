@@ -55,7 +55,7 @@
             </span>
         </button>
 
-        <button class="action-btn like-btn" data-tweet-id="<%= tweet.tweet_id %>">
+        <button class="action-btn like-btn <%= tweet.liked_by_user ? 'liked' : '' %>" data-tweet-id="<%= tweet.tweet_id %>">
             ❤️ <span class="count">
                 <%= tweet.like_count || 0 %>
             </span>

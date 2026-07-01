@@ -202,6 +202,20 @@ export const replyTweetController = async (req, res) => {
 export const incrementViewController = async (req, res) => {
     try {
         const { tweetId } = req.params;
+        const viewerId = req.session?.user?.users_id;
+
+        const original = await db.query(
+            `SELECT user_id FROM tweets WHERE tweet_id = $1 AND deleted_at IS NULL`,
+            [tweetId]
+        );
+
+        if (!original.rows[0]) {
+            return res.status(404).json({ message: 'Tweet not found' });
+        }
+
+        if (original.rows[0].user_id === viewerId) {
+            return res.status(200).json({ ok: true, message: 'Owner views are not counted' });
+        }
 
         await db.query(
             `UPDATE tweets 
@@ -305,7 +319,7 @@ export const showTweetDetailPage = async (req, res) => {
 
         if (!user) return res.redirect('/login');
 
-        const data = await getTweetWithReplies(tweetId);
+        const data = await getTweetWithReplies(tweetId, user.users_id);
 
         if (!data) {
             return res.status(404).render('errors/404', { 

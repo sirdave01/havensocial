@@ -3,7 +3,7 @@ import { db } from "./db.js"
 // ==================== TWEET MODELS ====================
 
 // Get Single Tweet + Replies (for detail page)
-export const getTweetWithReplies = async (tweetId) => {
+export const getTweetWithReplies = async (tweetId, viewerId = null) => {
     // Main tweet with full user info + counts
     const mainQuery = `
         SELECT 
@@ -18,15 +18,19 @@ export const getTweetWithReplies = async (tweetId) => {
             COALESCE((SELECT COUNT(*) FROM tweets r WHERE r.is_reply_to = t.tweet_id), 0) AS reply_count,
             COALESCE((SELECT COUNT(*) FROM retweets rt WHERE rt.original_tweet_id = t.tweet_id), 0) AS retweet_count,
 
-            -- Viewer interaction (if we pass viewerId later)
-            FALSE AS liked_by_user
+            -- Viewer interaction
+            EXISTS (
+                SELECT 1 FROM likes l
+                WHERE l.tweet_id = t.tweet_id
+                  AND l.user_id = $2
+            ) AS liked_by_user
         FROM tweets t
         JOIN users u ON t.user_id = u.users_id
         WHERE t.tweet_id = $1 
           AND t.deleted_at IS NULL;
     `;
 
-    const mainResult = await db.query(mainQuery, [tweetId]);
+    const mainResult = await db.query(mainQuery, [tweetId, viewerId]);
     const tweet = mainResult.rows[0];
 
     if (!tweet) return null;
