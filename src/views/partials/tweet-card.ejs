@@ -30,6 +30,22 @@
         </p>
     </div>
 
+    <% const mediaItems = Array.isArray(tweet.media_url) ? tweet.media_url : (tweet.media_url ? [tweet.media_url] : []); %>
+    <% if (mediaItems.length) { %>
+        <div class="tweet-media">
+            <% mediaItems.forEach(media => { %>
+                <% const mediaPath = String(media || '').trim(); %>
+                <% if (mediaPath.match(/\.(mp4|webm)$/i)) { %>
+                    <video controls preload="metadata" class="tweet-media-item">
+                        <source src="<%= mediaPath %>" type="video/mp4">
+                    </video>
+                <% } else { %>
+                    <img src="<%= mediaPath %>" alt="Tweet media" class="tweet-media-item">
+                <% } %>
+            <% }); %>
+        </div>
+    <% } %>
+
     <div class="tweet-actions">
 
         <button class="action-btn reply-btn" data-tweet-id="<%= tweet.tweet_id %>"

@@ -45,6 +45,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <% if (!users || users.length===0) { %>
+                        <tr>
+                            <td colspan="8" class="empty-state">No users found.</td>
+                        </tr>
+                    <% } else { %>
                     <% users.forEach(user=> { %>
                         <tr data-username="<%= user.username.toLowerCase() %>"
                             data-email="<%= user.email.toLowerCase() %>"
@@ -100,6 +105,7 @@
                             </td>
                         </tr>
                         <% }); %>
+                    <% } %>
                 </tbody>
             </table>
         </div>

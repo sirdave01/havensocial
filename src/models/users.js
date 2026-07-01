@@ -85,6 +85,8 @@ const findUserByEmail = async (email) => {
             u.password_hash,
             u.full_name,
             u.display_name,
+            u.full_name,
+            u.bio,
             u.profile_picture_url,
             u.verified,
             u.suspended,

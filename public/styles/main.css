@@ -297,6 +297,20 @@ form {
     margin-top: 0.9rem;
 }
 
+.tweet-media {
+    display: grid;
+    gap: 0.7rem;
+    margin-top: 0.8rem;
+}
+
+.tweet-media-item {
+    width: 100%;
+    max-height: 360px;
+    object-fit: cover;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+}
+
 .action-btn,
 .reply-btn,
 .like-btn,

@@ -115,6 +115,14 @@ export const updateProfile = async (req, res) => {
 
         );
 
+        req.session.user = {
+            ...req.session.user,
+            profile_picture_url: updatedUser.profile_picture_url || null,
+            display_name: updatedUser.display_name || updatedUser.full_name || req.session.user.username,
+            full_name: updatedUser.full_name || null,
+            bio: updatedUser.bio || null
+        };
+
         req.flash('success', 'Profile updated successfully!');
         
         res.redirect(`/profile/${req.session.user.username}`);

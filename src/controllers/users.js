@@ -118,7 +118,12 @@ const processLoginForm = async (req, res) => {
         req.session.user = {
             users_id: user.users_id,
             username: user.username,
-            role_name: user.role_name
+            role_name: user.role_name,
+            profile_picture_url: user.profile_picture_url || null,
+            display_name: user.display_name || user.full_name || user.username,
+            full_name: user.full_name || null,
+            bio: user.bio || null,
+            verified: user.verified || false
         };
 
         // 🚀 IMPORTANT: ensure session is saved before redirect
@@ -266,7 +271,7 @@ const showUsers = async (req, res) => {
 
         res.render('users', { 
             title: 'All Users', 
-            users,
+            users: users || [],
             stats,
             user: req.session.user,
             isLoggedIn: true
