@@ -86,6 +86,14 @@ router.post(
     createTweetController
 );
 
+// Support reply modal endpoint
+router.post(
+    '/tweets/reply',
+    requireAuth,
+    tweetUpload.single('media'),
+    createTweetController
+);
+
 // get single tweet (JSON)
 router.get('/tweets/:tweetId', requireAuth, getTweetController);
 

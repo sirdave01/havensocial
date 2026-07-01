@@ -13,14 +13,16 @@
 
             <hr>
 
-            <!-- Reply Box (optional - you can make this a form later)
+        
+        <!-- Reply Composer -->
         <div class="reply-composer">
-            <form action="/tweets/reply" method="POST">
+            <form action="/tweets" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="isReplyTo" value="<%= tweet.tweet_id %>">
-                <textarea name="content" placeholder="Post your reply" maxlength="280" required></textarea>
+                <textarea name="content" placeholder="Post your reply..." maxlength="280" required></textarea>
+                <input type="file" name="media" accept="image/*,video/*">
                 <button type="submit" class="btn-primary">Reply</button>
             </form>
-        </div> -->
+        </div>
 
         <!-- Replies -->
         <div class="replying-to-banner">

@@ -14,6 +14,17 @@ import {
 import { createNotification } from "../models/notification.js";
 import { upload } from "../middleware/upload.js";
 
+
+// ===================== NORMALIZE REPLY INPUT =====================
+const normalizeReplyTo = (value) => {
+    if (!value || value === "null" || value === "undefined" || 
+        value === "" || value === 0 || value === "0") {
+        return null;
+    }
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+};
+
 // ===================== CREATE TWEET =====================
 export const createTweetController = async (req, res) => {
     try {
@@ -21,11 +32,12 @@ export const createTweetController = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized" });
         }
 
-        const { content, isReplyTo } = req.body;
+        const { content } = req.body;
+        let isReplyTo = normalizeReplyTo(req.body.isReplyTo);
         const mediaFile = req.file;
         const userId = req.session.user.users_id;
 
-        if (!content || content.trim() === "") {
+        if (!content || !content.trim()) {
             return res.status(400).json({ message: "Content is required" });
         }
 
@@ -34,38 +46,37 @@ export const createTweetController = async (req, res) => {
             mediaUrl = `/uploads/tweets/${mediaFile.filename}`;
         }
 
+        // ===================== VERIFY PARENT TWEET (if reply) =====================
+        if (isReplyTo) {
+            const parentCheck = await db.query(
+                `SELECT tweet_id FROM tweets WHERE tweet_id = $1 AND deleted_at IS NULL`,
+                [isReplyTo]
+            );
+
+            if (!parentCheck.rows.length) {
+                return res.status(404).json({ message: "Parent tweet not found or deleted" });
+            }
+        }
+
         const tweet = await createTweetWithExtras(
             userId,
             content.trim(),
             mediaUrl,
-            isReplyTo || null
+            isReplyTo
         );
 
-        // 🔔 Notify parent tweet owner (reply)
-        if (isReplyTo) {
-            const parent = await db.query(
-                `SELECT user_id FROM tweets WHERE tweet_id = $1 AND deleted_at IS NULL`,
-                [isReplyTo]
-            );
-
-            if (parent.rows[0] && parent.rows[0].user_id !== userId) {
-                await createNotification(
-                    parent.rows[0].user_id,
-                    userId,
-                    "reply",
-                    tweet.tweet_id
-                );
-            }
-        }
-
         res.status(201).json({
-            message: "Tweet created successfully",
-            tweet
+            message: isReplyTo ? "Reply posted successfully" : "Tweet created successfully",
+            tweet,
+            isReply: !!isReplyTo
         });
 
     } catch (error) {
         console.error("Create tweet error:", error);
-        res.status(500).json({ message: "Error creating tweet" });
+        res.status(500).json({ 
+            message: "Error creating tweet", 
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        });
     }
 };
 

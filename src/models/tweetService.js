@@ -40,12 +40,19 @@ export const createTweetWithExtras = async (
 
         // ===================== REPLY NOTIFICATION =====================
         if (isReplyTo) {
-            const original = await client.query(
-                `SELECT user_id FROM tweets WHERE tweet_id = $1`,
+            await client.query(
+                `UPDATE tweets SET reply_count = reply_count + 1 WHERE tweet_id = $1`,
                 [isReplyTo]
             );
 
-            const originalTweet = original.rows[0];
+            // Fetch original tweet owner for notification (inside transaction)
+            const originalResult = await client.query(
+                `SELECT user_id FROM tweets 
+                 WHERE tweet_id = $1 AND deleted_at IS NULL`,
+                [isReplyTo]
+            );
+
+            const originalTweet = originalResult.rows[0];
 
             if (originalTweet && originalTweet.user_id !== userId) {
                 await createNotification(
