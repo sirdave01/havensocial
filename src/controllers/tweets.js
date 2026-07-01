@@ -1,13 +1,20 @@
 // import the tweets model db handler
+// import the tweets model db handler
 import { db } from "../models/db.js";
-import { createTweetWithExtras } from '../models/tweetService.js';
+import { createTweetWithExtras } from "../models/tweetService.js";
 import {
-    getTweetById, getUserTweets, getHomeFeed,
-    deleteTweet, updateTweet, getTweetWithReplies
-} from '../models/tweets.js';
-import { createNotification } from '../models/notification.js';
-import { upload } from '../middleware/upload.js';
+    getTweetById,
+    getUserTweets,
+    getHomeFeed,
+    deleteTweet,
+    updateTweet,
+    getTweetWithReplies,
+    getThreadedRepliesForTweet
+} from "../models/tweets.js";
+import { createNotification } from "../models/notification.js";
+import { upload } from "../middleware/upload.js";
 
+// ===================== CREATE TWEET =====================
 export const createTweetController = async (req, res) => {
     try {
         if (!req.session?.user) {
@@ -15,11 +22,10 @@ export const createTweetController = async (req, res) => {
         }
 
         const { content, isReplyTo } = req.body;
-        const mediaFile = req.file; // from multer
-
+        const mediaFile = req.file;
         const userId = req.session.user.users_id;
 
-        if (!content || content.trim() === '') {
+        if (!content || content.trim() === "") {
             return res.status(400).json({ message: "Content is required" });
         }
 
@@ -28,18 +34,42 @@ export const createTweetController = async (req, res) => {
             mediaUrl = `/uploads/tweets/${mediaFile.filename}`;
         }
 
-        const tweet = await createTweetWithExtras(userId, content, mediaUrl, isReplyTo);
-        
+        const tweet = await createTweetWithExtras(
+            userId,
+            content.trim(),
+            mediaUrl,
+            isReplyTo || null
+        );
+
+        // 🔔 Notify parent tweet owner (reply)
+        if (isReplyTo) {
+            const parent = await db.query(
+                `SELECT user_id FROM tweets WHERE tweet_id = $1 AND deleted_at IS NULL`,
+                [isReplyTo]
+            );
+
+            if (parent.rows[0] && parent.rows[0].user_id !== userId) {
+                await createNotification(
+                    parent.rows[0].user_id,
+                    userId,
+                    "reply",
+                    tweet.tweet_id
+                );
+            }
+        }
+
         res.status(201).json({
             message: "Tweet created successfully",
             tweet
         });
+
     } catch (error) {
-        console.error('Create tweet error:', error);
+        console.error("Create tweet error:", error);
         res.status(500).json({ message: "Error creating tweet" });
     }
 };
 
+// ===================== GET SINGLE TWEET =====================
 export const getTweetController = async (req, res) => {
     try {
         const { tweetId } = req.params;
@@ -56,12 +86,18 @@ export const getTweetController = async (req, res) => {
     }
 };
 
+// ===================== USER TWEETS =====================
 export const getUserTweetsController = async (req, res) => {
     try {
         const { userId } = req.params;
         const { limit = 20, offset = 0 } = req.query;
 
-        const tweets = await getUserTweets(userId, parseInt(limit), parseInt(offset));
+        const tweets = await getUserTweets(
+            userId,
+            parseInt(limit),
+            parseInt(offset)
+        );
+
         res.json(tweets);
     } catch (error) {
         console.error(error);
@@ -69,6 +105,7 @@ export const getUserTweetsController = async (req, res) => {
     }
 };
 
+// ===================== HOME FEED =====================
 export const getHomeFeedController = async (req, res) => {
     try {
         if (!req.session?.user) {
@@ -78,14 +115,20 @@ export const getHomeFeedController = async (req, res) => {
         const userId = req.session.user.users_id;
         const { limit = 20, offset = 0 } = req.query;
 
-        const feed = await getHomeFeed(userId, parseInt(limit), parseInt(offset));
+        const feed = await getHomeFeed(
+            userId,
+            parseInt(limit),
+            parseInt(offset)
+        );
+
         res.json(feed);
     } catch (error) {
-        console.error('Home feed error:', error);
+        console.error("Home feed error:", error);
         res.status(500).json({ message: "Error fetching home feed" });
     }
 };
 
+// ===================== DELETE TWEET =====================
 export const deleteTweetController = async (req, res) => {
     try {
         if (!req.session?.user) {
@@ -95,36 +138,21 @@ export const deleteTweetController = async (req, res) => {
         const { tweetId } = req.params;
         const userId = req.session.user.users_id;
 
-        // Fetch for reply handling
-        const tweetInfo = await db.query(
-            `SELECT is_reply_to FROM tweets WHERE tweet_id = $1 AND user_id = $2 AND deleted_at IS NULL`,
-            [tweetId, userId]
-        );
-        const isReplyTo = tweetInfo.rows[0]?.is_reply_to;
-
         const result = await deleteTweet(tweetId, userId);
 
         if (!result) {
             return res.status(404).json({ message: "Tweet not found or unauthorized" });
         }
 
-        // Update user's tweet count
-        await db.query(`
-            UPDATE users 
-            SET post_count = GREATEST(post_count - 1, 0) 
-            WHERE users_id = $1
-        `, [userId]);
-
-        // If reply, update parent
-        if (isReplyTo) {
-            await db.query(`
-                UPDATE tweets 
-                SET reply_count = GREATEST(reply_count - 1, 0)
-                WHERE tweet_id = $1
-            `, [isReplyTo]);
-        }
+        await db.query(
+            `UPDATE users 
+             SET post_count = GREATEST(post_count - 1, 0)
+             WHERE users_id = $1`,
+            [userId]
+        );
 
         res.json({ message: "Tweet deleted successfully" });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Error deleting tweet" });
@@ -142,11 +170,15 @@ export const updateTweetController = async (req, res) => {
         const { content } = req.body;
         const userId = req.session.user.users_id;
 
-        if (!content || content.trim() === '') {
+        if (!content || content.trim() === "") {
             return res.status(400).json({ message: "Content is required" });
         }
 
-        const updated = await updateTweet(tweetId, userId, content.trim());
+        const updated = await updateTweet(
+            tweetId,
+            userId,
+            content.trim()
+        );
 
         if (!updated) {
             return res.status(404).json({ message: "Tweet not found or not allowed" });
@@ -163,49 +195,69 @@ export const updateTweetController = async (req, res) => {
     }
 };
 
-// ===================== REPLY TWEET =====================
-export const replyTweetController = async (req, res) => {
+// ===================== THREADED REPLIES =====================
+export const getTweetRepliesController = async (req, res) => {
     try {
         if (!req.session?.user) {
             return res.status(401).json({ message: "Unauthorized" });
         }
 
-        const { content, isReplyTo } = req.body;
-        const userId = req.session.user.users_id;
+        const { tweetId } = req.params;
+        const viewerId = req.session.user.users_id;
 
-        if (!content || content.trim() === '') {
-            return res.status(400).json({ message: "Reply content is required" });
-        }
+        const replies = await getThreadedRepliesForTweet(tweetId, viewerId);
+        res.json({ replies });
 
-        if (!isReplyTo) {
-            return res.status(400).json({ message: "Missing parent tweet" });
-        }
-
-        const tweet = await createTweetWithExtras(
-            userId,
-            content.trim(),
-            null,
-            isReplyTo
-        );
-
-        res.status(201).json({
-            message: "Reply created successfully",
-            tweet
-        });
-
-    } catch (error) {
-        console.error("Reply error:", error);
-        res.status(500).json({ message: "Error creating reply" });
+    } catch (err) {
+        console.error("Thread error:", err);
+        res.status(500).json({ message: "Error fetching replies" });
     }
 };
 
+// ===================== DETAIL PAGE =====================
+export const showTweetDetailPage = async (req, res) => {
+    try {
+        const { tweetId } = req.params;
+        const user = req.session?.user;
+
+        if (!user) return res.redirect("/login");
+
+        const data = await getTweetWithReplies(tweetId, user.users_id);
+
+        if (!data) {
+            return res.status(404).render("errors/404", {
+                title: "Tweet Not Found",
+                message: "This tweet may have been deleted."
+            });
+        }
+
+        const { replies, ...tweet } = data;
+
+        res.render("tweet", {
+            title: `Post by @${tweet.username}`,
+            tweet,
+            replies,
+            user,
+            isLoggedIn: true
+        });
+
+    } catch (err) {
+        console.error("Tweet detail error:", err);
+        res.status(500).render("errors/500", {
+            title: "Server Error",
+            error: "Could not load tweet"
+        });
+    }
+};
+
+// ===================== VIEW COUNT =====================
 export const incrementViewController = async (req, res) => {
     try {
         const { tweetId } = req.params;
         const viewerId = req.session?.user?.users_id;
 
         if (!viewerId) {
-            return res.status(401).json({ message: 'Unauthorized' });
+            return res.status(401).json({ message: "Unauthorized" });
         }
 
         const original = await db.query(
@@ -214,33 +266,29 @@ export const incrementViewController = async (req, res) => {
         );
 
         if (!original.rows[0]) {
-            return res.status(404).json({ message: 'Tweet not found' });
+            return res.status(404).json({ message: "Tweet not found" });
         }
 
         if (original.rows[0].user_id === viewerId) {
-            return res.status(200).json({ ok: true, message: 'Owner views are not counted' });
+            return res.json({ ok: true });
         }
 
         const alreadyViewed = await db.query(
-            `SELECT view_id FROM tweet_views WHERE tweet_id = $1 AND user_id = $2`,
+            `SELECT 1 FROM tweet_views WHERE tweet_id = $1 AND user_id = $2`,
             [tweetId, viewerId]
         );
 
-        if (alreadyViewed.rowCount > 0) {
-            return res.status(200).json({ ok: true, message: 'View already counted' });
+        if (alreadyViewed.rowCount === 0) {
+            await db.query(
+                `INSERT INTO tweet_views (tweet_id, user_id) VALUES ($1, $2)`,
+                [tweetId, viewerId]
+            );
+
+            await db.query(
+                `UPDATE tweets SET view_count = view_count + 1 WHERE tweet_id = $1`,
+                [tweetId]
+            );
         }
-
-        await db.query(
-            `INSERT INTO tweet_views (tweet_id, user_id) VALUES ($1, $2)`,
-            [tweetId, viewerId]
-        );
-
-        await db.query(
-            `UPDATE tweets 
-             SET view_count = view_count + 1
-             WHERE tweet_id = $1`,
-            [tweetId]
-        );
 
         res.json({ ok: true });
 
@@ -250,6 +298,7 @@ export const incrementViewController = async (req, res) => {
     }
 };
 
+// ===================== PIN TWEET =====================
 export const pinTweetController = async (req, res) => {
     try {
         const userId = req.session.user.users_id;
@@ -275,18 +324,18 @@ export const pinTweetController = async (req, res) => {
     }
 };
 
+// ===================== RETWEET =====================
 export const retweetController = async (req, res) => {
     try {
         const userId = req.session.user.users_id;
-        const { tweetId } = req.body;
+        const { tweetId, quoteText } = req.body;
 
         if (!tweetId) {
             return res.status(400).json({ message: "tweetId is required" });
         }
 
         const exists = await db.query(
-            `SELECT 1 FROM retweets
-             WHERE user_id = $1 AND original_tweet_id = $2`,
+            `SELECT 1 FROM retweets WHERE user_id = $1 AND original_tweet_id = $2`,
             [userId, tweetId]
         );
 
@@ -303,64 +352,44 @@ export const retweetController = async (req, res) => {
             return res.status(404).json({ message: "Tweet not found" });
         }
 
+        let quoteTweet = null;
+
+        if (quoteText && quoteText.trim()) {
+            quoteTweet = await createTweetWithExtras(
+                userId,
+                quoteText.trim(),
+                null,
+                null
+            );
+        }
+
         await db.query(
-            `INSERT INTO retweets (user_id, original_tweet_id)
-             VALUES ($1, $2)`,
-            [userId, tweetId]
+            `INSERT INTO retweets (user_id, original_tweet_id, quote_text)
+             VALUES ($1, $2, $3)`,
+            [userId, tweetId, quoteText || null]
         );
 
         await db.query(
-            `UPDATE tweets
-             SET retweet_count = retweet_count + 1
-             WHERE tweet_id = $1`,
+            `UPDATE tweets SET retweet_count = retweet_count + 1 WHERE tweet_id = $1`,
             [tweetId]
         );
 
         if (original.rows[0].user_id !== userId) {
-            await createNotification(original.rows[0].user_id, userId, 'retweet', tweetId);
+            await createNotification(
+                original.rows[0].user_id,
+                userId,
+                "retweet",
+                tweetId
+            );
         }
 
-        res.status(201).json({ message: "Retweeted successfully" });
+        res.status(201).json({
+            message: quoteTweet ? "Retweeted with quote" : "Retweeted successfully",
+            quoteTweet
+        });
 
     } catch (err) {
         console.error("Retweet error:", err);
         res.status(500).json({ message: "Retweet failed" });
-    }
-};
-
-// ===================== SHARED TWEET DETAILS PAGE =====================
-
-export const showTweetDetailPage = async (req, res) => {
-    try {
-        const { tweetId } = req.params;
-        const user = req.session?.user;
-
-        if (!user) return res.redirect('/login');
-
-        const data = await getTweetWithReplies(tweetId, user.users_id);
-
-        if (!data) {
-            return res.status(404).render('errors/404', { 
-                title: 'Tweet Not Found',
-                message: 'This tweet may have been deleted or never existed.' 
-            });
-        }
-
-        const { replies, ...tweet } = data;
-
-        res.render('tweet', {
-            title: `Post by @${tweet.username}`,
-            tweet,
-            replies,
-            user,
-            isLoggedIn: true
-        });
-
-    } catch (err) {
-        console.error('Tweet detail error:', err);
-        res.status(500).render('errors/500', { 
-            title: 'Server Error',
-            error: 'Could not load tweet'
-        });
     }
 };

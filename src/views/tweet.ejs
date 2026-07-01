@@ -5,14 +5,15 @@
             <a href="/feed" class="back-link">← Back</a>
         </div>
 
-        <!-- Main Tweet -->
-        <div class="main-tweet">
-            <%- include('partials/tweet-card', { tweet }) %>
-        </div>
+        <div class="tweet-thread">
+            <!-- Main Tweet -->
+            <div class="main-tweet">
+                <%- include('partials/tweet-card', { tweet }) %>
+            </div>
 
-        <hr>
+            <hr>
 
-        <!-- Reply Box (optional - you can make this a form later)
+            <!-- Reply Box (optional - you can make this a form later)
         <div class="reply-composer">
             <form action="/tweets/reply" method="POST">
                 <input type="hidden" name="isReplyTo" value="<%= tweet.tweet_id %>">
@@ -22,6 +23,9 @@
         </div> -->
 
         <!-- Replies -->
+        <div class="replying-to-banner">
+            Replying to <a href="/<%= tweet.username %>">@<%= tweet.username %></a>
+        </div>
         <div class="replies-section">
             
             <h3>Replies (<%= replies.length %>)</h3>
@@ -33,6 +37,8 @@
             <% } else { %>
                     <p class="no-replies">No replies yet. Be the first!</p>
             <% } %>
+
+        </div>
 
         </div>
 

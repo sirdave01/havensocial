@@ -771,11 +771,17 @@ li {
     background: var(--bg);
 }
 
-.profile-picture img,
-.placeholder-avatar {
+.profile-picture img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
+    background: var(--surface);
+}
+
+.placeholder-avatar {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1171,21 +1177,23 @@ li {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
     box-shadow: 0 4px 12px var(--shadow);
+    max-width: 520px;
 }
 
 .compose-tweet textarea {
     width: 100%;
-    min-height: 120px;
+    min-height: 110px;
     border: none;
     background: transparent;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     resize: none;
     outline: none;
-    padding: 0.5rem 0;
+    padding: 0.9rem 0.2rem 0.7rem;
     font-family: inherit;
+    line-height: 1.55;
 }
 
 .compose-tweet textarea:focus {
@@ -1193,13 +1201,16 @@ li {
 }
 
 .media-upload-area {
-    margin: 12px 0;
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    padding: 1rem;
+    margin: 14px 0 10px;
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 0.85rem 0.75rem;
     text-align: center;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .media-upload-area:hover {
@@ -1534,6 +1545,37 @@ body.dark-mode .tweet-card:hover {
 /* Improved Tweet Card for Replies */
 .tweet-card {
     position: relative;
+}
+
+.tweet-detail-page .tweet-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.tweet-detail-page .main-tweet {
+    position: relative;
+}
+
+.tweet-detail-page .replies-section {
+    border-left: 2px solid rgba(16, 185, 129, 0.15);
+    padding-left: 1.25rem;
+    margin-top: 0.5rem;
+}
+
+.tweet-detail-page .replies-section .tweet-card {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.tweet-detail-page .replies-section .tweet-card .tweet-header {
+    align-items: flex-start;
+}
+
+.tweet-detail-page .replies-section .tweet-card .tweet-action {
+    max-width: 100%;
 }
 
 .tweet-card .tweet-content {

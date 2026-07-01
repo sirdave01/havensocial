@@ -6,7 +6,7 @@
                         <textarea name="content" id="tweetContent" placeholder="What's happening?" maxlength="280"
                             required></textarea>
 
-                        <div class="media-upload-area">
+                        <div class="media-upload-area" onclick="document.getElementById('tweetMedia').click()">
                             <label for="tweetMedia" class="upload-label">📎 Attach media</label>
                             <input type="file" id="tweetMedia" name="media" accept="image/*,video/*"
                                 style="display: none;">
@@ -14,8 +14,6 @@
                         </div>
 
                         <div class="compose-actions">
-                            <button type="button" class="attach-btn"
-                                onclick="document.getElementById('tweetMedia').click()">📎</button>
                             <button type="submit" class="btn-primary post-btn">Post</button>
                         </div>
                     </form>
