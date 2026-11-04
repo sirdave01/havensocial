@@ -52,7 +52,7 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
             rt.*,
             u.username,
             u.display_name,
-            u.profile_picture_url,
+            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
             u.verified,
 
             -- replying to info
@@ -88,7 +88,7 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
             t.*,
             u.username,
             u.display_name,
-            u.profile_picture_url,
+            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
             u.verified,
 
             COALESCE((SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id), 0) AS like_count,
@@ -138,7 +138,7 @@ const getTweetById = async (tweetId) => {
         SELECT t.*,
                u.username,
                u.display_name,
-               u.profile_picture_url,
+               COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
                u.verified
         FROM tweets t
         JOIN users u ON t.user_id = u.users_id
@@ -156,7 +156,7 @@ const getUserTweets = async (userId, limit = 20, offset = 0) => {
         SELECT t.*,
                u.username,
                u.display_name,
-               u.profile_picture_url,
+               COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
                u.verified
         FROM tweets t
         JOIN users u ON t.user_id = u.users_id
@@ -177,7 +177,7 @@ const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
             t.*,
             u.username,
             u.display_name,
-            u.profile_picture_url,
+            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
             u.verified,
 
             -- likes
@@ -191,6 +191,11 @@ const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
                 SELECT 1 FROM likes
                 WHERE user_id = $1 AND tweet_id = t.tweet_id
             ) AS liked_by_user,
+
+            EXISTS (
+                SELECT 1 FROM retweets
+                WHERE user_id = $1 AND original_tweet_id = t.tweet_id
+            ) AS retweeted_by_user,
 
             -- follow state
             EXISTS (
@@ -217,6 +222,7 @@ const deleteTweet = async (tweetId, userId) => {
         SET deleted_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
         WHERE tweet_id = $1 AND user_id = $2
+          AND deleted_at IS NULL
         RETURNING tweet_id;
     `;
 
@@ -248,7 +254,7 @@ const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
             t.*,
             u.username,
             u.display_name,
-            u.profile_picture_url,
+            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
             u.verified,
 
             (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
@@ -258,6 +264,11 @@ const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
                 SELECT 1 FROM likes
                 WHERE user_id = $1 AND tweet_id = t.tweet_id
             ) AS liked_by_user,
+
+            EXISTS (
+                SELECT 1 FROM retweets
+                WHERE user_id = $1 AND original_tweet_id = t.tweet_id
+            ) AS retweeted_by_user,
 
             TRUE AS is_following
         FROM tweets t

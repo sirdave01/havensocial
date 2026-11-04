@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { Pool } from 'pg';
 
 /**
@@ -12,31 +11,24 @@ import { Pool } from 'pg';
  * The connection string format is:
  * postgresql://username:password@host:port/database
  */
-const pool = new Pool({
-    connectionString: process.env.DB_URL || process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+const globalForPool = globalThis;
+/** @type {import('pg').Pool} */
+const sharedPool = globalForPool.__havenSocialPool || new Pool({
+    connectionString: process.env.DATABASE_URL || process.env.DB_URL,
+    max: 5,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000
 });
-
-/**
- * Common SSL Issue:
- *
- * You may encounter SSL connection errors depending on your operating system, Node.js
- * version, or PostgreSQL server settings. If you have confirmed your credentials are
- * correct but still see SSL errors, try updating the 'ssl' property in the Pool
- * configuration above to:
- *
- * ssl: {
- *     rejectUnauthorized: false
- * }
- */
+if (process.env.NODE_ENV !== 'production') {
+    globalForPool.__havenSocialPool = sharedPool;
+}
 
 /**
  * Since we will modify the normal pool object in development mode, we need to create and
  * export a reference to the pool object. This allows us to use the same name for the
  * export regardless of whether we are in development or production mode.
  */
+/** @type {import('pg').Pool | { query: import('pg').Pool['query'], close: () => Promise<void> }} */
 let db = null;
 
 if (process.env.NODE_ENV === 'development' && process.env.ENABLE_SQL_LOGGING === 'true') {
@@ -51,7 +43,7 @@ if (process.env.NODE_ENV === 'development' && process.env.ENABLE_SQL_LOGGING ===
         async query(text, params) {
             try {
                 const start = Date.now();
-                const res = await pool.query(text, params);
+                const res = await sharedPool.query(text, params);
                 const duration = Date.now() - start;
                 console.log('Executed query:', { 
                     text: text.replace(/\s+/g, ' ').trim(), 
@@ -69,12 +61,12 @@ if (process.env.NODE_ENV === 'development' && process.env.ENABLE_SQL_LOGGING ===
         },
 
         async close() {
-            await pool.end();
+            await sharedPool.end();
         }
     };
 } else {
     // In production, export the pool directly without logging overhead
-    db = pool;
+    db = sharedPool;
 }
 
 /**
@@ -91,6 +83,6 @@ const testConnection = async() => {
     }
 };
 
-export { pool };
+export { sharedPool as pool };
 
 export { db };

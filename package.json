@@ -25,24 +25,26 @@
   "license": "ISC",
   "author": "Osigwe Uchechukwu David Caleb",
   "type": "module",
-  "main": "server.js",
   "scripts": {
-    "dev": "nodemon",
-    "start": "node server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "bcrypt": "^6.0.0",
-    "dotenv": "^17.4.2",
-    "ejs": "^6.0.1",
-    "express": "^5.2.1",
-    "express-session": "^1.19.0",
-    "express-validator": "^7.3.2",
-    "memorystore": "^1.6.8",
-    "multer": "^2.2.0",
+    "@aws-sdk/client-s3": "^3.1161.0",
+    "@aws-sdk/s3-request-presigner": "^3.1161.0",
+    "iron-session": "^9.0.1",
+    "next": "^16.4.5",
+    "openid-client": "^6.8.9",
     "pg": "^8.21.0",
-    "session": "^0.1.0"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2"
   }
 }

@@ -1,5 +1,12 @@
 import { db } from "./db.js";
 
+/**
+ * @param {number|string} userId
+ * @param {number|string} actorId
+ * @param {string} type
+ * @param {number|string|null} [tweetId]
+ * @param {import('pg').PoolClient|null} [client]
+ */
 const createNotification = async (userId, actorId, type, tweetId = null, client = null) => {
     const query = `
         INSERT INTO notifications (user_id, actor_id, type, tweet_id)
@@ -16,7 +23,7 @@ const getNotifications = async (userId, limit = 20) => {
         SELECT n.*, 
                u.username as actor_username, 
                u.display_name as actor_display_name,
-               u.profile_picture_url as actor_profile_picture,
+               COALESCE(u.profile_picture_url, u.bhid_picture_url) as actor_profile_picture,
                t.content as tweet_content
         FROM notifications n
         JOIN users u ON n.actor_id = u.users_id

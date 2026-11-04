@@ -2,6 +2,12 @@ import { pool } from "./db.js";
 import { createNotification } from "./notification.js";
 
 // IMPORTANT: we move tweet insert here so we can use the SAME client
+/**
+ * @param {number|string} userId
+ * @param {string} content
+ * @param {string|null} [mediaUrl]
+ * @param {number|string|null} [isReplyTo]
+ */
 export const createTweetWithExtras = async (
     userId,
     content,
@@ -40,11 +46,6 @@ export const createTweetWithExtras = async (
 
         // ===================== REPLY NOTIFICATION =====================
         if (isReplyTo) {
-            await client.query(
-                `UPDATE tweets SET reply_count = reply_count + 1 WHERE tweet_id = $1`,
-                [isReplyTo]
-            );
-
             // Fetch original tweet owner for notification (inside transaction)
             const originalResult = await client.query(
                 `SELECT user_id FROM tweets 

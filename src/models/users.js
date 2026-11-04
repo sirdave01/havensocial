@@ -1,129 +1,4 @@
-import bcrypt from 'bcrypt';
-
 import { db } from './db.js';
-
-// Check if email already exists
-const getUserByEmail = async (email) => {
-
-    const query = `
-        SELECT users_id 
-        FROM users 
-        WHERE email = $1 
-          AND deleted_at IS NULL
-    `;
-
-    const result = await db.query(query, [email]);
-
-    return result.rows[0] || null;
-
-};
-
-// Create new user
-const createUser = async (username, email, passwordHash, fullName = null, displayName = null) => {
-
-    const existingUser = await getUserByEmail(email);
-
-    if (existingUser) {
-
-        throw new Error('Email already in use');
-
-    }
-
-    const defaultRole = 'user';
-
-    const query = `
-        INSERT INTO users (
-            username,
-            email,
-            password_hash,
-            full_name,
-            display_name,
-            role_id
-        ) 
-        VALUES (
-            $1, $2, $3, $4, $5,
-            (SELECT role_id FROM roles WHERE role_name = $6)
-        ) 
-        RETURNING 
-            users_id, 
-            username, 
-            display_name, 
-            full_name,
-            verified;
-    `;
-
-    const queryParams = [
-        username,
-        email,
-        passwordHash,
-        fullName,
-        displayName || fullName,
-        defaultRole
-    ];
-
-    const result = await db.query(query, queryParams);
-
-    if (result.rows.length === 0) {
-        throw new Error('Failed to create user');
-    }
-
-    if (process.env.ENABLE_SQL_LOGGING === 'true') {
-        console.log('Created new user with ID:', result.rows[0].user_id);
-    }
-
-    return result.rows[0];
-};
-
-// Find user for login
-const findUserByEmail = async (email) => {
-
-    const query = `
-        SELECT 
-            u.users_id,
-            u.username,
-            u.email,
-            u.password_hash,
-            u.full_name,
-            u.display_name,
-            u.full_name,
-            u.bio,
-            u.profile_picture_url,
-            u.verified,
-            u.suspended,
-            r.role_name
-        FROM users u
-        JOIN roles r ON u.role_id = r.role_id
-        WHERE u.email = $1
-          AND u.suspended = FALSE 
-          AND u.deleted_at IS NULL;
-    `;
-
-    const result = await db.query(query, [email]);
-
-    return result.rows[0] || null;
-};
-
-// Verify password
-const verifyPassword = async (password, password_hash) => {
-
-    return await bcrypt.compare(password, password_hash);
-};
-
-// Authenticate user (for login)
-const authenticateUser = async (email, password) => {
-
-    const user = await findUserByEmail(email);
-
-    if (!user) return null;
-
-    const isMatch = await verifyPassword(password, user.password_hash);
-
-    if (!isMatch) return null;
-
-    delete user.password_hash;   // Remove sensitive data
-
-    return user;
-};
 
 // Get all users (for founder dashboard)
 const getAllUsers = async () => {
@@ -135,7 +10,7 @@ const getAllUsers = async () => {
             u.full_name,
             u.display_name,
             u.email,
-            u.profile_picture_url,
+            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
             u.verified,
             u.suspended,
             r.role_name,
@@ -155,10 +30,18 @@ const getAllUsers = async () => {
 const getUserProfile = async (username, viewerId = null) => {
     const query = `
         SELECT 
-            u.*,
+            u.users_id,
+            u.username,
+            u.full_name,
+            u.display_name,
+            u.bio,
+            u.profile_picture_url AS custom_profile_picture_url,
+            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
+            u.verified,
+            u.suspended,
+            u.created_at,
             r.role_name,
-            
-            COALESCE(u.post_count, 0) AS tweet_count,        -- Important: alias as tweet_count
+            COALESCE(u.post_count, 0) AS tweet_count,
             COALESCE(u.follower_count, 0) AS follower_count,
             COALESCE(u.following_count, 0) AS following_count,
             
@@ -211,35 +94,6 @@ const toggleSuspendUser = async (userId, suspend) => {
     return result.rows[0];
 };
 
-// Verify or Unverify user
-const toggleVerifyUser = async (actorUser, targetUserId, verify) => {
-
-    // 1. Get actor role
-    const actorQuery = `
-        SELECT role_id FROM users WHERE users_id = $1
-    `;
-    const actorResult = await db.query(actorQuery, [actorUser]);
-
-    const roleId = actorResult.rows[0]?.role_id;
-
-    // 2. Only founder (1) or admin (3) can verify users
-    if (![1, 3].includes(roleId)) {
-        throw new Error('Not authorized to verify users');
-    }
-
-    // 3. Proceed with update
-    const query = `
-        UPDATE users 
-        SET verified = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE users_id = $2 
-        RETURNING users_id, username, verified;
-    `;
-
-    const result = await db.query(query, [verify, targetUserId]);
-
-    return result.rows[0];
-};
-
 // Soft Delete user
 const deleteUser = async (userId) => {
     const query = `
@@ -266,15 +120,10 @@ const logAuditAction = async (actorId, actionType, targetId, targetType, details
 };
 
 export { 
-    createUser, 
-    authenticateUser, 
     getAllUsers,
-    getUserByEmail,
-    findUserByEmail,
     getUserProfile,
     updateUserProfile,
     toggleSuspendUser,
-    toggleVerifyUser,
     deleteUser,
     logAuditAction
 };
