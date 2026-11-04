@@ -1,6 +1,6 @@
 # HavenSocial
 
-HavenSocial is a Next.js application backed by PostgreSQL. BHID handles sign-in, passwords, passkeys, and MFA; HavenSocial keeps its own linked user row and session for social features.
+HavenSocial is a Next-Gen Social Media application designed to function on the Web3 as post-to-earn. BHID handles sign-in, passwords, passkeys, and MFA; HavenSocial keeps its own linked user row and session for social features.
 
 ## Local setup
 
