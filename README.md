@@ -12,6 +12,8 @@ HavenSocial is a Next-Gen Social Media application designed to function on the W
 6. Register HavenSocial as a BHID OIDC client. Set the exact callback URL to `http://localhost:3000/auth/bhid/callback` for local development and to `https://<your-app-domain>/auth/bhid/callback` in production.
 7. Run `npm run dev`.
 
+For Neon connection strings, use `sslmode=verify-full`. If your existing `.env` connection string uses `sslmode=require`, replace that query parameter with `sslmode=verify-full`. This preserves current certificate verification behavior and avoids the PostgreSQL driver compatibility warning.
+
 The issuer is `https://auth.bytehaven.world`. Use the BHID Authorization Code flow with S256 PKCE. The BHID client secret is server-only; never use a `NEXT_PUBLIC_` prefix or commit secret values. Configure the environment variables separately in Vercel for development, preview, and production.
 
 ## BHID claims and roles
