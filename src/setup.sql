@@ -1111,10 +1111,18 @@ CREATE TABLE IF NOT EXISTS app_sessions (
 
     revoked_at TIMESTAMPTZ,
 
+    bhid_access_token_enc TEXT,
+
+    bhid_access_token_expires_at TIMESTAMPTZ,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     last_seen_at TIMESTAMPTZ
 );
+
+ALTER TABLE app_sessions
+    ADD COLUMN IF NOT EXISTS bhid_access_token_enc TEXT,
+    ADD COLUMN IF NOT EXISTS bhid_access_token_expires_at TIMESTAMPTZ;
 
 
 CREATE INDEX IF NOT EXISTS idx_app_sessions_user

@@ -2,6 +2,7 @@ import * as oidc from 'openid-client';
 import { NextRequest, NextResponse } from 'next/server';
 import { getBhidConfiguration, getBhidRedirectUri, getHavenSocialOrigin } from '@/lib/bhid';
 import { upsertBhidUser } from '@/lib/bhid-user';
+import { resolveBhidProfile } from '@/lib/bhid/profile';
 import { createAppSession, getHavenSession } from '@/lib/session';
 
 export const runtime = 'nodejs';
@@ -39,6 +40,8 @@ export async function GET(request: NextRequest) {
     const idTokenClaims = tokens.claims();
     if (!idTokenClaims?.sub) throw new Error('BHID did not return a signed ID token subject');
 
+    await resolveBhidProfile(config, tokens.access_token, idTokenClaims.sub);
+
     const user = await upsertBhidUser(idTokenClaims.sub);
     if (user.app_status !== 'ACTIVE') {
       await session.save();
@@ -47,7 +50,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    session.appSessionToken = await createAppSession(user.users_id);
+    const expiresIn = tokens.expiresIn();
+    const accessTokenExpiresAt = expiresIn === undefined
+      ? null
+      : new Date(Date.now() + expiresIn * 1000);
+    session.appSessionToken = await createAppSession(
+      user.users_id,
+      tokens.access_token,
+      accessTokenExpiresAt,
+    );
     await session.save();
 
     return NextResponse.redirect(new URL('/feed', getHavenSocialOrigin()));

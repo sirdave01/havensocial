@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { toggleFollowAction } from '@/app/actions';
+import { getCurrentBhidProfile } from '@/lib/bhid/profile';
 import { requireLinkedUser } from '@/lib/linked-user';
 import { getUserProfile } from '../../../models/users.js';
 import { getUserTweets } from '../../../models/tweets.js';
@@ -17,12 +18,23 @@ export default async function ProfilePage({
 
   const tweets = await getUserTweets(profile.users_id, 20, 0);
   const isOwner = Number(profile.users_id) === Number(viewer.users_id);
+  const bhidProfile = isOwner ? await getCurrentBhidProfile(viewer.bhid_sub) : null;
 
   return (
     <main className="feed-page">
       <section className="profile-header">
-        <h1>BHID account</h1>
-        <p><code>{profile.bhid_sub}</code></p>
+        <img
+          src={bhidProfile?.picture || '/images/default-avatar.jpg'}
+          alt=""
+          className="profile-avatar"
+          referrerPolicy="no-referrer"
+        />
+        <h1>{bhidProfile?.name || 'HavenSocial user'}</h1>
+        <p>{bhidProfile?.preferredUsername ? `@${bhidProfile.preferredUsername}` : 'Username unavailable'}</p>
+        <p>{bhidProfile?.bio || 'Biography unavailable.'}</p>
+        {isOwner && !bhidProfile && (
+          <p role="status">BHID profile details are unavailable. Sign out and sign in again to refresh access.</p>
+        )}
         <p>
           {profile.follower_count} followers · {profile.following_count} following · {profile.tweet_count} posts
         </p>

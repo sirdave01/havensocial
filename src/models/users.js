@@ -63,7 +63,9 @@ const toggleSuspendUser = async (userId, suspend) => {
             RETURNING users_id, bhid_sub, app_status
         ), revoked_sessions AS (
             UPDATE app_sessions
-            SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+            SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP),
+                bhid_access_token_enc = NULL,
+                bhid_access_token_expires_at = NULL
             FROM updated_user
             WHERE $1
               AND app_sessions.user_id = updated_user.users_id
@@ -85,7 +87,9 @@ const deleteUser = async (userId) => {
             RETURNING users_id, bhid_sub
         ), revoked_sessions AS (
             UPDATE app_sessions
-            SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+            SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP),
+                bhid_access_token_enc = NULL,
+                bhid_access_token_expires_at = NULL
             FROM deactivated_user
             WHERE app_sessions.user_id = deactivated_user.users_id
               AND app_sessions.revoked_at IS NULL

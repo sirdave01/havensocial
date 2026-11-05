@@ -20,6 +20,12 @@ export async function getLinkedUser() {
   );
 
   if (!result.rows[0]) {
+    await db.query(
+      `UPDATE app_sessions
+       SET bhid_access_token_enc = NULL, bhid_access_token_expires_at = NULL
+       WHERE session_token_hash = $1`,
+      [hashAppSessionToken(session.appSessionToken)],
+    );
     delete session.appSessionToken;
     await session.save();
     return null;

@@ -23,7 +23,7 @@ export async function GET() {
 
   const parameters = new URLSearchParams({
     redirect_uri: getBhidRedirectUri(),
-    scope: 'openid',
+    scope: 'openid profile name preferred_username picture bio verification',
     response_type: 'code',
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',

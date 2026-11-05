@@ -48,6 +48,13 @@
   vertical-align: middle;
 }
 
+.profile-avatar {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .tweet-media {
   display: block;
   max-width: 100%;
