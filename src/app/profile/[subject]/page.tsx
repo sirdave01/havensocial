@@ -31,7 +31,6 @@ export default async function ProfilePage({
         />
         <h1>{bhidProfile?.name || 'HavenSocial user'}</h1>
         <p>{bhidProfile?.preferredUsername ? `@${bhidProfile.preferredUsername}` : 'Username unavailable'}</p>
-        <p>{bhidProfile?.bio || 'Biography unavailable.'}</p>
         {isOwner && !bhidProfile && (
           <p role="status">BHID profile details are unavailable. Sign out and sign in again to refresh access.</p>
         )}
