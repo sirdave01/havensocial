@@ -45,14 +45,10 @@ export const getFollowing = async (userId, limit = 20, offset = 0, viewerId = nu
     const query = `
         SELECT 
             u.users_id,
-            u.username,
-            u.display_name,
-            u.full_name,
-            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-            u.bio,
-            u.follower_count,
-            u.following_count,
-            u.post_count as tweet_count,
+            u.bhid_sub,
+            COALESCE(fc.follower_count, 0) AS follower_count,
+            COALESCE(fc.following_count, 0) AS following_count,
+            COALESCE(pc.post_count, 0) AS tweet_count,
             EXISTS (
                 SELECT 1 FROM follows f2
                 WHERE f2.follower_id = $3::BIGINT
@@ -60,8 +56,10 @@ export const getFollowing = async (userId, limit = 20, offset = 0, viewerId = nu
             ) AS is_following
         FROM follows f
         JOIN users u ON f.followee_id = u.users_id
+        LEFT JOIN user_follow_counts fc ON fc.users_id = u.users_id
+        LEFT JOIN user_post_counts pc ON pc.users_id = u.users_id
         WHERE f.follower_id = $1
-          AND u.deleted_at IS NULL
+          AND u.app_status <> 'DEACTIVATED'
         ORDER BY f.created_at DESC
         LIMIT $2 OFFSET $4;
     `;
@@ -75,14 +73,10 @@ export const getFollowers = async (userId, limit = 20, offset = 0, viewerId = nu
     const query = `
         SELECT 
             u.users_id,
-            u.username,
-            u.display_name,
-            u.full_name,
-            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-            u.bio,
-            u.follower_count,
-            u.following_count,
-            u.post_count as tweet_count,
+            u.bhid_sub,
+            COALESCE(fc.follower_count, 0) AS follower_count,
+            COALESCE(fc.following_count, 0) AS following_count,
+            COALESCE(pc.post_count, 0) AS tweet_count,
             EXISTS (
                 SELECT 1 FROM follows f2
                 WHERE f2.follower_id = $3::BIGINT
@@ -90,8 +84,10 @@ export const getFollowers = async (userId, limit = 20, offset = 0, viewerId = nu
             ) AS is_following
         FROM follows f
         JOIN users u ON f.follower_id = u.users_id
+        LEFT JOIN user_follow_counts fc ON fc.users_id = u.users_id
+        LEFT JOIN user_post_counts pc ON pc.users_id = u.users_id
         WHERE f.followee_id = $1
-          AND u.deleted_at IS NULL
+          AND u.app_status <> 'DEACTIVATED'
         ORDER BY f.created_at DESC
         LIMIT $2 OFFSET $4;
     `;

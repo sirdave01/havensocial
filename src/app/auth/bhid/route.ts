@@ -23,7 +23,7 @@ export async function GET() {
 
   const parameters = new URLSearchParams({
     redirect_uri: getBhidRedirectUri(),
-    scope: process.env.BHID_SCOPES || 'openid profile email verification',
+    scope: 'openid',
     response_type: 'code',
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',

@@ -4,16 +4,15 @@ import { toggleFollowAction } from '@/app/actions';
 import { requireLinkedUser } from '@/lib/linked-user';
 import { getUserProfile } from '../../../models/users.js';
 import { getUserTweets } from '../../../models/tweets.js';
-import ProfileImageUpload from '../../components/ProfileImageUpload';
 
 export default async function ProfilePage({
   params,
 }: {
-  params: Promise<{ username: string }>;
+  params: Promise<{ subject: string }>;
 }) {
   const viewer = await requireLinkedUser();
-  const { username } = await params;
-  const profile = await getUserProfile(username, viewer.users_id);
+  const { subject } = await params;
+  const profile = await getUserProfile(subject, viewer.users_id);
   if (!profile) notFound();
 
   const tweets = await getUserTweets(profile.users_id, 20, 0);
@@ -22,20 +21,14 @@ export default async function ProfilePage({
   return (
     <main className="feed-page">
       <section className="profile-header">
-        <img
-          src={profile.profile_picture_url || '/images/default-avatar.jpg'}
-          alt=""
-          className="profile-avatar"
-        />
-        <h1>{profile.display_name || profile.username}</h1>
-        <p>@{profile.username}</p>
-        {profile.bio && <p>{profile.bio}</p>}
+        <h1>BHID account</h1>
+        <p><code>{profile.bhid_sub}</code></p>
         <p>
           {profile.follower_count} followers · {profile.following_count} following · {profile.tweet_count} posts
         </p>
         <div className="profile-links">
-          <Link href={`/profile/${encodeURIComponent(profile.username)}/followers`}>Followers</Link>
-          <Link href={`/profile/${encodeURIComponent(profile.username)}/following`}>Following</Link>
+          <Link href={`/profile/${encodeURIComponent(profile.bhid_sub)}/followers`}>Followers</Link>
+          <Link href={`/profile/${encodeURIComponent(profile.bhid_sub)}/following`}>Following</Link>
         </div>
         {!isOwner && (
           <form action={toggleFollowAction}>
@@ -43,9 +36,6 @@ export default async function ProfilePage({
             <input type="hidden" name="action" value={profile.is_following ? 'unfollow' : 'follow'} />
             <button type="submit">{profile.is_following ? 'Unfollow' : 'Follow'}</button>
           </form>
-        )}
-        {isOwner && (
-          <ProfileImageUpload hasCustomImage={Boolean(profile.custom_profile_picture_url)} />
         )}
       </section>
       <section className="feed" aria-label="User posts">

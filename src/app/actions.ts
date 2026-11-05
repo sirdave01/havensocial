@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { db } from '../models/db.js';
 import { getLinkedUser } from '@/lib/linked-user';
 import { hasPermission } from '@/lib/authorization';
 import { likeTweet, unlikeTweet } from '../models/like.js';
@@ -52,10 +51,6 @@ export async function deleteTweetAction(formData: FormData) {
   if (!Number.isSafeInteger(tweetId) || tweetId < 1) redirect('/feed?error=invalid_action');
   const deleted = await deleteTweet(tweetId, user.users_id);
   if (!deleted) redirect('/feed?error=not_found');
-  await db.query(
-    'UPDATE users SET post_count = GREATEST(post_count - 1, 0) WHERE users_id = $1',
-    [user.users_id],
-  );
   revalidatePath('/feed');
 }
 

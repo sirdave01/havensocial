@@ -7,23 +7,22 @@ import { getFollowing } from '../../../../models/follow.js';
 export default async function FollowingPage({
   params,
 }: {
-  params: Promise<{ username: string }>;
+  params: Promise<{ subject: string }>;
 }) {
   const viewer = await requireLinkedUser();
-  const { username } = await params;
-  const profile = await getUserProfile(username, viewer.users_id);
+  const { subject } = await params;
+  const profile = await getUserProfile(subject, viewer.users_id);
   if (!profile) notFound();
   const users = await getFollowing(profile.users_id, 50, 0, viewer.users_id);
 
   return (
     <main className="feed-page">
-      <h1>Following by @{profile.username}</h1>
+      <h1>Following of BHID account</h1>
       {users.map((person: Record<string, unknown>) => (
         <p key={String(person.users_id)}>
-          <Link href={`/profile/${encodeURIComponent(String(person.username))}`}>
-            {String(person.display_name || person.username)}
+          <Link href={`/profile/${encodeURIComponent(String(person.bhid_sub))}`}>
+            BHID: {String(person.bhid_sub)}
           </Link>
-          {' '}@{String(person.username)}
         </p>
       ))}
     </main>

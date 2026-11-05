@@ -11,8 +11,8 @@ export default async function NotificationsPage() {
       <h1>Notifications</h1>
       {notifications.length ? notifications.map((notification: Record<string, unknown>) => (
         <article className="feed-item" key={String(notification.notifications_id)}>
-          <Link href={`/profile/${encodeURIComponent(String(notification.actor_username))}`}>
-            {String(notification.actor_display_name || notification.actor_username)}
+          <Link href={`/profile/${encodeURIComponent(String(notification.actor_sub))}`}>
+            BHID: {String(notification.actor_sub)}
           </Link>
           {' '}{String(notification.type)}d you.
           {Boolean(notification.tweet_id) && (

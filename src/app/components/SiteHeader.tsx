@@ -15,9 +15,7 @@ export default async function SiteHeader() {
           <nav className="site-nav" aria-label="Main navigation">
             <Link href="/feed">Home</Link>
             <Link href="/search">Search</Link>
-            {typeof user.username === 'string' && (
-              <Link href={`/profile/${encodeURIComponent(user.username)}`}>Profile</Link>
-            )}
+            <Link href={`/profile/${encodeURIComponent(user.bhid_sub)}`}>Profile</Link>
             <Link href="/notifications">Notifications</Link>
             {hasPermission(user, 'users.manage') && <Link href="/users">Users</Link>}
             <form action="/auth/logout" method="post">

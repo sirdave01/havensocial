@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getLinkedUser } from '@/lib/linked-user';
 import { readJsonObject } from '@/lib/http';
-import { db } from '../../../models/db.js';
 import { deleteTweet, getTweetById, updateTweet } from '../../../models/tweets.js';
 
 type RouteContext = { params: Promise<{ tweetId: string }> };
@@ -40,9 +39,5 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (!/^\d+$/.test(tweetId)) return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
   const deleted = await deleteTweet(tweetId, user.users_id);
   if (!deleted) return NextResponse.json({ message: 'Post not found or not allowed' }, { status: 404 });
-  await db.query(
-    'UPDATE users SET post_count = GREATEST(post_count - 1, 0) WHERE users_id = $1',
-    [user.users_id],
-  );
   return NextResponse.json({ message: 'Post deleted' });
 }

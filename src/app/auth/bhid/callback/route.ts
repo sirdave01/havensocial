@@ -39,17 +39,7 @@ export async function GET(request: NextRequest) {
     const idTokenClaims = tokens.claims();
     if (!idTokenClaims?.sub) throw new Error('BHID did not return a signed ID token subject');
 
-    const metadata = config.serverMetadata();
-    let claims: Record<string, unknown> = { ...idTokenClaims };
-    if (metadata.userinfo_endpoint && tokens.access_token) {
-      const userInfo = await oidc.fetchUserInfo(config, tokens.access_token, idTokenClaims.sub);
-      if (userInfo.sub !== idTokenClaims.sub) {
-        throw new Error('BHID UserInfo subject did not match the validated ID token');
-      }
-      claims = { ...claims, ...userInfo };
-    }
-
-    const user = await upsertBhidUser(claims);
+    const user = await upsertBhidUser(idTokenClaims.sub);
     if (user.app_status !== 'ACTIVE') {
       await session.save();
       return NextResponse.redirect(

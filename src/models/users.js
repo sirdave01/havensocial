@@ -20,24 +20,18 @@ const getAllUsers = async () => {
     return result.rows;
 };
 
-// Get user profile by username
-const getUserProfile = async (username, viewerId = null) => {
+// Get an application profile by its BHID subject
+const getUserProfile = async (subject, viewerId = null) => {
     const query = `
         SELECT 
             u.users_id,
-            u.username,
-            u.full_name,
-            u.display_name,
-            u.bio,
-            u.profile_picture_url AS custom_profile_picture_url,
-            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-            u.verified,
-            u.suspended,
+            u.bhid_sub,
+            (u.app_status = 'RESTRICTED') AS suspended,
             u.created_at,
             r.role_name,
-            COALESCE(u.post_count, 0) AS tweet_count,
-            COALESCE(u.follower_count, 0) AS follower_count,
-            COALESCE(u.following_count, 0) AS following_count,
+            COALESCE(pc.post_count, 0) AS tweet_count,
+            COALESCE(fc.follower_count, 0) AS follower_count,
+            COALESCE(fc.following_count, 0) AS following_count,
             
             EXISTS (
                 SELECT 1 FROM follows f 
@@ -47,33 +41,15 @@ const getUserProfile = async (username, viewerId = null) => {
 
         FROM users u
         JOIN roles r ON u.role_id = r.role_id
-        WHERE u.username = $1
-          AND u.deleted_at IS NULL
+        LEFT JOIN user_post_counts pc ON pc.users_id = u.users_id
+        LEFT JOIN user_follow_counts fc ON fc.users_id = u.users_id
+        WHERE u.bhid_sub = $1
+          AND u.app_status <> 'DEACTIVATED'
         LIMIT 1;
     `;
 
-    const result = await db.query(query, [username, viewerId]);
+    const result = await db.query(query, [subject, viewerId]);
     return result.rows[0] || null;
-};
-
-// Update user profile (bio, profile picture, display name, etc.)
-const updateUserProfile = async (userId, fullName, displayName, bio, profilePictureUrl) => {
-
-    const query = `
-        UPDATE users 
-        SET 
-            full_name = COALESCE($2, full_name),
-            display_name = COALESCE($3, display_name),
-            bio = COALESCE($4, bio),
-            profile_picture_url = COALESCE($5, profile_picture_url),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE users_id = $1
-        RETURNING *;
-    `;
-
-    const result = await db.query(query, [userId, fullName, displayName, bio, profilePictureUrl]);
-
-    return result.rows[0];
 };
 
 // Suspend or Unsuspend user
@@ -136,7 +112,6 @@ const logAuditAction = async (actorId, actionType, targetId, targetType, details
 export { 
     getAllUsers,
     getUserProfile,
-    updateUserProfile,
     toggleSuspendUser,
     deleteUser,
     logAuditAction

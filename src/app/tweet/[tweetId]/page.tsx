@@ -21,8 +21,8 @@ export default async function TweetPage({
     <main className="feed-page">
       <ViewTracker tweetId={String(data.tweet_id)} />
       <article className="feed-item">
-        <Link href={`/profile/${encodeURIComponent(data.username)}`}>
-          {data.display_name || data.username}
+        <Link href={`/profile/${encodeURIComponent(data.author_sub)}`}>
+          BHID: {data.author_sub}
         </Link>
         <p>{data.content}</p>
         {Array.isArray(data.media_url) && data.media_url.map((url: string) => (
@@ -34,8 +34,8 @@ export default async function TweetPage({
       <section aria-label="Replies">
         {data.replies.map((reply: Record<string, unknown>) => (
           <article className="feed-item" key={String(reply.tweet_id)}>
-            <Link href={`/profile/${encodeURIComponent(String(reply.username))}`}>
-              {String(reply.display_name || reply.username)}
+            <Link href={`/profile/${encodeURIComponent(String(reply.author_sub))}`}>
+              BHID: {String(reply.author_sub)}
             </Link>
             <p>{String(reply.content || '')}</p>
           </article>

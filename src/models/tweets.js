@@ -50,13 +50,7 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
         )
         SELECT 
             rt.*,
-            u.username,
-            u.display_name,
-            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-            u.verified,
-
-            -- replying to info
-            pu.username AS replying_to_username,
+            u.bhid_sub AS author_sub,
 
             -- counts
             COALESCE((SELECT COUNT(*) FROM likes l WHERE l.tweet_id = rt.tweet_id), 0) AS like_count,
@@ -70,9 +64,7 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
             ) AS liked_by_user
 
         FROM reply_tree rt
-        JOIN users u ON rt.user_id = u.users_id
-        LEFT JOIN tweets parent ON parent.tweet_id = rt.is_reply_to
-        LEFT JOIN users pu ON pu.users_id = parent.user_id
+        JOIN users u ON u.users_id = rt.user_id
         ORDER BY rt.created_at ASC;
     `;
 
@@ -86,10 +78,7 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
     const mainQuery = `
         SELECT 
             t.*,
-            u.username,
-            u.display_name,
-            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-            u.verified,
+            u.bhid_sub AS author_sub,
 
             COALESCE((SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id), 0) AS like_count,
             COALESCE((SELECT COUNT(*) FROM tweets r WHERE r.is_reply_to = t.tweet_id), 0) AS reply_count,
@@ -101,7 +90,7 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
                   AND user_id = $2
             ) AS liked_by_user
         FROM tweets t
-        JOIN users u ON t.user_id = u.users_id
+        JOIN users u ON u.users_id = t.user_id
         WHERE t.tweet_id = $1
           AND t.deleted_at IS NULL;
     `;
@@ -135,13 +124,9 @@ const createTweet = async (userId, content, mediaUrl = null, isReplyTo = null) =
 // Get single tweet
 const getTweetById = async (tweetId) => {
     const query = `
-        SELECT t.*,
-               u.username,
-               u.display_name,
-               COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-               u.verified
+        SELECT t.*, u.bhid_sub AS author_sub
         FROM tweets t
-        JOIN users u ON t.user_id = u.users_id
+        JOIN users u ON u.users_id = t.user_id
         WHERE t.tweet_id = $1
           AND t.deleted_at IS NULL;
     `;
@@ -153,13 +138,9 @@ const getTweetById = async (tweetId) => {
 // Get user tweets
 const getUserTweets = async (userId, limit = 20, offset = 0) => {
     const query = `
-        SELECT t.*,
-               u.username,
-               u.display_name,
-               COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-               u.verified
+        SELECT t.*, u.bhid_sub AS author_sub
         FROM tweets t
-        JOIN users u ON t.user_id = u.users_id
+        JOIN users u ON u.users_id = t.user_id
         WHERE t.user_id = $1
           AND t.deleted_at IS NULL
         ORDER BY t.created_at DESC
@@ -175,10 +156,7 @@ const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
     const query = `
         SELECT 
             t.*,
-            u.username,
-            u.display_name,
-            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-            u.verified,
+            u.bhid_sub AS author_sub,
 
             -- likes
             (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
@@ -205,9 +183,9 @@ const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
             ) AS is_following
 
         FROM tweets t
-        JOIN users u ON t.user_id = u.users_id
+        JOIN users u ON u.users_id = t.user_id
         WHERE t.deleted_at IS NULL
-        ORDER BY u.verified DESC, t.created_at DESC
+        ORDER BY t.created_at DESC
         LIMIT $2 OFFSET $3;
     `;
 
@@ -252,10 +230,7 @@ const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
     const query = `
         SELECT 
             t.*,
-            u.username,
-            u.display_name,
-            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-            u.verified,
+            u.bhid_sub AS author_sub,
 
             (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
             (SELECT COUNT(*) FROM tweets r WHERE r.is_reply_to = t.tweet_id) AS reply_count,
@@ -272,7 +247,7 @@ const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
 
             TRUE AS is_following
         FROM tweets t
-        JOIN users u ON t.user_id = u.users_id
+        JOIN users u ON u.users_id = t.user_id
         JOIN follows f ON f.followee_id = t.user_id
         WHERE f.follower_id = $1
           AND t.deleted_at IS NULL

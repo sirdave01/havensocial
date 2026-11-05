@@ -20,11 +20,7 @@ const createNotification = async (userId, actorId, type, tweetId = null, client 
 
 const getNotifications = async (userId, limit = 20) => {
     const query = `
-        SELECT n.*, 
-               u.username as actor_username, 
-               u.display_name as actor_display_name,
-               COALESCE(u.profile_picture_url, u.bhid_picture_url) as actor_profile_picture,
-               t.content as tweet_content
+        SELECT n.*, u.bhid_sub AS actor_sub, t.content as tweet_content
         FROM notifications n
         JOIN users u ON n.actor_id = u.users_id
         LEFT JOIN tweets t ON n.tweet_id = t.tweet_id

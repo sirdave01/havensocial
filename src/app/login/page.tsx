@@ -23,7 +23,7 @@ export default async function LoginPage({
       <h1>Sign in to HavenSocial</h1>
       <p>Use your BHID account to continue. Passwords and account registration are managed by BHID.</p>
       {error && <p role="alert">{errors[error] || 'Sign-in failed. Please try again.'}</p>}
-      <Link href="/auth/bhid" className="btn-primary btn-large">Continue with BHID</Link>
+      <a href="/auth/bhid" className="btn-primary btn-large">Continue with BHID</a>
       <p><Link href="/">Back to HavenSocial</Link></p>
     </main>
   );

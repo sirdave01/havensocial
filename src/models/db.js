@@ -14,7 +14,7 @@ import { Pool } from 'pg';
 const globalForPool = globalThis;
 /** @type {import('pg').Pool} */
 const sharedPool = globalForPool.__havenSocialPool || new Pool({
-    connectionString: process.env.DATABASE_URL || process.env.DB_URL,
+    connectionString: process.env.DATABASE_URL,
     max: 5,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 5000

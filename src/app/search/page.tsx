@@ -12,11 +12,11 @@ export default async function SearchPage({
   const query = q.trim().slice(0, 100);
   const result = query.length >= 2
     ? await db.query(
-      `SELECT users_id, username, display_name, bio, profile_picture_url
+      `SELECT users_id, bhid_sub
        FROM users
-       WHERE deleted_at IS NULL
-         AND (username ILIKE $1 OR display_name ILIKE $1 OR full_name ILIKE $1 OR bio ILIKE $1)
-       ORDER BY username ILIKE $2 DESC, created_at DESC
+       WHERE app_status = 'ACTIVE'
+         AND bhid_sub ILIKE $1
+       ORDER BY bhid_sub ILIKE $2 DESC, created_at DESC
        LIMIT 50`,
       [`%${query}%`, query],
     )
@@ -32,10 +32,9 @@ export default async function SearchPage({
       </form>
       {result.rows.map((person: Record<string, unknown>) => (
         <article className="feed-item" key={String(person.users_id)}>
-          <Link href={`/profile/${encodeURIComponent(String(person.username))}`}>
-            {String(person.display_name || person.username)} (@{String(person.username)})
+          <Link href={`/profile/${encodeURIComponent(String(person.bhid_sub))}`}>
+            BHID: {String(person.bhid_sub)}
           </Link>
-          {Boolean(person.bio) && <p>{String(person.bio)}</p>}
         </article>
       ))}
     </main>

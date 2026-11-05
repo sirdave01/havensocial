@@ -35,14 +35,13 @@ export default async function FeedPage({
           <article className="feed-item" key={String(tweet.tweet_id)}>
             <p>
               <img
-                src={String(tweet.profile_picture_url || '/images/default-avatar.jpg')}
+                src="/images/default-avatar.jpg"
                 alt=""
                 className="profile-avatar-small"
               />
-              <Link href={`/profile/${encodeURIComponent(String(tweet.username))}`}>
-                {String(tweet.display_name || tweet.username)}
+              <Link href={`/profile/${encodeURIComponent(String(tweet.author_sub))}`}>
+                BHID: {String(tweet.author_sub)}
               </Link>
-              {' '}@{String(tweet.username)}
             </p>
             <Link href={`/tweet/${String(tweet.tweet_id)}`} className="feed-post-link">
               <p>{String(tweet.content || '')}</p>
