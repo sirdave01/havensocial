@@ -1,16 +1,17 @@
 import * as oidc from 'openid-client';
 import { NextResponse } from 'next/server';
-import { getBhidConfiguration, getBhidRedirectUri } from '@/lib/bhid';
+import { getBhidConfiguration, getBhidRedirectUri, getHavenSocialOrigin } from '@/lib/bhid';
+import { getLinkedUser } from '@/lib/linked-user';
 import { getHavenSession } from '@/lib/session';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
-  const session = await getHavenSession();
-  if (session.userId) {
-    return NextResponse.redirect(new URL('/feed', getBhidRedirectUri()));
+export async function GET() {
+  if (await getLinkedUser()) {
+    return NextResponse.redirect(new URL('/feed', getHavenSocialOrigin()));
   }
 
+  const session = await getHavenSession();
   const config = await getBhidConfiguration();
   const codeVerifier = oidc.randomPKCECodeVerifier();
   const codeChallenge = await oidc.calculatePKCECodeChallenge(codeVerifier);

@@ -1,15 +1,15 @@
 import { redirect } from 'next/navigation';
 import { requireLinkedUser } from '@/lib/linked-user';
+import { hasPermission } from '@/lib/authorization';
 import { db } from '../../models/db.js';
 
 export default async function DashboardPage() {
   const user = await requireLinkedUser();
-  if (!['founder', 'admin'].includes(user.role_name)) redirect('/feed');
+  if (!hasPermission(user, 'dashboard.view')) redirect('/feed');
   const result = await db.query(
     `SELECT
-       (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL) AS users,
-       (SELECT COUNT(*) FROM tweets WHERE deleted_at IS NULL) AS posts,
-       (SELECT COUNT(*) FROM users WHERE verified = TRUE AND deleted_at IS NULL) AS verified_users`,
+       (SELECT COUNT(*) FROM users WHERE app_status = 'ACTIVE') AS users,
+       (SELECT COUNT(*) FROM tweets WHERE is_deleted = FALSE) AS posts`,
   );
 
   return (
@@ -17,7 +17,6 @@ export default async function DashboardPage() {
       <h1>HavenSocial dashboard</h1>
       <p>Users: {result.rows[0].users}</p>
       <p>Posts: {result.rows[0].posts}</p>
-      <p>BHID-verified users: {result.rows[0].verified_users}</p>
     </main>
   );
 }

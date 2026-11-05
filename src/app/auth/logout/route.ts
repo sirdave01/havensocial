@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getBhidRedirectUri } from '@/lib/bhid';
-import { getHavenSession } from '@/lib/session';
+import { getHavenSocialOrigin } from '@/lib/bhid';
+import { getHavenSession, revokeAppSession } from '@/lib/session';
 
 export const runtime = 'nodejs';
 
-export async function POST(request: Request) {
+export async function POST() {
   const session = await getHavenSession();
+  await revokeAppSession(session.appSessionToken);
   session.destroy();
-  return NextResponse.redirect(new URL('/', getBhidRedirectUri()), { status: 303 });
+  return NextResponse.redirect(new URL('/', getHavenSocialOrigin()), { status: 303 });
 }

@@ -6,18 +6,12 @@ const getAllUsers = async () => {
     const query = `
         SELECT 
             u.users_id,
-            u.username,
-            u.full_name,
-            u.display_name,
-            u.email,
-            COALESCE(u.profile_picture_url, u.bhid_picture_url) AS profile_picture_url,
-            u.verified,
-            u.suspended,
+            u.bhid_sub,
+            u.app_status,
             r.role_name,
             u.created_at
         FROM users u
         JOIN roles r ON u.role_id = r.role_id
-        WHERE u.deleted_at IS NULL
         ORDER BY u.created_at DESC;
     `;
 
@@ -85,10 +79,21 @@ const updateUserProfile = async (userId, fullName, displayName, bio, profilePict
 // Suspend or Unsuspend user
 const toggleSuspendUser = async (userId, suspend) => {
     const query = `
-        UPDATE users 
-        SET suspended = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE users_id = $2 
-        RETURNING users_id, username, suspended;
+        WITH updated_user AS (
+            UPDATE users
+            SET app_status = CASE WHEN $1 THEN 'RESTRICTED' ELSE 'ACTIVE' END
+            WHERE users_id = $2
+              AND app_status IN ('ACTIVE', 'RESTRICTED')
+            RETURNING users_id, bhid_sub, app_status
+        ), revoked_sessions AS (
+            UPDATE app_sessions
+            SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+            FROM updated_user
+            WHERE $1
+              AND app_sessions.user_id = updated_user.users_id
+              AND app_sessions.revoked_at IS NULL
+        )
+        SELECT users_id, bhid_sub, app_status FROM updated_user;
     `;
     const result = await db.query(query, [suspend, userId]);
     return result.rows[0];
@@ -97,10 +102,19 @@ const toggleSuspendUser = async (userId, suspend) => {
 // Soft Delete user
 const deleteUser = async (userId) => {
     const query = `
-        UPDATE users 
-        SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-        WHERE users_id = $1 
-        RETURNING users_id, username;
+        WITH deactivated_user AS (
+            UPDATE users
+            SET app_status = 'DEACTIVATED'
+            WHERE users_id = $1 AND app_status <> 'DEACTIVATED'
+            RETURNING users_id, bhid_sub
+        ), revoked_sessions AS (
+            UPDATE app_sessions
+            SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+            FROM deactivated_user
+            WHERE app_sessions.user_id = deactivated_user.users_id
+              AND app_sessions.revoked_at IS NULL
+        )
+        SELECT users_id, bhid_sub FROM deactivated_user;
     `;
     const result = await db.query(query, [userId]);
 

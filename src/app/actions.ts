@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '../models/db.js';
 import { getLinkedUser } from '@/lib/linked-user';
+import { hasPermission } from '@/lib/authorization';
 import { likeTweet, unlikeTweet } from '../models/like.js';
 import { followUser, unfollowUser } from '../models/follow.js';
 import { deleteTweet } from '../models/tweets.js';
@@ -61,7 +62,7 @@ export async function deleteTweetAction(formData: FormData) {
 async function requireAdmin() {
   const user = await getLinkedUser();
   if (!user) redirect('/login');
-  if (!['founder', 'admin'].includes(user.role_name)) redirect('/feed?error=forbidden');
+  if (!hasPermission(user, 'users.manage')) redirect('/feed?error=forbidden');
   return user;
 }
 
@@ -72,7 +73,8 @@ export async function changeUserStatusAction(formData: FormData) {
   if (!Number.isSafeInteger(userId) || userId < 1 || userId === Number(actor.users_id)) {
     redirect('/users?error=invalid_action');
   }
-  await toggleSuspendUser(userId, suspended);
+  const updatedUser = await toggleSuspendUser(userId, suspended);
+  if (!updatedUser) redirect('/users?error=not_found');
   await logAuditAction(
     actor.users_id,
     suspended ? 'suspend_user' : 'unsuspend_user',
@@ -88,7 +90,8 @@ export async function removeUserAction(formData: FormData) {
   if (!Number.isSafeInteger(userId) || userId < 1 || userId === Number(actor.users_id)) {
     redirect('/users?error=invalid_action');
   }
-  await deleteUser(userId);
+  const deletedUser = await deleteUser(userId);
+  if (!deletedUser) redirect('/users?error=not_found');
   await logAuditAction(actor.users_id, 'delete_user', userId, 'user');
   revalidatePath('/users');
 }

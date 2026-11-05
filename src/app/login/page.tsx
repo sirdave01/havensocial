@@ -6,6 +6,7 @@ const errors: Record<string, string> = {
   oauth_state: 'Your sign-in session expired. Please try again.',
   oauth_denied: 'BHID sign-in was cancelled.',
   oauth_callback: 'BHID sign-in could not be completed. Please try again.',
+  account_unavailable: 'This HavenSocial account is not currently active.',
 };
 
 export default async function LoginPage({

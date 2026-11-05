@@ -1,8 +1,8 @@
 import * as oidc from 'openid-client';
 import { NextRequest, NextResponse } from 'next/server';
-import { getBhidConfiguration, getBhidRedirectUri } from '@/lib/bhid';
+import { getBhidConfiguration, getBhidRedirectUri, getHavenSocialOrigin } from '@/lib/bhid';
 import { upsertBhidUser } from '@/lib/bhid-user';
-import { getHavenSession } from '@/lib/session';
+import { createAppSession, getHavenSession } from '@/lib/session';
 
 export const runtime = 'nodejs';
 
@@ -14,18 +14,22 @@ export async function GET(request: NextRequest) {
   const returnedState = request.nextUrl.searchParams.get('state');
   if (!transaction || !returnedState || returnedState !== transaction.state) {
     await session.save();
-    return NextResponse.redirect(new URL('/login?error=oauth_state', getBhidRedirectUri()));
+    return NextResponse.redirect(new URL('/login?error=oauth_state', getHavenSocialOrigin()));
   }
 
   const providerError = request.nextUrl.searchParams.get('error');
   if (providerError) {
     await session.save();
-    return NextResponse.redirect(new URL('/login?error=oauth_denied', getBhidRedirectUri()));
+    return NextResponse.redirect(new URL('/login?error=oauth_denied', getHavenSocialOrigin()));
   }
 
   try {
     const config = await getBhidConfiguration();
-    const tokens = await oidc.authorizationCodeGrant(config, request.nextUrl, {
+    const callbackUrl = new URL(getBhidRedirectUri());
+    request.nextUrl.searchParams.forEach((value, key) => {
+      callbackUrl.searchParams.set(key, value);
+    });
+    const tokens = await oidc.authorizationCodeGrant(config, callbackUrl, {
       expectedState: transaction.state,
       expectedNonce: transaction.nonce,
       pkceCodeVerifier: transaction.codeVerifier,
@@ -39,17 +43,27 @@ export async function GET(request: NextRequest) {
     let claims: Record<string, unknown> = { ...idTokenClaims };
     if (metadata.userinfo_endpoint && tokens.access_token) {
       const userInfo = await oidc.fetchUserInfo(config, tokens.access_token, idTokenClaims.sub);
+      if (userInfo.sub !== idTokenClaims.sub) {
+        throw new Error('BHID UserInfo subject did not match the validated ID token');
+      }
       claims = { ...claims, ...userInfo };
     }
 
     const user = await upsertBhidUser(claims);
-    session.userId = String(user.users_id);
+    if (user.app_status !== 'ACTIVE') {
+      await session.save();
+      return NextResponse.redirect(
+        new URL('/login?error=account_unavailable', getHavenSocialOrigin()),
+      );
+    }
+
+    session.appSessionToken = await createAppSession(user.users_id);
     await session.save();
 
-    return NextResponse.redirect(new URL('/feed', getBhidRedirectUri()));
+    return NextResponse.redirect(new URL('/feed', getHavenSocialOrigin()));
   } catch (error) {
     console.error('BHID callback failed:', error);
     await session.save();
-    return NextResponse.redirect(new URL('/login?error=oauth_callback', getBhidRedirectUri()));
+    return NextResponse.redirect(new URL('/login?error=oauth_callback', getHavenSocialOrigin()));
   }
 }

@@ -1,5 +1,7 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { getIronSession, type SessionOptions } from 'iron-session';
 import { cookies } from 'next/headers';
+import { db } from '../models/db.js';
 
 export type OAuthTransaction = {
   state: string;
@@ -8,9 +10,20 @@ export type OAuthTransaction = {
 };
 
 export type HavenSession = {
-  userId?: string;
+  appSessionToken?: string;
   oauth?: OAuthTransaction;
 };
+
+export function getAppSessionTtlSeconds() {
+  const configured = process.env.APP_SESSION_TTL_SECONDS;
+  if (!configured) return 60 * 60 * 24 * 7;
+
+  const seconds = Number(configured);
+  if (!Number.isSafeInteger(seconds) || seconds < 60 || seconds > 60 * 60 * 24 * 30) {
+    throw new Error('APP_SESSION_TTL_SECONDS must be an integer between 60 and 2592000');
+  }
+  return seconds;
+}
 
 const sessionOptions = (): SessionOptions => {
   const password = process.env.SESSION_SECRET;
@@ -21,7 +34,7 @@ const sessionOptions = (): SessionOptions => {
   return {
     cookieName: 'haven_session',
     password,
-    ttl: 60 * 60 * 24 * 7,
+    ttl: getAppSessionTtlSeconds(),
     cookieOptions: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -33,4 +46,39 @@ const sessionOptions = (): SessionOptions => {
 
 export async function getHavenSession() {
   return getIronSession<HavenSession>(await cookies(), sessionOptions());
+}
+
+const hashSessionToken = (token: string) =>
+  createHash('sha256').update(token).digest('hex');
+
+export async function createAppSession(userId: string | number) {
+  const token = randomBytes(32).toString('base64url');
+  const tokenHash = hashSessionToken(token);
+  const result = await db.query(
+    `INSERT INTO app_sessions (user_id, session_token_hash, expires_at, last_seen_at)
+     SELECT users_id, $2, NOW() + ($3 * INTERVAL '1 second'), NOW()
+     FROM users
+     WHERE users_id = $1 AND app_status = 'ACTIVE'
+     RETURNING session_id`,
+    [userId, tokenHash, getAppSessionTtlSeconds()],
+  );
+
+  if (!result.rows[0]) {
+    throw new Error('Cannot create a HavenSocial session for an inactive or missing user');
+  }
+  return token;
+}
+
+export async function revokeAppSession(token: string | undefined) {
+  if (!token) return;
+  await db.query(
+    `UPDATE app_sessions
+     SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+     WHERE session_token_hash = $1`,
+    [hashSessionToken(token)],
+  );
+}
+
+export function hashAppSessionToken(token: string) {
+  return hashSessionToken(token);
 }

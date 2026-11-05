@@ -1,6 +1,6 @@
 {
   "name": "havensocial",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "The SocialFi; Next-Gen Social Media PLatform of ByteHaven Tech Solutions Ltd, powered by the utility toke: havenbyte token (HBT)",
   "keywords": [
     "socialfi",
@@ -33,7 +33,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1161.0",
-    "@aws-sdk/s3-request-presigner": "^3.1161.0",
     "iron-session": "^9.0.1",
     "next": "^16.4.5",
     "openid-client": "^6.8.9",

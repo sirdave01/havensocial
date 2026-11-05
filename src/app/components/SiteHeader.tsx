@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { hasPermission } from '@/lib/authorization';
 import { getLinkedUser } from '@/lib/linked-user';
 
 export default async function SiteHeader() {
@@ -14,9 +15,11 @@ export default async function SiteHeader() {
           <nav className="site-nav" aria-label="Main navigation">
             <Link href="/feed">Home</Link>
             <Link href="/search">Search</Link>
-            <Link href={`/profile/${encodeURIComponent(user.username)}`}>Profile</Link>
+            {typeof user.username === 'string' && (
+              <Link href={`/profile/${encodeURIComponent(user.username)}`}>Profile</Link>
+            )}
             <Link href="/notifications">Notifications</Link>
-            {['founder', 'admin'].includes(user.role_name) && <Link href="/users">Users</Link>}
+            {hasPermission(user, 'users.manage') && <Link href="/users">Users</Link>}
             <form action="/auth/logout" method="post">
               <button type="submit" className="text-button">Sign out</button>
             </form>
