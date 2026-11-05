@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Pin, Repeat2 } from 'lucide-react';
 
 export default function PostControls({
   tweetId,
@@ -50,11 +51,13 @@ export default function PostControls({
   return (
     <div className="feed-actions">
       <button type="button" onClick={retweet} disabled={hasRetweeted}>
-        {hasRetweeted ? 'Reposted' : 'Repost'}
+        <Repeat2 aria-hidden="true" />
+        <span>{hasRetweeted ? 'Reposted' : 'Repost'}</span>
       </button>
       {canPin && (
         <button type="button" onClick={togglePin}>
-          {isPinned ? 'Unpin' : 'Pin'}
+          <Pin aria-hidden="true" />
+          <span>{isPinned ? 'Unpin' : 'Pin'}</span>
         </button>
       )}
       {error && <span role="alert">{error}</span>}

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Check, Pencil, X } from 'lucide-react';
 
 const MAX_CONTENT_LENGTH = 25000;
 
@@ -56,15 +57,18 @@ export default function PostEditor({
 
   if (!editing) {
     return (
-      <div>
-        <button type="button" onClick={() => setEditing(true)}>Edit</button>
+      <div className="post-editor">
+        <button type="button" className="icon-action-button" onClick={() => setEditing(true)}>
+          <Pencil aria-hidden="true" />
+          <span>Edit</span>
+        </button>
         {success && <span role="status">{success}</span>}
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="post-editor editing">
       <label htmlFor={`edit-post-${tweetId}`}>Edit post</label>
       <textarea
         id={`edit-post-${tweetId}`}
@@ -81,6 +85,7 @@ export default function PostEditor({
         {characterCount.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}
       </p>
       <button type="button" onClick={save} disabled={busy || !content.trim() || characterCount > MAX_CONTENT_LENGTH}>
+        <Check aria-hidden="true" />
         {busy ? 'Saving…' : 'Save'}
       </button>
       <button
@@ -92,6 +97,7 @@ export default function PostEditor({
         }}
         disabled={busy}
       >
+        <X aria-hidden="true" />
         Cancel
       </button>
       {error && <p role="alert">{error}</p>}

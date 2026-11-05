@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Heart, Trash2, UserCheck, UserPlus } from 'lucide-react';
 import { deleteTweetAction, toggleFollowAction, toggleLikeAction } from '@/app/actions';
 import type { BhidProfile } from '@/lib/bhid/profile';
 import IdentityAvatar from './IdentityAvatar';
@@ -88,13 +89,19 @@ export default function PostCard({
         <form action={toggleLikeAction}>
           <input type="hidden" name="tweetId" value={tweetId} />
           <input type="hidden" name="action" value={post.liked_by_user ? 'unlike' : 'like'} />
-          <button type="submit">{post.liked_by_user ? 'Unlike' : 'Like'} ({count(post.like_count)})</button>
+          <button type="submit" aria-label={`${post.liked_by_user ? 'Unlike' : 'Like'} (${count(post.like_count)})`}>
+            <Heart aria-hidden="true" fill={post.liked_by_user ? 'currentColor' : 'none'} />
+            <span>{count(post.like_count)}</span>
+          </button>
         </form>
         {showFollow && !isOwner && (
           <form action={toggleFollowAction}>
             <input type="hidden" name="followeeId" value={String(post.user_id)} />
             <input type="hidden" name="action" value={post.is_following ? 'unfollow' : 'follow'} />
-            <button type="submit">{post.is_following ? 'Unfollow' : 'Follow'}</button>
+            <button type="submit">
+              {post.is_following ? <UserCheck aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
+              <span>{post.is_following ? 'Following' : 'Follow'}</span>
+            </button>
           </form>
         )}
         {isOwner && (
@@ -102,7 +109,10 @@ export default function PostCard({
             <PostEditor tweetId={tweetId} initialContent={post.content || ''} />
             <form action={deleteTweetAction}>
               <input type="hidden" name="tweetId" value={tweetId} />
-              <button type="submit">Delete</button>
+              <button type="submit" aria-label="Delete post">
+                <Trash2 aria-hidden="true" />
+                <span>Delete</span>
+              </button>
             </form>
           </>
         )}
