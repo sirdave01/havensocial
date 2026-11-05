@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { getLinkedUser } from '@/lib/linked-user';
 import { hasPermission } from '@/lib/authorization';
 import { readJsonObject } from '@/lib/http';
+import { confirmUploadedMedia, MediaValidationError } from '@/lib/media';
 import { db } from '../../models/db.js';
 import { createTweetWithExtras } from '../../models/tweetService.js';
 
 export const runtime = 'nodejs';
+const MAX_MEDIA_PER_POST = 4;
 
 export async function POST(request: Request) {
   const user = await getLinkedUser();
@@ -17,8 +19,14 @@ export async function POST(request: Request) {
   if (!body || typeof body.content !== 'string') {
     return NextResponse.json({ message: 'A JSON content string is required' }, { status: 400 });
   }
-  if (body.mediaKey !== undefined) {
-    return NextResponse.json({ message: 'Media attachments are not supported yet' }, { status: 400 });
+  if (
+    body.media !== undefined &&
+    (!Array.isArray(body.media) || body.media.length > MAX_MEDIA_PER_POST)
+  ) {
+    return NextResponse.json(
+      { message: `A post can contain at most ${MAX_MEDIA_PER_POST} media attachments` },
+      { status: 400 },
+    );
   }
 
   const content = body.content.trim();
@@ -54,9 +62,38 @@ export async function POST(request: Request) {
     if (!parent.rows[0]) return NextResponse.json({ message: 'Parent post not found' }, { status: 404 });
   }
 
+  const mediaKeys = new Set<string>();
+  const media = [];
+  for (const attachment of body.media || []) {
+    if (
+      !attachment ||
+      typeof attachment !== 'object' ||
+      Array.isArray(attachment) ||
+      typeof attachment.key !== 'string' ||
+      typeof attachment.altText !== 'string' ||
+      attachment.altText.length > 1000 ||
+      mediaKeys.has(attachment.key)
+    ) {
+      return NextResponse.json({ message: 'Invalid media attachment' }, { status: 400 });
+    }
+
+    mediaKeys.add(attachment.key);
+    try {
+      media.push({
+        ...await confirmUploadedMedia(attachment.key, user.users_id),
+        altText: attachment.altText,
+      });
+    } catch (error) {
+      if (error instanceof MediaValidationError) {
+        return NextResponse.json({ message: error.message }, { status: 400 });
+      }
+      throw error;
+    }
+  }
+
   let tweet;
   try {
-    tweet = await createTweetWithExtras(user.users_id, content, replyTo);
+    tweet = await createTweetWithExtras(user.users_id, content, replyTo, media);
   } catch (error) {
     console.error('Post creation failed:', {
       errorName: error instanceof Error ? error.name : 'NonError',

@@ -1,9 +1,19 @@
 import Link from 'next/link';
-import { hasPermission } from '@/lib/authorization';
+import { getCurrentBhidProfile } from '@/lib/bhid/profile';
 import { getLinkedUser } from '@/lib/linked-user';
+import IdentityAvatar from './IdentityAvatar';
+import NavIcon, { type NavIconName } from './NavIcon';
+
+const navigation: { href: string; label: string; icon: NavIconName }[] = [
+  { href: '/feed', label: 'Home', icon: 'home' },
+  { href: '/search', label: 'Search', icon: 'search' },
+  { href: '', label: 'Profile', icon: 'profile' },
+  { href: '/notifications', label: 'Notifications', icon: 'notifications' },
+];
 
 export default async function SiteHeader() {
   const user = await getLinkedUser();
+  const profile = user ? await getCurrentBhidProfile(user.bhid_sub) : null;
   return (
     <header>
       <div className="header-container">
@@ -12,16 +22,32 @@ export default async function SiteHeader() {
           <span>HavenSocial</span>
         </Link>
         {user && (
-          <nav className="site-nav" aria-label="Main navigation">
-            <Link href="/feed">Home</Link>
-            <Link href="/search">Search</Link>
-            <Link href={`/profile/${encodeURIComponent(user.bhid_sub)}`}>Profile</Link>
-            <Link href="/notifications">Notifications</Link>
-            {hasPermission(user, 'users.manage') && <Link href="/users">Users</Link>}
-            <form action="/auth/logout" method="post">
+          <>
+            <nav className="site-nav" aria-label="Main navigation">
+              {navigation.map((item) => {
+                const href = item.label === 'Profile'
+                  ? `/profile/${encodeURIComponent(user.bhid_sub)}`
+                  : item.href;
+                return (
+                  <Link href={href} className="nav-item" key={item.label}>
+                    {item.label === 'Profile'
+                      ? <IdentityAvatar src={profile?.picture} className="nav-avatar" />
+                      : <NavIcon name={item.icon} />}
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+              {user.role_name === 'founder' && (
+                <Link href="/users" className="nav-item">
+                  <NavIcon name="users" />
+                  <span>Users</span>
+                </Link>
+              )}
+            </nav>
+            <form action="/auth/logout" method="post" className="nav-logout">
               <button type="submit" className="text-button">Sign out</button>
             </form>
-          </nav>
+          </>
         )}
       </div>
     </header>

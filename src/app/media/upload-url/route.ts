@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   const body = await readJsonObject(request);
   if (
     !body ||
-    (body.kind !== 'profile' && body.kind !== 'tweets') ||
+    body.kind !== 'posts' ||
     typeof body.contentType !== 'string'
   ) {
     return NextResponse.json({ message: 'Invalid upload request' }, { status: 400 });
@@ -17,7 +17,6 @@ export async function POST(request: Request) {
 
   try {
     const upload = await createMediaUpload(
-      body.kind,
       user.users_id,
       body.contentType,
       Number(body.size),

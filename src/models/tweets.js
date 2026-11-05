@@ -24,6 +24,36 @@ const buildReplyTree = (rows) => {
     return roots;
 };
 
+const attachMedia = async (rows) => {
+    const allRows = [];
+    const visit = (row) => {
+        allRows.push(row);
+        for (const reply of row.replies || []) visit(reply);
+    };
+    rows.forEach(visit);
+    if (!allRows.length) return rows;
+
+    const { rows: mediaRows } = await db.query(
+        `SELECT media_id, tweet_id, storage_key, media_url, media_type,
+                mime_type, file_size, width, height, duration_seconds, alt_text, position
+         FROM tweet_media
+         WHERE tweet_id = ANY($1::bigint[])
+         ORDER BY tweet_id, position, media_id`,
+        [[...new Set(allRows.map((row) => String(row.tweet_id)))]],
+    );
+    const mediaByTweet = new Map();
+    for (const media of mediaRows) {
+        const tweetId = String(media.tweet_id);
+        const attachments = mediaByTweet.get(tweetId) || [];
+        attachments.push(media);
+        mediaByTweet.set(tweetId, attachments);
+    }
+    allRows.forEach((row) => {
+        row.media = mediaByTweet.get(String(row.tweet_id)) || [];
+    });
+    return rows;
+};
+
 // ==================== THREADED REPLIES ====================
 
 export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
@@ -78,7 +108,7 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
     `;
 
     const { rows } = await db.query(query, [tweetId, viewerId]);
-    return buildReplyTree(rows);
+    return attachMedia(buildReplyTree(rows));
 };
 
 // ==================== SINGLE TWEET + THREAD ====================
@@ -114,6 +144,7 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
     if (!tweet) return null;
 
     const replies = await getThreadedRepliesForTweet(tweetId, viewerId);
+    await attachMedia([tweet]);
 
     return {
         ...tweet,
@@ -159,7 +190,7 @@ const getUserTweets = async (userId, limit = 20, offset = 0) => {
     `;
 
     const result = await db.query(query, [userId, limit, offset]);
-    return result.rows;
+    return attachMedia(result.rows);
 };
 
 // Get home feed
@@ -209,7 +240,7 @@ const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
     `;
 
     const result = await db.query(query, [viewerId, limit, offset]);
-    return result.rows;
+    return attachMedia(result.rows);
 };
 
 // Delete tweet (soft)
@@ -287,7 +318,7 @@ const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
     `;
 
     const result = await db.query(query, [viewerId, limit, offset]);
-    return result.rows;
+    return attachMedia(result.rows);
 };
 
 export {

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -8,29 +9,18 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-export type MediaKind = 'profile' | 'tweets';
+export type PostMediaType = 'IMAGE' | 'VIDEO' | 'GIF';
 
-const allowedTypes: Record<MediaKind, Record<string, string>> = {
-  profile: {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/gif': 'gif',
-    'image/webp': 'webp',
-  },
-  tweets: {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/gif': 'gif',
-    'image/webp': 'webp',
-    'video/mp4': 'mp4',
-    'video/webm': 'webm',
-  },
+const allowedTypes: Record<string, { extension: string; mediaType: PostMediaType; folder: string }> = {
+  'image/jpeg': { extension: 'jpg', mediaType: 'IMAGE', folder: 'images' },
+  'image/png': { extension: 'png', mediaType: 'IMAGE', folder: 'images' },
+  'image/gif': { extension: 'gif', mediaType: 'GIF', folder: 'gifs' },
+  'image/webp': { extension: 'webp', mediaType: 'IMAGE', folder: 'images' },
+  'video/mp4': { extension: 'mp4', mediaType: 'VIDEO', folder: 'videos' },
+  'video/webm': { extension: 'webm', mediaType: 'VIDEO', folder: 'videos' },
 };
 
-const maxSize: Record<MediaKind, number> = {
-  profile: 5 * 1024 * 1024,
-  tweets: 15 * 1024 * 1024,
-};
+const MAX_POST_MEDIA_SIZE = 15 * 1024 * 1024;
 
 export class MediaValidationError extends Error {}
 
@@ -79,13 +69,13 @@ function getClient() {
   return client;
 }
 
-function validateUpload(kind: MediaKind, contentType: string, size: number) {
-  const extension = allowedTypes[kind][contentType];
-  if (!extension) throw new MediaValidationError('Unsupported media type');
-  if (!Number.isSafeInteger(size) || size < 1 || size > maxSize[kind]) {
-    throw new MediaValidationError(`Media must be between 1 byte and ${maxSize[kind]} bytes`);
+function validateUpload(contentType: string, size: number) {
+  const media = allowedTypes[contentType];
+  if (!media) throw new MediaValidationError('Unsupported media type');
+  if (!Number.isSafeInteger(size) || size < 1 || size > MAX_POST_MEDIA_SIZE) {
+    throw new MediaValidationError(`Media must be between 1 byte and ${MAX_POST_MEDIA_SIZE} bytes`);
   }
-  return extension;
+  return media;
 }
 
 function publicUrl(key: string) {
@@ -94,14 +84,13 @@ function publicUrl(key: string) {
 }
 
 export async function createMediaUpload(
-  kind: MediaKind,
   ownerId: string | number,
   contentType: string,
   size: number,
 ) {
   const config = getStorageConfig();
-  const extension = validateUpload(kind, contentType, size);
-  const key = `uploads/${kind}/${ownerId}/${randomUUID()}.${extension}`;
+  const media = validateUpload(contentType, size);
+  const key = `posts/${media.folder}/${ownerId}/${randomUUID()}.${media.extension}`;
   const command = new PutObjectCommand({
     Bucket: config.bucket,
     Key: key,
@@ -109,24 +98,31 @@ export async function createMediaUpload(
     ContentLength: size,
   });
   const uploadUrl = await getSignedUrl(getClient(), command, { expiresIn: 300 });
-  return { uploadUrl, key, publicUrl: publicUrl(key), contentType };
+  return {
+    uploadUrl,
+    key,
+    publicUrl: publicUrl(key),
+    contentType,
+    mediaType: media.mediaType,
+  };
 }
 
 export async function confirmUploadedMedia(
   key: string,
-  kind: MediaKind,
   ownerId: string | number,
 ) {
   const config = getStorageConfig();
-  const prefix = `uploads/${kind}/${ownerId}/`;
-  if (!key.startsWith(prefix) || key.includes('..')) {
+  const match = /^posts\/(images|videos|gifs)\/([^/]+)\/([0-9a-f-]{36})\.([a-z0-9]+)$/i.exec(key);
+  if (!match || match[2] !== String(ownerId)) {
     throw new MediaValidationError('Invalid media key');
   }
 
-  const extension = key.split('.').pop();
-  const expectedType = Object.entries(allowedTypes[kind])
-    .find(([, allowedExtension]) => allowedExtension === extension)?.[0];
-  if (!expectedType) throw new MediaValidationError('Unsupported media type');
+  const [, folder, , , extension] = match;
+  const mediaEntry = Object.entries(allowedTypes).find(
+    ([, media]) => media.folder === folder && media.extension === extension.toLowerCase(),
+  );
+  if (!mediaEntry) throw new MediaValidationError('Unsupported media type');
+  const [expectedType, media] = mediaEntry;
 
   let head: HeadObjectCommandOutput;
   try {
@@ -142,10 +138,51 @@ export async function confirmUploadedMedia(
   }
   if (
     !head.ContentLength ||
-    head.ContentLength > maxSize[kind] ||
+    head.ContentLength > MAX_POST_MEDIA_SIZE ||
     head.ContentType !== expectedType
   ) {
     throw new MediaValidationError('Uploaded media does not match the allowed type or size');
   }
-  return publicUrl(key);
+
+  const object = await getClient().send(new GetObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+    Range: 'bytes=0-15',
+  }));
+  const signature = await object.Body?.transformToByteArray();
+  if (!signature || !hasExpectedSignature(signature, expectedType)) {
+    throw new MediaValidationError('Uploaded media content does not match its declared type');
+  }
+
+  return {
+    key,
+    url: publicUrl(key),
+    mediaType: media.mediaType,
+    mimeType: expectedType,
+    fileSize: head.ContentLength,
+  };
+}
+
+function hasExpectedSignature(bytes: Uint8Array, contentType: string) {
+  const startsWith = (...signature: number[]) =>
+    signature.every((byte, index) => bytes[index] === byte);
+  const ascii = (start: number, length: number) =>
+    String.fromCharCode(...bytes.slice(start, start + length));
+
+  switch (contentType) {
+    case 'image/jpeg':
+      return startsWith(0xff, 0xd8, 0xff);
+    case 'image/png':
+      return startsWith(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+    case 'image/gif':
+      return ascii(0, 6) === 'GIF87a' || ascii(0, 6) === 'GIF89a';
+    case 'image/webp':
+      return ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP';
+    case 'video/mp4':
+      return ascii(4, 4) === 'ftyp';
+    case 'video/webm':
+      return startsWith(0x1a, 0x45, 0xdf, 0xa3);
+    default:
+      return false;
+  }
 }

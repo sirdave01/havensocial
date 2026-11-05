@@ -10,7 +10,8 @@ import { createNotification } from "./notification.js";
 export const createTweetWithExtras = async (
     userId,
     content,
-    isReplyTo = null
+    isReplyTo = null,
+    media = []
 ) => {
 
     let client;
@@ -46,6 +47,26 @@ export const createTweetWithExtras = async (
         if (!tweet) {
             await client.query('ROLLBACK');
             return null;
+        }
+
+        for (const [position, attachment] of media.entries()) {
+            await client.query(
+                `INSERT INTO tweet_media (
+                    tweet_id, storage_key, media_url, media_type,
+                    mime_type, file_size, alt_text, position
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [
+                    tweet.tweet_id,
+                    attachment.key,
+                    attachment.url,
+                    attachment.mediaType,
+                    attachment.mimeType,
+                    attachment.fileSize,
+                    attachment.altText,
+                    position,
+                ]
+            );
         }
 
         // ===================== REPLY NOTIFICATION =====================

@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { deleteTweetAction, toggleFollowAction, toggleLikeAction } from '@/app/actions';
 import type { BhidProfile } from '@/lib/bhid/profile';
+import IdentityAvatar from './IdentityAvatar';
+import MediaPreview from './MediaPreview';
 import PostControls from './PostControls';
 import PostEditor from './PostEditor';
 
@@ -18,6 +20,13 @@ export type Post = {
   retweeted_by_user?: boolean;
   is_following?: boolean;
   is_pinned?: boolean;
+  media?: {
+    media_id: string | number;
+    media_url: string;
+    media_type: string;
+    mime_type?: string | null;
+    alt_text: string | null;
+  }[];
 };
 
 function count(value: string | number | undefined) {
@@ -42,12 +51,7 @@ export default function PostCard({
   return (
     <article className="feed-item">
       <header className="post-card-header">
-        <img
-          src={author?.picture || '/images/default-avatar.jpg'}
-          alt=""
-          className="profile-avatar-small"
-          referrerPolicy="no-referrer"
-        />
+        <IdentityAvatar src={author?.picture} className="profile-avatar-small" />
         <Link href={profileHref} className="post-author">
           <strong>{author?.name || 'HavenSocial user'}</strong>
           {author?.preferredUsername && <span>@{author.preferredUsername}</span>}
@@ -56,6 +60,19 @@ export default function PostCard({
       <Link href={`/tweet/${encodeURIComponent(tweetId)}`} className="feed-post-link">
         <p>{post.content || ''}</p>
       </Link>
+      {post.media?.length ? (
+        <div className="post-media">
+          {post.media.map((item) => (
+            <MediaPreview
+              key={String(item.media_id)}
+              url={item.media_url}
+              mediaType={item.media_type}
+              mimeType={item.mime_type}
+              altText={item.alt_text}
+            />
+          ))}
+        </div>
+      ) : null}
       <small>
         <time dateTime={new Date(post.created_at).toISOString()}>
           {new Date(post.created_at).toLocaleString()}

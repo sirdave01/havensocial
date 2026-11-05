@@ -5,6 +5,7 @@ import { getBhidProfiles, getCurrentBhidProfile } from '@/lib/bhid/profile';
 import { requireLinkedUser } from '@/lib/linked-user';
 import { getUserProfile } from '../../../models/users.js';
 import { getUserTweets } from '../../../models/tweets.js';
+import IdentityAvatar from '../../components/IdentityAvatar';
 import PostCard, { type Post } from '../../components/PostCard';
 
 export default async function ProfilePage({
@@ -29,12 +30,7 @@ export default async function ProfilePage({
   return (
     <main className="feed-page">
       <section className="profile-header">
-        <img
-          src={bhidProfile?.picture || '/images/default-avatar.jpg'}
-          alt=""
-          className="profile-avatar"
-          referrerPolicy="no-referrer"
-        />
+        <IdentityAvatar src={bhidProfile?.picture} className="profile-avatar" />
         <h1>{bhidProfile?.name || 'HavenSocial user'}</h1>
         <p>{bhidProfile?.preferredUsername ? `@${bhidProfile.preferredUsername}` : 'Username unavailable'}</p>
         {isOwner && !bhidProfile && (

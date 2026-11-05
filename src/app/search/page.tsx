@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { getBhidProfiles } from '@/lib/bhid/profile';
 import { requireLinkedUser } from '@/lib/linked-user';
+import IdentityAvatar from '../components/IdentityAvatar';
 import { db } from '../../models/db.js';
 
 export default async function SearchPage({
@@ -21,6 +23,7 @@ export default async function SearchPage({
       [`%${query}%`, query],
     )
     : { rows: [] };
+  const profiles = await getBhidProfiles(result.rows.map((person: { bhid_sub: string }) => person.bhid_sub));
 
   return (
     <main className="feed-page">
@@ -32,8 +35,17 @@ export default async function SearchPage({
       </form>
       {result.rows.map((person: Record<string, unknown>) => (
         <article className="feed-item" key={String(person.users_id)}>
-          <Link href={`/profile/${encodeURIComponent(String(person.bhid_sub))}`}>
-            BHID: {String(person.bhid_sub)}
+          <IdentityAvatar
+            src={profiles.get(String(person.bhid_sub))?.picture}
+            className="profile-avatar-small"
+          />
+          <Link href={`/profile/${encodeURIComponent(String(person.bhid_sub))}`} className="post-author">
+            <strong>{profiles.get(String(person.bhid_sub))?.name || 'HavenSocial user'}</strong>
+            <span>
+              {profiles.get(String(person.bhid_sub))?.preferredUsername
+                ? `@${profiles.get(String(person.bhid_sub))?.preferredUsername}`
+                : 'BHID account'}
+            </span>
           </Link>
         </article>
       ))}
