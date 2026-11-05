@@ -52,6 +52,8 @@ export async function deleteTweetAction(formData: FormData) {
   const deleted = await deleteTweet(tweetId, user.users_id);
   if (!deleted) redirect('/feed?error=not_found');
   revalidatePath('/feed');
+  revalidatePath(`/profile/${encodeURIComponent(user.bhid_sub)}`);
+  revalidatePath(`/tweet/${tweetId}`);
 }
 
 async function requireAdmin() {

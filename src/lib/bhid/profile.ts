@@ -179,3 +179,47 @@ export async function getCurrentBhidProfile(expectedSubject: string) {
     throw error;
   }
 }
+
+export async function getBhidProfiles(subjects: string[]) {
+  const uniqueSubjects = [...new Set(subjects.filter(Boolean))];
+  const profiles = new Map<string, BhidProfile>();
+  if (!uniqueSubjects.length) return profiles;
+
+  const result = await db.query(
+    `SELECT DISTINCT ON (u.bhid_sub)
+       u.bhid_sub, s.session_id, s.bhid_access_token_enc
+     FROM users u
+     JOIN app_sessions s ON s.user_id = u.users_id
+     WHERE u.bhid_sub = ANY($1::text[])
+       AND u.app_status = 'ACTIVE'
+       AND s.revoked_at IS NULL
+       AND s.expires_at > CURRENT_TIMESTAMP
+       AND s.bhid_access_token_enc IS NOT NULL
+       AND (
+         s.bhid_access_token_expires_at IS NULL
+         OR s.bhid_access_token_expires_at > CURRENT_TIMESTAMP
+       )
+     ORDER BY u.bhid_sub, s.bhid_access_token_expires_at DESC NULLS LAST, s.expires_at DESC`,
+    [uniqueSubjects],
+  );
+  if (!result.rows.length) return profiles;
+
+  const config = await getBhidConfiguration();
+  await Promise.all(result.rows.map(async (row) => {
+    try {
+      const accessToken = decryptBhidAccessToken(row.bhid_access_token_enc, row.session_id);
+      profiles.set(
+        row.bhid_sub,
+        await resolveBhidProfile(config, accessToken, row.bhid_sub),
+      );
+    } catch (error) {
+      console.warn('Could not resolve a BHID post author profile:', {
+        errorName: error instanceof Error ? error.name : 'NonError',
+        ...(error instanceof BhidUserInfoError
+          ? { status: error.diagnostic.httpStatus }
+          : {}),
+      });
+    }
+  }));
+  return profiles;
+}

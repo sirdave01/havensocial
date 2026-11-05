@@ -35,6 +35,7 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
                 1 AS depth
             FROM tweets t
             WHERE t.is_reply_to = $1
+              AND t.is_deleted = FALSE
               AND t.deleted_at IS NULL
 
             UNION ALL
@@ -46,7 +47,8 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
             FROM tweets child
             JOIN reply_tree parent
               ON child.is_reply_to = parent.tweet_id
-            WHERE child.deleted_at IS NULL
+            WHERE child.is_deleted = FALSE
+              AND child.deleted_at IS NULL
         )
         SELECT 
             rt.*,
@@ -54,7 +56,14 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
 
             -- counts
             COALESCE((SELECT COUNT(*) FROM likes l WHERE l.tweet_id = rt.tweet_id), 0) AS like_count,
-            COALESCE((SELECT COUNT(*) FROM tweets r WHERE r.is_reply_to = rt.tweet_id), 0) AS reply_count,
+            COALESCE((SELECT COUNT(*) FROM tweets r
+                      WHERE r.is_reply_to = rt.tweet_id
+                        AND r.is_deleted = FALSE
+                        AND r.deleted_at IS NULL), 0) AS reply_count,
+            COALESCE((SELECT COUNT(*) FROM retweets r
+                      WHERE r.original_tweet_id = rt.tweet_id), 0) AS retweet_count,
+            COALESCE((SELECT COUNT(*) FROM tweet_views v
+                      WHERE v.tweet_id = rt.tweet_id), 0) AS view_count,
 
             -- viewer interaction
             EXISTS (
@@ -81,8 +90,12 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
             u.bhid_sub AS author_sub,
 
             COALESCE((SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id), 0) AS like_count,
-            COALESCE((SELECT COUNT(*) FROM tweets r WHERE r.is_reply_to = t.tweet_id), 0) AS reply_count,
+            COALESCE((SELECT COUNT(*) FROM tweets r
+                      WHERE r.is_reply_to = t.tweet_id
+                        AND r.is_deleted = FALSE
+                        AND r.deleted_at IS NULL), 0) AS reply_count,
             COALESCE((SELECT COUNT(*) FROM retweets rt WHERE rt.original_tweet_id = t.tweet_id), 0) AS retweet_count,
+            COALESCE((SELECT COUNT(*) FROM tweet_views v WHERE v.tweet_id = t.tweet_id), 0) AS view_count,
 
             EXISTS (
                 SELECT 1 FROM likes
@@ -92,6 +105,7 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
         FROM tweets t
         JOIN users u ON u.users_id = t.user_id
         WHERE t.tweet_id = $1
+          AND t.is_deleted = FALSE
           AND t.deleted_at IS NULL;
     `;
 
@@ -107,20 +121,6 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
     };
 };
 
-// Create tweet (or reply)
-const createTweet = async (userId, content, mediaUrl = null, isReplyTo = null) => {
-    const mediaArray = mediaUrl ? [mediaUrl] : null;
-
-    const query = `
-        INSERT INTO tweets (user_id, content, media_url, is_reply_to)
-        VALUES ($1, $2, $3, $4)
-        RETURNING *;
-    `;
-
-    const result = await db.query(query, [userId, content, mediaArray, isReplyTo]);
-    return result.rows[0];
-};
-
 // Get single tweet
 const getTweetById = async (tweetId) => {
     const query = `
@@ -128,6 +128,7 @@ const getTweetById = async (tweetId) => {
         FROM tweets t
         JOIN users u ON u.users_id = t.user_id
         WHERE t.tweet_id = $1
+          AND t.is_deleted = FALSE
           AND t.deleted_at IS NULL;
     `;
 
@@ -138,10 +139,20 @@ const getTweetById = async (tweetId) => {
 // Get user tweets
 const getUserTweets = async (userId, limit = 20, offset = 0) => {
     const query = `
-        SELECT t.*, u.bhid_sub AS author_sub
+        SELECT
+            t.*,
+            u.bhid_sub AS author_sub,
+            (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
+            (SELECT COUNT(*) FROM tweets r
+             WHERE r.is_reply_to = t.tweet_id
+               AND r.is_deleted = FALSE
+               AND r.deleted_at IS NULL) AS reply_count,
+            (SELECT COUNT(*) FROM retweets rt WHERE rt.original_tweet_id = t.tweet_id) AS retweet_count,
+            (SELECT COUNT(*) FROM tweet_views v WHERE v.tweet_id = t.tweet_id) AS view_count
         FROM tweets t
         JOIN users u ON u.users_id = t.user_id
         WHERE t.user_id = $1
+          AND t.is_deleted = FALSE
           AND t.deleted_at IS NULL
         ORDER BY t.created_at DESC
         LIMIT $2 OFFSET $3;
@@ -162,7 +173,14 @@ const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
             (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
 
             -- replies
-            (SELECT COUNT(*) FROM tweets r WHERE r.is_reply_to = t.tweet_id) AS reply_count,
+            (SELECT COUNT(*) FROM tweets r
+             WHERE r.is_reply_to = t.tweet_id
+               AND r.is_deleted = FALSE
+               AND r.deleted_at IS NULL) AS reply_count,
+
+            (SELECT COUNT(*) FROM retweets rt WHERE rt.original_tweet_id = t.tweet_id) AS retweet_count,
+
+            (SELECT COUNT(*) FROM tweet_views v WHERE v.tweet_id = t.tweet_id) AS view_count,
 
             -- viewer interaction
             EXISTS (
@@ -185,6 +203,7 @@ const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
         FROM tweets t
         JOIN users u ON u.users_id = t.user_id
         WHERE t.deleted_at IS NULL
+          AND t.is_deleted = FALSE
         ORDER BY t.created_at DESC
         LIMIT $2 OFFSET $3;
     `;
@@ -197,9 +216,11 @@ const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
 const deleteTweet = async (tweetId, userId) => {
     const query = `
         UPDATE tweets
-        SET deleted_at = CURRENT_TIMESTAMP,
+        SET is_deleted = TRUE,
+            deleted_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
         WHERE tweet_id = $1 AND user_id = $2
+          AND is_deleted = FALSE
           AND deleted_at IS NULL
         RETURNING tweet_id;
     `;
@@ -214,9 +235,13 @@ const updateTweet = async (tweetId, userId, content) => {
         UPDATE tweets
         SET content = $1,
             updated_at = CURRENT_TIMESTAMP,
-            edited_at = CURRENT_TIMESTAMP
+            edited_at = CASE
+                WHEN content IS DISTINCT FROM $1 THEN CURRENT_TIMESTAMP
+                ELSE edited_at
+            END
         WHERE tweet_id = $2
           AND user_id = $3
+          AND is_deleted = FALSE
           AND deleted_at IS NULL
         RETURNING *;
     `;
@@ -233,7 +258,12 @@ const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
             u.bhid_sub AS author_sub,
 
             (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
-            (SELECT COUNT(*) FROM tweets r WHERE r.is_reply_to = t.tweet_id) AS reply_count,
+            (SELECT COUNT(*) FROM tweets r
+             WHERE r.is_reply_to = t.tweet_id
+               AND r.is_deleted = FALSE
+               AND r.deleted_at IS NULL) AS reply_count,
+            (SELECT COUNT(*) FROM retweets rt WHERE rt.original_tweet_id = t.tweet_id) AS retweet_count,
+            (SELECT COUNT(*) FROM tweet_views v WHERE v.tweet_id = t.tweet_id) AS view_count,
 
             EXISTS (
                 SELECT 1 FROM likes
@@ -250,6 +280,7 @@ const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
         JOIN users u ON u.users_id = t.user_id
         JOIN follows f ON f.followee_id = t.user_id
         WHERE f.follower_id = $1
+          AND t.is_deleted = FALSE
           AND t.deleted_at IS NULL
         ORDER BY t.created_at DESC
         LIMIT $2 OFFSET $3;
@@ -260,7 +291,6 @@ const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
 };
 
 export {
-    createTweet,
     getTweetById,
     getUserTweets,
     getHomeFeed,

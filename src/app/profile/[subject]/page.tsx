@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { toggleFollowAction } from '@/app/actions';
-import { getCurrentBhidProfile } from '@/lib/bhid/profile';
+import { getBhidProfiles, getCurrentBhidProfile } from '@/lib/bhid/profile';
 import { requireLinkedUser } from '@/lib/linked-user';
 import { getUserProfile } from '../../../models/users.js';
 import { getUserTweets } from '../../../models/tweets.js';
+import PostCard, { type Post } from '../../components/PostCard';
 
 export default async function ProfilePage({
   params,
@@ -17,8 +18,13 @@ export default async function ProfilePage({
   if (!profile) notFound();
 
   const tweets = await getUserTweets(profile.users_id, 20, 0);
-  const isOwner = Number(profile.users_id) === Number(viewer.users_id);
-  const bhidProfile = isOwner ? await getCurrentBhidProfile(viewer.bhid_sub) : null;
+  const isOwner = String(profile.users_id) === String(viewer.users_id);
+  const [authorProfiles, currentProfile] = await Promise.all([
+    getBhidProfiles(isOwner ? [] : [profile.bhid_sub]),
+    isOwner ? getCurrentBhidProfile(viewer.bhid_sub) : Promise.resolve(null),
+  ]);
+  if (currentProfile) authorProfiles.set(currentProfile.sub, currentProfile);
+  const bhidProfile = authorProfiles.get(profile.bhid_sub);
 
   return (
     <main className="feed-page">
@@ -50,10 +56,14 @@ export default async function ProfilePage({
         )}
       </section>
       <section className="feed" aria-label="User posts">
-        {tweets.length ? tweets.map((tweet: Record<string, unknown>) => (
-          <article className="feed-item" key={String(tweet.tweet_id)}>
-            <Link href={`/tweet/${String(tweet.tweet_id)}`}>{String(tweet.content || '')}</Link>
-          </article>
+        {tweets.length ? tweets.map((tweet: Post) => (
+          <PostCard
+            key={String(tweet.tweet_id)}
+            post={tweet}
+            author={authorProfiles.get(tweet.author_sub)}
+            viewerId={viewer.users_id}
+            showFollow={false}
+          />
         )) : <p>No posts yet.</p>}
       </section>
     </main>

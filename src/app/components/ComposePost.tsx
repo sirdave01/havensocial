@@ -1,84 +1,102 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 
-export default function ComposePost({ replyTo }: { replyTo?: string }) {
+const MAX_CONTENT_LENGTH = 25000;
+
+export default function ComposePost({
+  replyTo,
+  avatarUrl,
+}: {
+  replyTo?: string;
+  avatarUrl?: string;
+}) {
   const router = useRouter();
+  const submitting = useRef(false);
   const [busy, setBusy] = useState(false);
+  const [content, setContent] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const characterCount = Array.from(content).length;
+  const textareaId = replyTo ? 'reply-content' : 'tweet-content';
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting.current) return;
+
+    const trimmedContent = content.trim();
+    if (!trimmedContent) {
+      setError('Write something before posting.');
+      setSuccess('');
+      return;
+    }
+    if (characterCount > MAX_CONTENT_LENGTH) {
+      setError('Post content cannot exceed 25,000 characters.');
+      setSuccess('');
+      return;
+    }
+
+    submitting.current = true;
     setBusy(true);
     setError('');
+    setSuccess('');
 
     try {
-      const form = new FormData(event.currentTarget);
-      const content = String(form.get('content') || '').trim();
-      const selectedFile = form.get('media');
-      let mediaKey: string | undefined;
-
-      if (selectedFile instanceof File && selectedFile.size > 0) {
-        const signedResponse = await fetch('/media/upload-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            kind: 'tweets',
-            contentType: selectedFile.type,
-            size: selectedFile.size,
-          }),
-        });
-        const signed = await signedResponse.json();
-        if (!signedResponse.ok) throw new Error(signed.message || 'Could not prepare the media upload');
-
-        const uploadResponse = await fetch(signed.uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': selectedFile.type },
-          body: selectedFile,
-        });
-        if (!uploadResponse.ok) throw new Error('Media upload failed');
-        mediaKey = signed.key;
-      }
-
       const response = await fetch('/tweets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, isReplyTo: replyTo, mediaKey }),
+        body: JSON.stringify({ content: trimmedContent, isReplyTo: replyTo }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Could not create the post');
-      event.currentTarget.reset();
+
+      setContent('');
+      setSuccess(replyTo ? 'Reply posted.' : 'Post published.');
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create the post');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
 
   return (
     <form onSubmit={submit}>
-      <label htmlFor={replyTo ? 'reply-content' : 'tweet-content'}>
-        {replyTo ? 'Reply' : 'Share a post'}
-      </label>
-      <textarea
-        id={replyTo ? 'reply-content' : 'tweet-content'}
-        name="content"
-        maxLength={280}
-        required
-      />
-      <label htmlFor={replyTo ? 'reply-media' : 'tweet-media'}>Attach image or video</label>
-      <input
-        id={replyTo ? 'reply-media' : 'tweet-media'}
-        name="media"
-        type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-      />
-      <button type="submit" className="btn-primary" disabled={busy}>
+      <label htmlFor={textareaId}>{replyTo ? 'Reply' : 'Share a post'}</label>
+      <div className="compose-post-input">
+        <img
+          src={avatarUrl || '/images/default-avatar.jpg'}
+          alt=""
+          className="profile-avatar-small"
+          referrerPolicy="no-referrer"
+        />
+        <textarea
+          id={textareaId}
+          name="content"
+          value={content}
+          onChange={(event) => {
+            setContent(event.target.value);
+            setError('');
+            setSuccess('');
+          }}
+          aria-describedby="post-character-count"
+          aria-invalid={Boolean(error)}
+        />
+      </div>
+      <p id="post-character-count" aria-live="polite">
+        {characterCount.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}
+      </p>
+      <button
+        type="submit"
+        className="btn-primary"
+        disabled={busy || !content.trim() || characterCount > MAX_CONTENT_LENGTH}
+      >
         {busy ? 'Posting…' : replyTo ? 'Reply' : 'Post'}
       </button>
       {error && <p role="alert">{error}</p>}
+      {success && <p role="status">{success}</p>}
     </form>
   );
 }

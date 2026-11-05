@@ -11,21 +11,19 @@ export async function POST(_request: Request, { params }: RouteContext) {
   if (!/^\d+$/.test(tweetId)) return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
 
   const original = await db.query(
-    'SELECT user_id FROM tweets WHERE tweet_id = $1 AND deleted_at IS NULL',
+    `SELECT user_id FROM tweets
+     WHERE tweet_id = $1 AND is_deleted = FALSE AND deleted_at IS NULL`,
     [tweetId],
   );
   if (!original.rows[0]) return NextResponse.json({ message: 'Post not found' }, { status: 404 });
   if (String(original.rows[0].user_id) === String(user.users_id)) return NextResponse.json({ ok: true });
 
-  const inserted = await db.query(
+  await db.query(
     `INSERT INTO tweet_views (tweet_id, user_id)
      VALUES ($1, $2)
      ON CONFLICT (tweet_id, user_id) DO NOTHING
      RETURNING view_id`,
     [tweetId, user.users_id],
   );
-  if (inserted.rows[0]) {
-    await db.query('UPDATE tweets SET view_count = view_count + 1 WHERE tweet_id = $1', [tweetId]);
-  }
   return NextResponse.json({ ok: true });
 }

@@ -21,12 +21,20 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const user = await getLinkedUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   const body = await readJsonObject(request);
-  if (!body || typeof body.content !== 'string' || !body.content.trim() || body.content.trim().length > 280) {
-    return NextResponse.json({ message: 'Valid post content is required' }, { status: 400 });
+  if (!body || typeof body.content !== 'string') {
+    return NextResponse.json({ message: 'A JSON content string is required' }, { status: 400 });
+  }
+  const content = body.content.trim();
+  if (!content) return NextResponse.json({ message: 'Post content cannot be empty' }, { status: 400 });
+  if (content.includes('\0')) {
+    return NextResponse.json({ message: 'Post content cannot contain null characters' }, { status: 400 });
+  }
+  if (Array.from(content).length > 25000) {
+    return NextResponse.json({ message: 'Post content cannot exceed 25,000 characters' }, { status: 400 });
   }
   const { tweetId } = await params;
   if (!/^\d+$/.test(tweetId)) return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
-  const tweet = await updateTweet(tweetId, user.users_id, body.content.trim());
+  const tweet = await updateTweet(tweetId, user.users_id, content);
   return tweet
     ? NextResponse.json({ message: 'Post updated', tweet })
     : NextResponse.json({ message: 'Post not found or not allowed' }, { status: 404 });

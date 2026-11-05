@@ -5,13 +5,11 @@ import { createNotification } from "./notification.js";
 /**
  * @param {number|string} userId
  * @param {string} content
- * @param {string|null} [mediaUrl]
  * @param {number|string|null} [isReplyTo]
  */
 export const createTweetWithExtras = async (
     userId,
     content,
-    mediaUrl = null,
     isReplyTo = null
 ) => {
 
@@ -23,7 +21,6 @@ export const createTweetWithExtras = async (
 
         console.log('🔄 Creating tweet with extras:', {
             userId,
-            hasMedia: !!mediaUrl,
             isReplyTo
         });
 
@@ -33,29 +30,36 @@ export const createTweetWithExtras = async (
             INSERT INTO tweets (
                 user_id,
                 content,
-                media_url,
+                visibility,
                 is_reply_to
             )
-            VALUES ($1, $2, $3, $4)
+            SELECT users_id, $2, 'PUBLIC', $3
+            FROM users
+            WHERE users_id = $1
+              AND app_status = 'ACTIVE'
             RETURNING *;
             `,
-            [userId, content, mediaUrl ? [mediaUrl] : null, isReplyTo]
+            [userId, content, isReplyTo]
         );
 
         const tweet = tweetResult.rows[0];
+        if (!tweet) {
+            await client.query('ROLLBACK');
+            return null;
+        }
 
         // ===================== REPLY NOTIFICATION =====================
-        if (isReplyTo) {
+        if (isReplyTo && tweet) {
             // Fetch original tweet owner for notification (inside transaction)
             const originalResult = await client.query(
                 `SELECT user_id FROM tweets 
-                 WHERE tweet_id = $1 AND deleted_at IS NULL`,
+                 WHERE tweet_id = $1 AND is_deleted = FALSE AND deleted_at IS NULL`,
                 [isReplyTo]
             );
 
             const originalTweet = originalResult.rows[0];
 
-            if (originalTweet && originalTweet.user_id !== userId) {
+            if (originalTweet && String(originalTweet.user_id) !== String(userId)) {
                 await createNotification(
                     originalTweet.user_id,
                     userId,
