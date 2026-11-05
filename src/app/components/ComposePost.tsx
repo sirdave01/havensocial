@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { ImagePlus } from 'lucide-react';
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import IdentityAvatar from './IdentityAvatar';
 
@@ -21,6 +22,7 @@ export default function ComposePost({
 }) {
   const router = useRouter();
   const submitting = useRef(false);
+  const mediaInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [content, setContent] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -123,12 +125,29 @@ export default function ComposePost({
       <label htmlFor={`${textareaId}-media`}>Attach images or videos</label>
       <input
         id={`${textareaId}-media`}
+        ref={mediaInput}
+        className="visually-hidden"
         type="file"
         accept={ACCEPTED_MEDIA_TYPES}
         multiple
         disabled={busy || files.length >= MAX_MEDIA_PER_POST}
         onChange={chooseFiles}
       />
+      <button
+        type="button"
+        className="media-picker-button"
+        onClick={() => mediaInput.current?.click()}
+        disabled={busy || files.length >= MAX_MEDIA_PER_POST}
+        aria-describedby={`${textareaId}-media-status`}
+      >
+        <ImagePlus aria-hidden="true" />
+        <span>{files.length ? 'Add more media' : 'Choose images or videos'}</span>
+      </button>
+      <p id={`${textareaId}-media-status`} className="media-selection-status" aria-live="polite">
+        {files.length
+          ? `${files.length} file${files.length === 1 ? '' : 's'} selected`
+          : 'No media selected'}
+      </p>
       {files.length > 0 && (
         <ul className="compose-media-list">
           {files.map((file, index) => (
@@ -138,6 +157,7 @@ export default function ComposePost({
                 type="button"
                 disabled={busy}
                 onClick={() => setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                aria-label={`Remove ${file.name}`}
               >
                 Remove
               </button>

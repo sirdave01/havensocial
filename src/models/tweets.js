@@ -100,7 +100,17 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
                 SELECT 1 FROM likes
                 WHERE tweet_id = rt.tweet_id
                   AND user_id = $2
-            ) AS liked_by_user
+            ) AS liked_by_user,
+            EXISTS (
+                SELECT 1 FROM retweets
+                WHERE original_tweet_id = rt.tweet_id
+                  AND user_id = $2
+            ) AS retweeted_by_user,
+            EXISTS (
+                SELECT 1 FROM follows
+                WHERE follower_id = $2
+                  AND followee_id = rt.user_id
+            ) AS is_following
 
         FROM reply_tree rt
         JOIN users u ON u.users_id = rt.user_id
@@ -131,7 +141,17 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
                 SELECT 1 FROM likes
                 WHERE tweet_id = t.tweet_id
                   AND user_id = $2
-            ) AS liked_by_user
+            ) AS liked_by_user,
+            EXISTS (
+                SELECT 1 FROM retweets
+                WHERE original_tweet_id = t.tweet_id
+                  AND user_id = $2
+            ) AS retweeted_by_user,
+            EXISTS (
+                SELECT 1 FROM follows
+                WHERE follower_id = $2
+                  AND followee_id = t.user_id
+            ) AS is_following
         FROM tweets t
         JOIN users u ON u.users_id = t.user_id
         WHERE t.tweet_id = $1

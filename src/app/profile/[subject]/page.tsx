@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { toggleFollowAction } from '@/app/actions';
 import { getBhidProfiles, getCurrentBhidProfile } from '@/lib/bhid/profile';
 import { requireLinkedUser } from '@/lib/linked-user';
 import { getUserProfile } from '../../../models/users.js';
 import { getUserTweets } from '../../../models/tweets.js';
+import FollowButton from '../../components/FollowButton';
 import IdentityAvatar from '../../components/IdentityAvatar';
 import PostCard, { type Post } from '../../components/PostCard';
 
@@ -56,11 +56,11 @@ export default async function ProfilePage({
           </div>
         </div>
         {!isOwner && (
-          <form action={toggleFollowAction} className="profile-follow-form">
-            <input type="hidden" name="followeeId" value={String(profile.users_id)} />
-            <input type="hidden" name="action" value={profile.is_following ? 'unfollow' : 'follow'} />
-            <button type="submit">{profile.is_following ? 'Unfollow' : 'Follow'}</button>
-          </form>
+          <FollowButton
+            userId={profile.users_id}
+            initialFollowing={Boolean(profile.is_following)}
+            showLabel
+          />
         )}
       </section>
       <section className="feed" aria-label="User posts">

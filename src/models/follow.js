@@ -3,30 +3,29 @@ import { createNotification } from "./notification.js";
 
 // Follow a user
 export const followUser = async (followerId, followeeId) => {
-
-    const existing = await db.query(`
-        SELECT 1 FROM follows
-        WHERE follower_id = $1 AND followee_id = $2
-    `, [followerId, followeeId]);
-
-    if (existing.rows.length > 0) {
-        return { following: true, alreadyExists: true };
+    if (String(followerId) === String(followeeId)) {
+        throw new Error('A user cannot follow themselves');
     }
 
-    await db.query(`
+    const result = await db.query(`
         INSERT INTO follows (follower_id, followee_id)
         VALUES ($1, $2)
+        ON CONFLICT (follower_id, followee_id) DO NOTHING
+        RETURNING follower_id
     `, [followerId, followeeId]);
 
-    if (followerId !== followeeId) {
+    if (result.rows.length > 0) {
         await createNotification(followeeId, followerId, 'follow', null);
     }
 
-    return { following: true, alreadyExists: false };
+    return { following: true, alreadyExists: result.rows.length === 0 };
 };
 
 // Unfollow
 export const unfollowUser = async (followerId, followeeId) => {
+    if (String(followerId) === String(followeeId)) {
+        throw new Error('A user cannot unfollow themselves');
+    }
 
     const result = await db.query(`
         DELETE FROM follows

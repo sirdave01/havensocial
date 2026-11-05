@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { Heart, MessageCircle, Trash2, UserCheck, UserPlus } from 'lucide-react';
-import { deleteTweetAction, toggleFollowAction, toggleLikeAction } from '@/app/actions';
+import { Heart, MessageCircle, Trash2 } from 'lucide-react';
+import { deleteTweetAction, toggleLikeAction } from '@/app/actions';
 import type { BhidProfile } from '@/lib/bhid/profile';
+import FollowButton from './FollowButton';
 import IdentityAvatar from './IdentityAvatar';
 import MediaPreview from './MediaPreview';
 import PostControls from './PostControls';
@@ -54,11 +55,16 @@ export default function PostCard({
     <article className="feed-item">
       <header className="post-card-header">
         <IdentityAvatar src={author?.picture} className="profile-avatar-small" />
+      <div className="post-author-row">
         <Link href={profileHref} className="post-author">
           <strong>{author?.name || 'HavenSocial user'}</strong>
           {author?.preferredUsername && <span>@{author.preferredUsername}</span>}
         </Link>
-      </header>
+        {showFollow && !isOwner && (
+          <FollowButton userId={post.user_id} initialFollowing={Boolean(post.is_following)} />
+        )}
+      </div>
+    </header>
       <Link href={`/tweet/${encodeURIComponent(tweetId)}`} className="feed-post-link">
         <p>{post.content || ''}</p>
       </Link>
@@ -84,20 +90,15 @@ export default function PostCard({
         <form action={toggleLikeAction}>
           <input type="hidden" name="tweetId" value={tweetId} />
           <input type="hidden" name="action" value={post.liked_by_user ? 'unlike' : 'like'} />
-          <button type="submit" aria-label={`${post.liked_by_user ? 'Unlike' : 'Like'} (${count(post.like_count)})`}>
+          <button
+            type="submit"
+            className={`like-action${post.liked_by_user ? ' is-liked' : ''}`}
+            aria-label={`${post.liked_by_user ? 'Unlike' : 'Like'} (${count(post.like_count)})`}
+          >
             <Heart aria-hidden="true" fill={post.liked_by_user ? 'currentColor' : 'none'} />
             <span>{count(post.like_count)}</span>
           </button>
         </form>
-        {showFollow && !isOwner && (
-          <form action={toggleFollowAction}>
-            <input type="hidden" name="followeeId" value={String(post.user_id)} />
-            <input type="hidden" name="action" value={post.is_following ? 'unfollow' : 'follow'} />
-            <button type="submit" aria-label={post.is_following ? 'Unfollow author' : 'Follow author'} title={post.is_following ? 'Unfollow author' : 'Follow author'}>
-              {post.is_following ? <UserCheck aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
-            </button>
-          </form>
-        )}
         <Link
           href={`/tweet/${encodeURIComponent(tweetId)}`}
           className="icon-action-button"

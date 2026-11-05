@@ -199,6 +199,23 @@
   flex: 1;
   min-height: 7rem;
   min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  box-shadow: none;
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.compose-post-input textarea:focus,
+.post-editor-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: none;
 }
 
 .post-card-header {
@@ -214,6 +231,66 @@
   flex-direction: column;
   color: inherit;
   text-decoration: none;
+}
+
+.post-author-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.follow-control {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.follow-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.4rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: none;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.follow-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.follow-button:hover,
+.follow-button.is-following {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  box-shadow: none;
+}
+
+.follow-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.follow-control-labeled .follow-button {
+  min-height: 2.5rem;
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+}
+
+.follow-error {
+  color: #dc2626;
+  font-size: 0.8rem;
 }
 
 .post-counts {
@@ -271,15 +348,6 @@
   width: auto;
 }
 
-.feed-actions > .post-editor.editing {
-  display: grid;
-  flex: 1 0 100%;
-}
-
-.post-editor.editing textarea {
-  width: 100%;
-}
-
 .feed-actions button,
 .icon-action-button {
   display: inline-flex;
@@ -304,6 +372,21 @@
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, var(--surface));
   box-shadow: none;
+}
+
+.feed-actions .like-action.is-liked,
+.feed-actions .like-action:hover {
+  color: #ef4444;
+  border-color: color-mix(in srgb, #ef4444 50%, var(--border));
+  background: color-mix(in srgb, #ef4444 9%, var(--surface));
+}
+
+.feed-actions .like-action.is-liked svg {
+  fill: currentColor;
+}
+
+.feed-actions .like-action:not(.is-liked) svg {
+  color: #ef4444;
 }
 
 .feed-actions button svg,
@@ -336,16 +419,54 @@
   margin-top: 0.75rem;
 }
 
-.compose-tweet form > input[type="file"] {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-height: 0;
-  padding: 0.5rem;
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.compose-tweet form > .media-picker-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  margin-top: 0.25rem;
+  padding: 0.55rem 0.9rem;
   color: var(--text);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
+  box-shadow: none;
+}
+
+.media-picker-button svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.media-picker-button:hover {
+  color: var(--accent);
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+.media-picker-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.media-selection-status {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
 .compose-tweet form > button {
@@ -444,8 +565,55 @@
   color: var(--text-muted);
 }
 
-.profile-follow-form {
-  width: fit-content;
+.profile-header + .feed {
+  margin-top: 1.5rem;
+}
+
+.post-editor {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.post-editor-dialog {
+  width: min(100% - 2rem, 42rem);
+  max-width: 42rem;
+  max-height: min(90vh, 48rem);
+  margin: auto;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1.1rem;
+  box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 35%);
+}
+
+.post-editor-dialog::backdrop {
+  background: rgb(2 6 23 / 65%);
+  backdrop-filter: blur(3px);
+}
+
+.post-editor-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.post-editor-heading h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.4rem;
+}
+
+.post-editor-heading p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.post-editor-dialog form {
+  display: grid;
+  gap: 0.75rem;
   margin: 0;
   padding: 0;
   background: transparent;
@@ -453,14 +621,70 @@
   box-shadow: none;
 }
 
-.profile-follow-form button {
+.post-editor-textarea {
+  width: 100%;
+  min-height: 12rem;
+  padding: 1rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  box-shadow: none;
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.post-editor-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.post-editor-footer p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.post-editor-buttons {
+  display: flex;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.post-editor-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   min-height: 2.5rem;
-  padding: 0.55rem 1rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
   box-shadow: none;
 }
 
-.profile-header + .feed {
-  margin-top: 1.5rem;
+.post-editor-buttons .post-editor-cancel {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.post-editor-buttons .post-editor-save {
+  color: #fff;
+  background: var(--accent);
+}
+
+.post-editor-buttons .post-editor-save svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.post-editor-error {
+  margin: 0;
+  color: #dc2626;
 }
 
 .tweet-media {
@@ -488,6 +712,23 @@
   border-bottom: 2px solid var(--accent);
 }
 
+@media (min-width: 42rem) {
+  .profile-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .profile-details {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .profile-header > .follow-control {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
 @media (min-width: 48rem) {
   .site-nav {
     right: auto;
@@ -498,23 +739,6 @@
     border-bottom: 0;
     border-radius: 1rem 1rem 0 0;
     transform: translateX(-50%);
-  }
-
-  @media (min-width: 42rem) {
-    .profile-header {
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-    }
-
-    .profile-details {
-      grid-column: 1 / -1;
-      grid-row: 2;
-    }
-
-    .profile-follow-form {
-      grid-column: 2;
-      grid-row: 1;
-    }
   }
 
   .nav-item {
