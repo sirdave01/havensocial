@@ -7,8 +7,8 @@ HavenSocial is a Next-Gen Social Media application designed to function on the W
 1. Use Node.js 20.9 or newer, then run `npm ci`.
 2. Create a new Neon PostgreSQL database and set `DATABASE_URL` to its pooled connection string.
 3. Apply [`src/setup.sql`](./src/setup.sql) to the empty database. This creates the HavenSocial roles and social tables. It does not import data from the previous database.
-4. Copy `.env.example` to `.env` and set `DATABASE_URL`, a random `SESSION_SECRET` of at least 32 characters, the BHID client settings, and the S3-compatible storage settings. `APP_SESSION_TTL_SECONDS` defaults to 604800 seconds (7 days) and accepts values from 60 seconds to 30 days.
-5. Configure the S3-compatible bucket. Set bucket CORS to allow `PUT` from your local and deployed HavenSocial origins with the `Content-Type` header. The configured public base URL must serve uploaded social media publicly.
+4. Copy `.env.example` to `.env` and set `DATABASE_URL`, a random `SESSION_SECRET` of at least 32 characters, the BHID client settings, and `S3_BUCKET_NAME`. `AWS_REGION` defaults to `us-east-1`; `S3_PUBLIC_BASE_URL` defaults to the standard public AWS S3 URL for that bucket and region. Set `S3_ENDPOINT` and `S3_PUBLIC_BASE_URL` when using S3-compatible storage. S3/AWS access-key variables are optional when the AWS SDK default credential chain is configured (for example, with a deployment IAM role). `APP_SESSION_TTL_SECONDS` defaults to 604800 seconds (7 days) and accepts values from 60 seconds to 30 days.
+5. Configure the S3-compatible bucket. Set bucket CORS to allow `PUT` from your local and deployed HavenSocial origins with the `Content-Type` header. The public base URL must serve uploaded social media publicly.
 6. Register HavenSocial as a BHID OIDC client. Set the exact callback URL to `http://localhost:3000/auth/bhid/callback` for local development and to `https://<your-app-domain>/auth/bhid/callback` in production.
 7. Run `npm run dev`.
 

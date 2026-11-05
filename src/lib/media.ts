@@ -37,20 +37,32 @@ export class MediaValidationError extends Error {}
 let client: S3Client | undefined;
 
 function getStorageConfig() {
-  const bucket = process.env.S3_BUCKET;
-  const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL?.replace(/\/+$/, '');
-  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
-  if (!bucket || !publicBaseUrl || !accessKeyId || !secretAccessKey) {
-    throw new Error('S3_BUCKET, S3_PUBLIC_BASE_URL, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY must be configured');
+  const bucket = process.env.S3_BUCKET_NAME?.replace(/\/+$/, '');
+  const region = process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1';
+  const endpoint = process.env.S3_ENDPOINT || undefined;
+  const configuredPublicBaseUrl = process.env.S3_PUBLIC_BASE_URL?.replace(/\/+$/, '');
+  const publicBaseUrl = configuredPublicBaseUrl || (
+    endpoint ? undefined : `https://${bucket}.s3.${region}.amazonaws.com`
+  );
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+  if (!bucket) {
+    throw new Error('S3_BUCKET_NAME must be configured');
+  }
+  if (!publicBaseUrl) {
+    throw new Error('S3_PUBLIC_BASE_URL must be configured when using a custom S3 endpoint');
+  }
+  if (Boolean(accessKeyId) !== Boolean(secretAccessKey)) {
+    throw new Error('Both S3/AWS access key and secret access key must be configured together');
   }
   return {
     bucket,
     publicBaseUrl,
-    region: process.env.S3_REGION || 'us-east-1',
-    endpoint: process.env.S3_ENDPOINT || undefined,
-    accessKeyId,
-    secretAccessKey,
+    region,
+    endpoint,
+    credentials: accessKeyId && secretAccessKey
+      ? { accessKeyId, secretAccessKey }
+      : undefined,
   };
 }
 
@@ -61,10 +73,7 @@ function getClient() {
       region: config.region,
       endpoint: config.endpoint,
       forcePathStyle: Boolean(config.endpoint),
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
+      ...(config.credentials ? { credentials: config.credentials } : {}),
     });
   }
   return client;
