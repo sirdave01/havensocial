@@ -24,6 +24,8 @@ const MAX_POST_MEDIA_SIZE = 15 * 1024 * 1024;
 
 export class MediaValidationError extends Error {}
 
+export class MediaStorageConfigurationError extends Error {}
+
 let client: S3Client | undefined;
 
 function getStorageConfig() {
@@ -37,13 +39,17 @@ function getStorageConfig() {
   const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
   const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
   if (!bucket) {
-    throw new Error('S3_BUCKET_NAME must be configured');
+    throw new MediaStorageConfigurationError('S3_BUCKET_NAME must be configured');
   }
   if (!publicBaseUrl) {
-    throw new Error('S3_PUBLIC_BASE_URL must be configured when using a custom S3 endpoint');
+    throw new MediaStorageConfigurationError(
+      'S3_PUBLIC_BASE_URL must be configured when using a custom S3 endpoint',
+    );
   }
   if (Boolean(accessKeyId) !== Boolean(secretAccessKey)) {
-    throw new Error('Both S3/AWS access key and secret access key must be configured together');
+    throw new MediaStorageConfigurationError(
+      'Both S3/AWS access key and secret access key must be configured together',
+    );
   }
   return {
     bucket,
@@ -97,7 +103,17 @@ export async function createMediaUpload(
     ContentType: contentType,
     ContentLength: size,
   });
-  const uploadUrl = await getSignedUrl(getClient(), command, { expiresIn: 300 });
+  let uploadUrl: string;
+  try {
+    uploadUrl = await getSignedUrl(getClient(), command, { expiresIn: 300 });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'CredentialsProviderError') {
+      throw new MediaStorageConfigurationError(
+        'The AWS SDK could not find server-side credentials for S3 upload signing',
+      );
+    }
+    throw error;
+  }
   return {
     uploadUrl,
     key,
