@@ -16,12 +16,10 @@ const globalForPool = globalThis;
 const sharedPool = globalForPool.__havenSocialPool || new Pool({
     connectionString: process.env.DATABASE_URL,
     max: 5,
-    idleTimeoutMillis: 10000,
-    connectionTimeoutMillis: 5000
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 15000
 });
-if (process.env.NODE_ENV !== 'production') {
-    globalForPool.__havenSocialPool = sharedPool;
-}
+globalForPool.__havenSocialPool = sharedPool;
 
 /**
  * Since we will modify the normal pool object in development mode, we need to create and

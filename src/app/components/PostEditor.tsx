@@ -58,9 +58,14 @@ export default function PostEditor({
   if (!editing) {
     return (
       <div className="post-editor">
-        <button type="button" className="icon-action-button" onClick={() => setEditing(true)}>
+        <button
+          type="button"
+          className="icon-action-button"
+          onClick={() => setEditing(true)}
+          aria-label="Edit post"
+          title="Edit post"
+        >
           <Pencil aria-hidden="true" />
-          <span>Edit</span>
         </button>
         {success && <span role="status">{success}</span>}
       </div>
@@ -84,9 +89,14 @@ export default function PostEditor({
       <p id={`edit-post-count-${tweetId}`}>
         {characterCount.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}
       </p>
-      <button type="button" onClick={save} disabled={busy || !content.trim() || characterCount > MAX_CONTENT_LENGTH}>
+      <button
+        type="button"
+        onClick={save}
+        disabled={busy || !content.trim() || characterCount > MAX_CONTENT_LENGTH}
+        aria-label={busy ? 'Saving post' : 'Save post'}
+        title={busy ? 'Saving post' : 'Save post'}
+      >
         <Check aria-hidden="true" />
-        {busy ? 'Saving…' : 'Save'}
       </button>
       <button
         type="button"
@@ -96,9 +106,10 @@ export default function PostEditor({
           setError('');
         }}
         disabled={busy}
+        aria-label="Cancel editing"
+        title="Cancel editing"
       >
         <X aria-hidden="true" />
-        Cancel
       </button>
       {error && <p role="alert">{error}</p>}
     </div>

@@ -30,21 +30,33 @@ export default async function ProfilePage({
   return (
     <main className="feed-page">
       <section className="profile-header">
-        <IdentityAvatar src={bhidProfile?.picture} className="profile-avatar" />
-        <h1>{bhidProfile?.name || 'HavenSocial user'}</h1>
-        <p>{bhidProfile?.preferredUsername ? `@${bhidProfile.preferredUsername}` : 'Username unavailable'}</p>
-        {isOwner && !bhidProfile && (
-          <p role="status">BHID profile details are unavailable. Sign out and sign in again to refresh access.</p>
-        )}
-        <p>
-          {profile.follower_count} followers · {profile.following_count} following · {profile.tweet_count} posts
-        </p>
-        <div className="profile-links">
-          <Link href={`/profile/${encodeURIComponent(profile.bhid_sub)}/followers`}>Followers</Link>
-          <Link href={`/profile/${encodeURIComponent(profile.bhid_sub)}/following`}>Following</Link>
+        <div className="profile-identity">
+          <IdentityAvatar src={bhidProfile?.picture} className="profile-avatar" />
+          <div className="profile-heading">
+            <h1>{bhidProfile?.name || 'HavenSocial user'}</h1>
+            <p>{bhidProfile?.preferredUsername ? `@${bhidProfile.preferredUsername}` : 'Username unavailable'}</p>
+            {isOwner && !bhidProfile && (
+              <p role="status">BHID profile details are unavailable. Sign out and sign in again to refresh access.</p>
+            )}
+          </div>
+        </div>
+        <div className="profile-details">
+          <div className="profile-stats">
+            <span><strong>{profile.follower_count}</strong> followers</span>
+            <span><strong>{profile.following_count}</strong> following</span>
+            <span><strong>{profile.tweet_count}</strong> posts</span>
+          </div>
+          <div className="profile-links">
+            <Link href={`/profile/${encodeURIComponent(profile.bhid_sub)}/followers`}>
+              Followers <span>{profile.follower_count}</span>
+            </Link>
+            <Link href={`/profile/${encodeURIComponent(profile.bhid_sub)}/following`}>
+              Following <span>{profile.following_count}</span>
+            </Link>
+          </div>
         </div>
         {!isOwner && (
-          <form action={toggleFollowAction}>
+          <form action={toggleFollowAction} className="profile-follow-form">
             <input type="hidden" name="followeeId" value={String(profile.users_id)} />
             <input type="hidden" name="action" value={profile.is_following ? 'unfollow' : 'follow'} />
             <button type="submit">{profile.is_following ? 'Unfollow' : 'Follow'}</button>

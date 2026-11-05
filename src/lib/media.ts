@@ -1,3 +1,5 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import {
   GetObjectCommand,
@@ -21,6 +23,8 @@ const allowedTypes: Record<string, { extension: string; mediaType: PostMediaType
 };
 
 const MAX_POST_MEDIA_SIZE = 15 * 1024 * 1024;
+const LOCAL_MEDIA_PREFIX = 'local/posts/';
+const LOCAL_MEDIA_DIRECTORY = join(process.cwd(), 'public', 'uploads', 'tweets');
 
 export class MediaValidationError extends Error {}
 
@@ -84,6 +88,40 @@ function validateUpload(contentType: string, size: number) {
   return media;
 }
 
+function getLocalMediaDetails(key: string, ownerId: string | number) {
+  const match = /^local\/posts\/(images|videos|gifs)\/([^/]+)\/([0-9a-f-]{36})\.([a-z0-9]+)$/i.exec(key);
+  if (!match || match[2] !== String(ownerId)) {
+    throw new MediaValidationError('Invalid media key');
+  }
+
+  const [, folder, , id, extension] = match;
+  const mediaEntry = Object.entries(allowedTypes).find(
+    ([, media]) => media.folder === folder && media.extension === extension.toLowerCase(),
+  );
+  if (!mediaEntry) throw new MediaValidationError('Unsupported media type');
+  return { id, extension: extension.toLowerCase(), mediaEntry };
+}
+
+function isMissingCredentials(error: unknown) {
+  return error instanceof Error && error.name === 'CredentialsProviderError';
+}
+
+function createLocalMediaUpload(
+  ownerId: string | number,
+  contentType: string,
+  size: number,
+) {
+  const media = validateUpload(contentType, size);
+  const key = `${LOCAL_MEDIA_PREFIX}${media.folder}/${ownerId}/${randomUUID()}.${media.extension}`;
+  return {
+    uploadUrl: `/media/upload?key=${encodeURIComponent(key)}`,
+    key,
+    publicUrl: '',
+    contentType,
+    mediaType: media.mediaType,
+  };
+}
+
 function publicUrl(key: string) {
   const base = getStorageConfig().publicBaseUrl;
   return `${base}/${key.split('/').map(encodeURIComponent).join('/')}`;
@@ -94,39 +132,95 @@ export async function createMediaUpload(
   contentType: string,
   size: number,
 ) {
-  const config = getStorageConfig();
   const media = validateUpload(contentType, size);
-  const key = `posts/${media.folder}/${ownerId}/${randomUUID()}.${media.extension}`;
-  const command = new PutObjectCommand({
-    Bucket: config.bucket,
-    Key: key,
-    ContentType: contentType,
-    ContentLength: size,
-  });
-  let uploadUrl: string;
   try {
-    uploadUrl = await getSignedUrl(getClient(), command, { expiresIn: 300 });
+    const config = getStorageConfig();
+    const key = `posts/${media.folder}/${ownerId}/${randomUUID()}.${media.extension}`;
+    const command = new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: key,
+      ContentType: contentType,
+      ContentLength: size,
+    });
+    const uploadUrl = await getSignedUrl(getClient(), command, { expiresIn: 300 });
+    return {
+      uploadUrl,
+      key,
+      publicUrl: publicUrl(key),
+      contentType,
+      mediaType: media.mediaType,
+    };
   } catch (error) {
-    if (error instanceof Error && error.name === 'CredentialsProviderError') {
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      (error instanceof MediaStorageConfigurationError || isMissingCredentials(error))
+    ) {
+      return createLocalMediaUpload(ownerId, contentType, size);
+    }
+    if (isMissingCredentials(error)) {
       throw new MediaStorageConfigurationError(
         'The AWS SDK could not find server-side credentials for S3 upload signing',
       );
     }
     throw error;
   }
-  return {
-    uploadUrl,
-    key,
-    publicUrl: publicUrl(key),
-    contentType,
-    mediaType: media.mediaType,
-  };
+}
+
+export async function saveLocalMedia(
+  key: string,
+  ownerId: string | number,
+  contentType: string,
+  bytes: Uint8Array,
+) {
+  const media = validateUpload(contentType, bytes.byteLength);
+  const { id, extension, mediaEntry } = getLocalMediaDetails(key, ownerId);
+  const [expectedType, expectedMedia] = mediaEntry;
+  if (
+    expectedType !== contentType ||
+    expectedMedia.mediaType !== media.mediaType ||
+    !hasExpectedSignature(bytes, contentType)
+  ) {
+    throw new MediaValidationError('Uploaded media content does not match its declared type');
+  }
+
+  await mkdir(LOCAL_MEDIA_DIRECTORY, { recursive: true });
+  const filename = `${id}.${extension}`;
+  await writeFile(join(LOCAL_MEDIA_DIRECTORY, filename), bytes, { flag: 'wx' });
+  return { key, url: `/uploads/tweets/${filename}` };
 }
 
 export async function confirmUploadedMedia(
   key: string,
   ownerId: string | number,
 ) {
+  if (key.startsWith(LOCAL_MEDIA_PREFIX)) {
+    const { id, extension, mediaEntry } = getLocalMediaDetails(key, ownerId);
+    const [mimeType, media] = mediaEntry;
+    const filename = `${id}.${extension}`;
+    let bytes: Buffer;
+    try {
+      bytes = await readFile(join(LOCAL_MEDIA_DIRECTORY, filename));
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+        throw new MediaValidationError('Uploaded media was not found');
+      }
+      throw error;
+    }
+    if (
+      bytes.byteLength > MAX_POST_MEDIA_SIZE ||
+      !hasExpectedSignature(bytes, mimeType)
+    ) {
+      throw new MediaValidationError('Uploaded media does not match the allowed type or size');
+    }
+    return {
+      key,
+      url: `/uploads/tweets/${filename}`,
+      mediaType: media.mediaType,
+      mimeType,
+      fileSize: bytes.byteLength,
+    };
+  }
+
   const config = getStorageConfig();
   const match = /^posts\/(images|videos|gifs)\/([^/]+)\/([0-9a-f-]{36})\.([a-z0-9]+)$/i.exec(key);
   if (!match || match[2] !== String(ownerId)) {

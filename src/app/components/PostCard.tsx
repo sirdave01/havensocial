@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import { Heart, Trash2, UserCheck, UserPlus } from 'lucide-react';
+import { Heart, MessageCircle, Trash2, UserCheck, UserPlus } from 'lucide-react';
 import { deleteTweetAction, toggleFollowAction, toggleLikeAction } from '@/app/actions';
 import type { BhidProfile } from '@/lib/bhid/profile';
 import IdentityAvatar from './IdentityAvatar';
 import MediaPreview from './MediaPreview';
 import PostControls from './PostControls';
 import PostEditor from './PostEditor';
+import SharePostButton from './SharePostButton';
 
 export type Post = {
   tweet_id: string | number;
@@ -79,12 +80,6 @@ export default function PostCard({
           {new Date(post.created_at).toLocaleString()}
         </time>
       </small>
-      <p className="post-counts" aria-label="Post activity">
-        <span>Likes: {count(post.like_count)}</span>
-        <span>Replies: {count(post.reply_count)}</span>
-        <span>Retweets: {count(post.retweet_count)}</span>
-        <span>Views: {count(post.view_count)}</span>
-      </p>
       <div className="feed-actions">
         <form action={toggleLikeAction}>
           <input type="hidden" name="tweetId" value={tweetId} />
@@ -98,31 +93,40 @@ export default function PostCard({
           <form action={toggleFollowAction}>
             <input type="hidden" name="followeeId" value={String(post.user_id)} />
             <input type="hidden" name="action" value={post.is_following ? 'unfollow' : 'follow'} />
-            <button type="submit">
+            <button type="submit" aria-label={post.is_following ? 'Unfollow author' : 'Follow author'} title={post.is_following ? 'Unfollow author' : 'Follow author'}>
               {post.is_following ? <UserCheck aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
-              <span>{post.is_following ? 'Following' : 'Follow'}</span>
             </button>
           </form>
         )}
+        <Link
+          href={`/tweet/${encodeURIComponent(tweetId)}`}
+          className="icon-action-button"
+          aria-label={`Reply (${count(post.reply_count)})`}
+          title="Reply"
+        >
+          <MessageCircle aria-hidden="true" />
+          <span>{count(post.reply_count)}</span>
+        </Link>
+        <PostControls
+          tweetId={tweetId}
+          retweetCount={post.retweet_count}
+          retweeted={Boolean(post.retweeted_by_user)}
+          pinned={Boolean(post.is_pinned)}
+          canPin={isOwner}
+        />
+        <SharePostButton tweetId={tweetId} />
         {isOwner && (
           <>
             <PostEditor tweetId={tweetId} initialContent={post.content || ''} />
             <form action={deleteTweetAction}>
               <input type="hidden" name="tweetId" value={tweetId} />
-              <button type="submit" aria-label="Delete post">
+              <button type="submit" aria-label="Delete post" title="Delete post">
                 <Trash2 aria-hidden="true" />
-                <span>Delete</span>
               </button>
             </form>
           </>
         )}
       </div>
-      <PostControls
-        tweetId={tweetId}
-        retweeted={Boolean(post.retweeted_by_user)}
-        pinned={Boolean(post.is_pinned)}
-        canPin={isOwner}
-      />
     </article>
   );
 }

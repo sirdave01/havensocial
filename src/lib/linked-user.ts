@@ -1,8 +1,9 @@
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { db } from '../models/db.js';
 import { getHavenSession, hashAppSessionToken } from './session';
 
-export async function getLinkedUser() {
+async function loadLinkedUser() {
   const session = await getHavenSession();
   if (!session.appSessionToken) return null;
 
@@ -34,21 +35,25 @@ export async function getLinkedUser() {
   const user = result.rows[0];
   const lastSeenAt = user.last_seen_at ? new Date(user.last_seen_at).valueOf() : 0;
   if (Date.now() - lastSeenAt >= 5 * 60 * 1000) {
-    await db.query(
+    await Promise.all([
+      db.query(
       `UPDATE app_sessions
        SET last_seen_at = CURRENT_TIMESTAMP
        WHERE session_id = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP`,
       [user.session_id],
-    );
-    await db.query(
+      ),
+      db.query(
       'UPDATE users SET last_seen_at = CURRENT_TIMESTAMP WHERE users_id = $1',
       [user.users_id],
-    );
+      ),
+    ]);
   }
   delete user.last_seen_at;
   delete user.session_id;
   return user;
 }
+
+export const getLinkedUser = cache(loadLinkedUser);
 
 export async function requireLinkedUser() {
   const user = await getLinkedUser();

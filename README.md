@@ -12,9 +12,11 @@ server with `npm run dev`.
 
 Post media is stored in a dedicated HavenSocial S3 bucket. Keep bucket credentials server-side
 and configure browser uploads only for the app's own trusted origins.
-For local development, use a configured AWS profile or server-side access keys; in deployment,
-provide credentials through the runtime's AWS role or another AWS SDK credential provider. An
-`AWS_ROLE_ARN` by itself is not credentials and cannot sign uploads.
+For local development, uploads fall back to `public/uploads/tweets` when S3 credentials are
+unavailable. To test S3 locally, use a configured AWS profile or server-side access keys. In
+deployment, provide credentials through the runtime's AWS role or another AWS SDK credential
+provider; an `AWS_ROLE_ARN` by itself is not credentials and cannot sign uploads. Configure S3
+before deploying because local disk uploads are development-only and are not durable storage.
 
 Never commit local environment files, credentials, personal uploads, or private operational
 documentation. Contact the project maintainers for access to development services and deployment

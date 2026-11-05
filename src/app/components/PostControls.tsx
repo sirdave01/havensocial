@@ -5,11 +5,13 @@ import { Pin, Repeat2 } from 'lucide-react';
 
 export default function PostControls({
   tweetId,
+  retweetCount,
   retweeted,
   pinned,
   canPin,
 }: {
   tweetId: string;
+  retweetCount: string | number | undefined;
   retweeted: boolean;
   pinned: boolean;
   canPin: boolean;
@@ -49,18 +51,23 @@ export default function PostControls({
   }
 
   return (
-    <div className="feed-actions">
-      <button type="button" onClick={retweet} disabled={hasRetweeted}>
+    <>
+      <button
+        type="button"
+        onClick={retweet}
+        disabled={hasRetweeted}
+        aria-label={hasRetweeted ? 'Reposted' : 'Repost'}
+        title={hasRetweeted ? 'Reposted' : 'Repost'}
+      >
         <Repeat2 aria-hidden="true" />
-        <span>{hasRetweeted ? 'Reposted' : 'Repost'}</span>
+        <span>{String(retweetCount ?? 0)}</span>
       </button>
       {canPin && (
-        <button type="button" onClick={togglePin}>
+        <button type="button" onClick={togglePin} aria-label={isPinned ? 'Unpin post' : 'Pin post'} title={isPinned ? 'Unpin post' : 'Pin post'}>
           <Pin aria-hidden="true" />
-          <span>{isPinned ? 'Unpin' : 'Pin'}</span>
         </button>
       )}
-      {error && <span role="alert">{error}</span>}
-    </div>
+      {error && <span role="alert" className="post-action-error">{error}</span>}
+    </>
   );
 }
