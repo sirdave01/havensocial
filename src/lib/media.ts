@@ -52,6 +52,11 @@ const allowedTypes: Record<
     mediaType: 'VIDEO',
     folder: 'videos',
   },
+  'video/quicktime': {
+    extension: 'mov',
+    mediaType: 'VIDEO',
+    folder: 'videos',
+  },
 };
 
 const MAX_POST_MEDIA_SIZE = 15 * 1024 * 1024;
@@ -635,6 +640,9 @@ function hasExpectedSignature(
       );
 
     case 'video/mp4':
+      return ascii(4, 4) === 'ftyp';
+    
+    case 'video/quicktime':
       return ascii(4, 4) === 'ftyp';
 
     case 'video/webm':

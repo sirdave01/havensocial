@@ -36,6 +36,7 @@
     "@aws-sdk/credential-providers": "^3.1163.0",
     "@aws-sdk/s3-request-presigner": "^3.1162.0",
     "@vercel/oidc": "^4.0.7",
+    "heic2any": "^0.0.4",
     "iron-session": "^9.0.1",
     "lucide-react": "^1.69.0",
     "next": "^16.4.5",
