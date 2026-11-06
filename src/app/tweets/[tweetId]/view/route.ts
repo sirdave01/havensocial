@@ -19,11 +19,16 @@ export async function POST(_request: Request, { params }: RouteContext) {
   if (String(original.rows[0].user_id) === String(user.users_id)) return NextResponse.json({ ok: true });
 
   await db.query(
-    `INSERT INTO tweet_views (tweet_id, user_id)
-     VALUES ($1, $2)
-     ON CONFLICT (tweet_id, user_id) DO NOTHING
-     RETURNING view_id`,
+    `INSERT INTO tweet_views (
+        tweet_id,
+        user_id,
+        qualification_status
+    )
+    VALUES ($1, $2, 'PENDING')
+    ON CONFLICT (tweet_id, user_id)
+    WHERE user_id IS NOT NULL
+    DO NOTHING
+    RETURNING view_id`,
     [tweetId, user.users_id],
   );
-  return NextResponse.json({ ok: true });
 }
