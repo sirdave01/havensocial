@@ -209,6 +209,10 @@ function getClient() {
       region: config.region,
       endpoint: config.endpoint,
       forcePathStyle: Boolean(config.endpoint),
+
+      // Avoid automatic optional checksum calculation
+      // when generating presigned upload URLs.
+      requestChecksumCalculation: 'WHEN_REQUIRED' as const,
     };
 
     if (process.env.VERCEL === '1') {

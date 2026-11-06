@@ -14,6 +14,7 @@ import IdentityAvatar from './IdentityAvatar';
 const MAX_CONTENT_LENGTH = 25000;
 const MAX_MEDIA_PER_POST = 4;
 const MAX_MEDIA_SIZE = 15 * 1024 * 1024;
+const S3_UPLOAD_TIMEOUT = 300000; // 5 minutes
 
 const ACCEPTED_MEDIA_TYPES = [
   'image/jpeg',
@@ -86,12 +87,12 @@ function getSupportedContentType(file: File): string | null {
   const extension = getFileExtension(file);
   const mime = file.type.toLowerCase().split(';')[0].trim();
 
-  // HEIC/HEIF files will be converted to JPEG before uploading.
+  // HEIC/HEIF files are converted to JPEG before uploading.
   if (isHeicFile(file)) {
     return 'image/heic';
   }
 
-  // Preserve MOV as QuickTime rather than mislabelling it as MP4.
+  // Preserve MOV as QuickTime.
   if (extension === 'mov' || mime === 'video/quicktime') {
     return 'video/quicktime';
   }
@@ -100,7 +101,7 @@ function getSupportedContentType(file: File): string | null {
     return mime;
   }
 
-  // Some mobile browsers return an empty or generic MIME type.
+  // Some mobile browsers provide an empty or generic MIME type.
   if (!mime || mime === 'application/octet-stream') {
     return MIME_BY_EXTENSION[extension] || null;
   }
@@ -132,6 +133,7 @@ async function prepareMediaForUpload(
   if (isHeicFile(originalFile)) {
     try {
       const heicModule = await import('heic2any');
+
       const converted = await heicModule.default({
         blob: originalFile,
         toType: 'image/jpeg',
@@ -153,8 +155,7 @@ async function prepareMediaForUpload(
       }
 
       const newFilename =
-        originalFile.name.replace(/\.(heic|heif)$/i, '') +
-        '.jpg';
+        originalFile.name.replace(/\.(heic|heif)$/i, '') + '.jpg';
 
       const jpegFile = new File(
         [jpegBlob],
@@ -169,7 +170,9 @@ async function prepareMediaForUpload(
         file: jpegFile,
         contentType: 'image/jpeg',
       };
-    } catch {
+    } catch (error) {
+      console.error('HEIC/HEIF conversion failed:', error);
+
       throw new Error(
         `Could not convert ${originalFile.name} into JPEG. Please try another photograph.`,
       );
@@ -190,6 +193,87 @@ async function readResponse<T>(
   } catch {
     return null;
   }
+}
+
+/**
+ * Uploads directly to S3 using XMLHttpRequest.
+ *
+ * Provides:
+ * - HTTP status diagnostics
+ * - Upload timeout
+ * - Upload progress
+ * - Better network error reporting
+ */
+function uploadToS3(
+  uploadUrl: string,
+  file: File,
+  contentType: string,
+  onProgress?: (percentage: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open('PUT', uploadUrl, true);
+    xhr.withCredentials = false;
+    xhr.timeout = S3_UPLOAD_TIMEOUT;
+
+    xhr.setRequestHeader('Content-Type', contentType);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const percentage = Math.round(
+          (event.loaded / event.total) * 100,
+        );
+
+        onProgress(percentage);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(
+          `AWS S3 rejected the upload. HTTP ${xhr.status}: ${
+            xhr.responseText?.slice(0, 250) ||
+            'No response details available.'
+          }`,
+        ),
+      );
+    };
+
+    xhr.onerror = () => {
+      reject(
+        new Error(
+          `The browser could not complete the S3 request (HTTP ${xhr.status}). Possible causes include CORS, a network interruption or a failed connection.`,
+        ),
+      );
+    };
+
+    xhr.ontimeout = () => {
+      reject(
+        new Error(
+          'The S3 upload timed out after five minutes. Check your connection and try again.',
+        ),
+      );
+    };
+
+    xhr.onabort = () => {
+      reject(new Error('The S3 upload was cancelled.'));
+    };
+
+    try {
+      xhr.send(file);
+    } catch {
+      reject(
+        new Error('The browser could not start the S3 upload.'),
+      );
+    }
+  });
 }
 
 export default function ComposePost({
@@ -236,10 +320,7 @@ export default function ComposePost({
         continue;
       }
 
-      if (
-        file.size < 1 ||
-        file.size > MAX_MEDIA_SIZE
-      ) {
+      if (file.size < 1 || file.size > MAX_MEDIA_SIZE) {
         problems.push(
           `${file.name}: each attachment must be between 1 byte and 15 MB.`,
         );
@@ -262,12 +343,11 @@ export default function ComposePost({
 
   async function uploadFile(
     originalFile: File,
+    onProgress?: (percentage: number) => void,
   ): Promise<UploadedMedia> {
     // Prepare the file before requesting an upload URL.
-    const {
-      file,
-      contentType,
-    } = await prepareMediaForUpload(originalFile);
+    const { file, contentType } =
+      await prepareMediaForUpload(originalFile);
 
     // STEP 1: Request an upload URL from HavenSocial.
     let response: Response;
@@ -292,9 +372,7 @@ export default function ComposePost({
       );
     }
 
-    const result = await readResponse<UploadUrlResult>(
-      response,
-    );
+    const result = await readResponse<UploadUrlResult>(response);
 
     if (!response.ok) {
       throw new Error(
@@ -310,28 +388,27 @@ export default function ComposePost({
     }
 
     // STEP 2: Upload directly to Amazon S3.
-    let uploadResponse: Response;
-
     try {
-      uploadResponse = await fetch(result.uploadUrl, {
-        method: 'PUT',
-        mode: 'cors',
-        credentials: 'omit',
-        headers: {
-          'Content-Type': contentType,
-        },
-        body: file,
+      await uploadToS3(
+        result.uploadUrl,
+        file,
+        contentType,
+        onProgress,
+      );
+    } catch (error) {
+      // Never log the presigned URL: it contains temporary
+      // upload authorization information.
+      console.error('HavenSocial S3 upload failure:', {
+        fileName: file.name,
+        contentType,
+        fileSize: file.size,
+        error:
+          error instanceof Error ? error.message : 'Unknown error',
       });
-    } catch {
-      throw new Error(
-        `Could not transfer ${file.name} to AWS S3. Check your internet connection and try again.`,
-      );
-    }
 
-    if (!uploadResponse.ok) {
-      throw new Error(
-        `AWS S3 rejected ${file.name} (HTTP ${uploadResponse.status}). Check the upload permissions and request configuration.`,
-      );
+      throw error instanceof Error
+        ? error
+        : new Error('Could not upload media to AWS S3.');
     }
 
     return {
@@ -353,9 +430,7 @@ export default function ComposePost({
     }
 
     if (characterCount > MAX_CONTENT_LENGTH) {
-      setError(
-        'Post content cannot exceed 25,000 characters.',
-      );
+      setError('Post content cannot exceed 25,000 characters.');
       setSuccess('');
       return;
     }
@@ -369,19 +444,24 @@ export default function ComposePost({
     try {
       const uploadedMedia: UploadedMedia[] = [];
 
-      // Upload one file at a time to improve reliability
-      // on mobile connections.
+      // Upload sequentially to improve reliability on mobile.
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
 
         setUploadProgress(
-          `Uploading ${index + 1} of ${files.length}: ${file.name}`,
+          `Preparing ${index + 1} of ${files.length}: ${file.name}`,
         );
 
-        uploadedMedia.push(await uploadFile(file));
+        const uploaded = await uploadFile(file, (percentage) => {
+          setUploadProgress(
+            `Uploading ${index + 1} of ${files.length}: ${file.name} (${percentage}%)`,
+          );
+        });
+
+        uploadedMedia.push(uploaded);
       }
 
-      // STEP 3: Publish the post after every upload succeeds.
+      // STEP 3: Publish after every upload succeeds.
       setUploadProgress('Publishing your post...');
 
       let response: Response;
@@ -420,9 +500,7 @@ export default function ComposePost({
 
       setContent('');
       setFiles([]);
-      setSuccess(
-        replyTo ? 'Reply posted.' : 'Post published.',
-      );
+      setSuccess(replyTo ? 'Reply posted.' : 'Post published.');
       setUploadProgress('');
 
       router.refresh();
@@ -480,9 +558,7 @@ export default function ComposePost({
           ...ACCEPTED_MEDIA_EXTENSIONS,
         ].join(',')}
         multiple
-        disabled={
-          busy || files.length >= MAX_MEDIA_PER_POST
-        }
+        disabled={busy || files.length >= MAX_MEDIA_PER_POST}
         onChange={chooseFiles}
       />
 
@@ -490,17 +566,12 @@ export default function ComposePost({
         type="button"
         className="media-picker-button"
         onClick={() => mediaInput.current?.click()}
-        disabled={
-          busy || files.length >= MAX_MEDIA_PER_POST
-        }
+        disabled={busy || files.length >= MAX_MEDIA_PER_POST}
         aria-describedby={`${textareaId}-media-status`}
       >
         <ImagePlus aria-hidden="true" />
-
         <span>
-          {files.length
-            ? 'Add more media'
-            : 'Choose images or videos'}
+          {files.length ? 'Add more media' : 'Choose images or videos'}
         </span>
       </button>
 
@@ -553,11 +624,11 @@ export default function ComposePost({
         {MAX_CONTENT_LENGTH.toLocaleString()}
       </p>
 
-      {uploadProgress && (
+      {uploadProgress ? (
         <p role="status" aria-live="polite">
           {uploadProgress}
         </p>
-      )}
+      ) : null}
 
       <button
         type="submit"
@@ -575,7 +646,7 @@ export default function ComposePost({
             : 'Post'}
       </button>
 
-            {error ? (
+      {error ? (
         <p role="alert">{error}</p>
       ) : null}
 
