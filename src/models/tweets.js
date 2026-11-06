@@ -175,7 +175,15 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
 // Get single tweet
 const getTweetById = async (tweetId) => {
     const query = `
-        SELECT t.*, u.bhid_sub AS author_sub
+        SELECT
+            t.*,
+            u.bhid_sub AS author_sub,
+            COALESCE(
+                (SELECT COUNT(*)
+                FROM tweet_views v
+                WHERE v.tweet_id = t.tweet_id),
+                0
+            ) AS view_count
         FROM tweets t
         JOIN users u ON u.users_id = t.user_id
         WHERE t.tweet_id = $1
