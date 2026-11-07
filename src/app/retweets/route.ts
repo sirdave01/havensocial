@@ -15,9 +15,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Invalid post ID or quote' }, { status: 400 });
   }
   const original = await db.query(
-    'SELECT user_id FROM tweets WHERE tweet_id = $1 AND deleted_at IS NULL',
+    `SELECT user_id
+    FROM tweets
+    WHERE tweet_id = $1
+      AND is_deleted = FALSE
+      AND deleted_at IS NULL`,
     [tweetId],
   );
+  
   if (!original.rows[0]) return NextResponse.json({ message: 'Post not found' }, { status: 404 });
 
   const inserted = await db.query(
