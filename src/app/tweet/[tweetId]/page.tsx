@@ -81,6 +81,7 @@ function renderReplyTree(
           )}
         </div>
       ) : null}
+
     </div>
   ));
 }
@@ -92,7 +93,7 @@ export default async function TweetPage({
 }: {
   params: Promise<{ tweetId: string }>;
 }) {
-  // 1. Require authentication.
+  // 1. Require an authenticated user.
   const user = await requireLinkedUser();
 
   // 2. Validate the post ID.
@@ -112,16 +113,23 @@ export default async function TweetPage({
     notFound();
   }
 
-  // 4. Get the complete reply tree.
+  // 4. Determine whether the original post was deleted.
+  const originalPostDeleted = Boolean(
+    data.is_deleted || data.deleted_at,
+  );
+
+  // 5. Retrieve the preserved reply tree.
   const replies = (data.replies ?? []) as ThreadPost[];
 
-  // 5. Collect every reply, including nested replies.
+  // 6. Collect every reply, including nested replies.
   const allReplies = flattenReplies(replies);
 
-  // 6. Collect original author and reply author subjects.
+  // 7. Collect BHID author subjects.
   const profileSubjects = new Set<string>();
 
-  profileSubjects.add(data.author_sub);
+  if (!originalPostDeleted && data.author_sub) {
+    profileSubjects.add(data.author_sub);
+  }
 
   for (const reply of allReplies) {
     if (reply.author_sub) {
@@ -129,10 +137,10 @@ export default async function TweetPage({
     }
   }
 
-  // Avoid requesting the current user's profile twice.
+  // Avoid requesting our own profile twice.
   profileSubjects.delete(user.bhid_sub);
 
-  // 7. Retrieve BHID profiles.
+  // 8. Retrieve the BHID profiles.
   const authorProfiles = await getBhidProfiles(
     Array.from(profileSubjects),
   );
@@ -144,37 +152,54 @@ export default async function TweetPage({
     );
   }
 
-  // 8. Render the conversation.
+  // 9. Render the conversation.
   return (
     <main className="feed-page">
 
-      {/* TRACK POST VIEW */}
+      {/* TRACK VIEWS ONLY FOR ACTIVE ORIGINAL POSTS */}
 
-      <ViewTracker
-        tweetId={String(data.tweet_id)}
-      />
+      {!originalPostDeleted && (
+        <ViewTracker
+          tweetId={String(data.tweet_id)}
+        />
+      )}
 
-      {/* ORIGINAL POST */}
+      {/* ORIGINAL POST OR DELETED-POST PLACEHOLDER */}
 
       <PostCard
         post={data as Post}
-        author={authorProfiles.get(data.author_sub)}
+        author={
+          originalPostDeleted
+            ? undefined
+            : authorProfiles.get(data.author_sub)
+        }
         viewerId={user.users_id}
       />
 
       {/* REPLY COMPOSER */}
 
-      <ComposePost
-        replyTo={String(data.tweet_id)}
-        avatarUrl={currentProfile?.picture}
-      />
+      {!originalPostDeleted ? (
+        <ComposePost
+          replyTo={String(data.tweet_id)}
+          avatarUrl={currentProfile?.picture}
+        />
+      ) : (
+        <p
+          role="status"
+          className="deleted-post-notice"
+        >
+          This post has been deleted. Existing replies
+          have been preserved, but new replies are closed.
+        </p>
+      )}
 
-      {/* REPLY THREAD */}
+      {/* PRESERVED REPLY THREAD */}
 
       <section
         className="feed"
         aria-label="Replies"
       >
+
         {replies.length ? (
           renderReplyTree(
             replies,
@@ -183,9 +208,12 @@ export default async function TweetPage({
           )
         ) : (
           <p className="empty-feed">
-            No replies yet. Be the first to reply.
+            {originalPostDeleted
+              ? 'No preserved replies.'
+              : 'No replies yet. Be the first to reply.'}
           </p>
         )}
+
       </section>
 
     </main>

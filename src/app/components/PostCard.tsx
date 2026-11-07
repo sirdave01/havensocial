@@ -31,15 +31,21 @@ export type Post = {
   content: string | null;
   created_at: string | Date;
 
+  // COUNTS
   like_count?: string | number;
   reply_count?: string | number;
   retweet_count?: string | number;
   view_count?: string | number;
 
+  // VIEWER INTERACTIONS
   liked_by_user?: boolean;
   retweeted_by_user?: boolean;
   is_following?: boolean;
   is_pinned?: boolean;
+
+  // DELETION STATUS
+  is_deleted?: boolean;
+  deleted_at?: string | Date | null;
 
   // RESHARE INFORMATION
   is_reshare?: boolean;
@@ -81,6 +87,27 @@ export default function PostCard({
   showFollow?: boolean;
 }) {
   const tweetId = String(post.tweet_id);
+
+  // Check whether this post has been deleted.
+  const isDeleted = Boolean(
+    post.is_deleted || post.deleted_at,
+  );
+
+  // DELETED POST PLACEHOLDER
+  // Do not expose the deleted content, media or actions.
+
+  if (isDeleted) {
+    return (
+      <article className="feed-item deleted-post">
+        <p
+          role="status"
+          className="deleted-post-message"
+        >
+          This post has been deleted.
+        </p>
+      </article>
+    );
+  }
 
   const isReshare = Boolean(post.is_reshare);
 
