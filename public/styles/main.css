@@ -1819,3 +1819,13 @@ body.dark-mode .modal-content input {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
+
+.reply-thread-item {
+    min-width: 0;
+}
+
+.nested-replies {
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border, #888);
+}

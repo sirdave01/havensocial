@@ -85,8 +85,8 @@ export const createTweetWithExtras = async (
                     originalTweet.user_id,
                     userId,
                     'reply',
-                    tweet.tweet_id,
-                    client // 🔥 pass transaction client (important)
+                    isReplyTo,
+                    client
                 );
             }
         }
