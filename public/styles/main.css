@@ -1793,3 +1793,29 @@ body.dark-mode .modal-content input {
         gap: 0.3rem;
     }
 }
+
+.reshare-attribution {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 0;
+    font-size: 0.85rem;
+    color: var(--muted-foreground, #888);
+}
+
+.reshare-attribution svg {
+    width: 16px;
+    height: 16px;
+}
+
+.reshare-attribution a {
+    font-weight: 600;
+    color: inherit;
+    text-decoration: none;
+}
+
+.reshare-quote {
+    margin: 8px 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
