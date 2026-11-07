@@ -222,54 +222,177 @@ const getUserTweets = async (userId, limit = 20, offset = 0) => {
 };
 
 // Get home feed
-const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
+
+
+// ==================== SHARED FEED BUILDER ====================
+
+const getFeed = async (
+    viewerId,
+    limit = 20,
+    offset = 0,
+    followingOnly = false
+) => {
     const query = `
-        SELECT 
-            t.*,
-            u.bhid_sub AS author_sub,
+        WITH feed_items AS (
 
-            -- likes
-            (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
+            -- 1. ORIGINAL POSTS
+            SELECT
+                t.*,
+                original_author.bhid_sub AS author_sub,
 
-            -- replies
-            (SELECT COUNT(*) FROM tweets r
-             WHERE r.is_reply_to = t.tweet_id
-               AND r.is_deleted = FALSE
-               AND r.deleted_at IS NULL) AS reply_count,
+                NULL::bigint AS feed_retweet_id,
+                FALSE AS is_reshare,
+                NULL::bigint AS reshared_by_user_id,
+                NULL::text AS reshared_by_sub,
+                NULL::timestamptz AS reshared_at,
+                NULL::text AS reshare_quote_text,
 
-            (SELECT COUNT(*) FROM retweets rt WHERE rt.original_tweet_id = t.tweet_id) AS retweet_count,
+                t.user_id AS feed_actor_id,
+                t.created_at AS feed_created_at
 
-            (SELECT COUNT(*) FROM tweet_views v WHERE v.tweet_id = t.tweet_id) AS view_count,
+            FROM tweets t
+            JOIN users original_author
+              ON original_author.users_id = t.user_id
 
-            -- viewer interaction
+            WHERE t.is_deleted = FALSE
+              AND t.deleted_at IS NULL
+
+            UNION ALL
+
+            -- 2. RESHARES
+            SELECT
+                t.*,
+                original_author.bhid_sub AS author_sub,
+
+                r.retweet_id AS feed_retweet_id,
+                TRUE AS is_reshare,
+                r.user_id AS reshared_by_user_id,
+                resharing_user.bhid_sub AS reshared_by_sub,
+                r.created_at AS reshared_at,
+                r.quote_text AS reshare_quote_text,
+
+                r.user_id AS feed_actor_id,
+                r.created_at AS feed_created_at
+
+            FROM retweets r
+
+            JOIN tweets t
+              ON t.tweet_id = r.original_tweet_id
+
+            JOIN users original_author
+              ON original_author.users_id = t.user_id
+
+            JOIN users resharing_user
+              ON resharing_user.users_id = r.user_id
+
+            WHERE t.is_deleted = FALSE
+              AND t.deleted_at IS NULL
+        )
+
+        SELECT
+            feed_items.*,
+
+            -- LIKE COUNT
+            (
+                SELECT COUNT(*)
+                FROM likes l
+                WHERE l.tweet_id = feed_items.tweet_id
+            ) AS like_count,
+
+            -- REPLY COUNT
+            (
+                SELECT COUNT(*)
+                FROM tweets r
+                WHERE r.is_reply_to = feed_items.tweet_id
+                  AND r.is_deleted = FALSE
+                  AND r.deleted_at IS NULL
+            ) AS reply_count,
+
+            -- RESHARE COUNT
+            (
+                SELECT COUNT(*)
+                FROM retweets rt
+                WHERE rt.original_tweet_id = feed_items.tweet_id
+            ) AS retweet_count,
+
+            -- VIEW COUNT
+            (
+                SELECT COUNT(*)
+                FROM tweet_views v
+                WHERE v.tweet_id = feed_items.tweet_id
+            ) AS view_count,
+
+            -- VIEWER LIKE STATUS
             EXISTS (
-                SELECT 1 FROM likes
-                WHERE user_id = $1 AND tweet_id = t.tweet_id
+                SELECT 1
+                FROM likes
+                WHERE user_id = $1
+                  AND tweet_id = feed_items.tweet_id
             ) AS liked_by_user,
 
+            -- VIEWER RESHARE STATUS
             EXISTS (
-                SELECT 1 FROM retweets
-                WHERE user_id = $1 AND original_tweet_id = t.tweet_id
+                SELECT 1
+                FROM retweets
+                WHERE user_id = $1
+                  AND original_tweet_id = feed_items.tweet_id
             ) AS retweeted_by_user,
 
-            -- follow state
+            -- WHETHER VIEWER FOLLOWS ORIGINAL AUTHOR
             EXISTS (
-                SELECT 1 FROM follows f
-                WHERE f.follower_id = $1
-                  AND f.followee_id = t.user_id
+                SELECT 1
+                FROM follows
+                WHERE follower_id = $1
+                  AND followee_id = feed_items.user_id
             ) AS is_following
 
-        FROM tweets t
-        JOIN users u ON u.users_id = t.user_id
-        WHERE t.deleted_at IS NULL
-          AND t.is_deleted = FALSE
-        ORDER BY t.created_at DESC
+        FROM feed_items
+
+        WHERE
+            NOT $4::boolean
+            OR EXISTS (
+                SELECT 1
+                FROM follows f
+                WHERE f.follower_id = $1
+                  AND f.followee_id = feed_items.feed_actor_id
+            )
+
+        ORDER BY
+            feed_items.feed_created_at DESC,
+            feed_items.is_reshare DESC,
+            COALESCE(
+                feed_items.feed_retweet_id,
+                feed_items.tweet_id
+            ) DESC
+
         LIMIT $2 OFFSET $3;
     `;
 
-    const result = await db.query(query, [viewerId, limit, offset]);
-    return attachMedia(result.rows);
+    const { rows } = await db.query(query, [
+        viewerId,
+        limit,
+        offset,
+        followingOnly,
+    ]);
+
+    return attachMedia(rows);
 };
+
+
+// ==================== HOME FEED ====================
+
+const getHomeFeed = async (viewerId, limit = 20, offset = 0) => {
+    return getFeed(viewerId, limit, offset, false);
+};
+
+
+// ==================== FOLLOWING FEED ====================
+
+const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
+    return getFeed(viewerId, limit, offset, true);
+};
+
+
 
 // Delete tweet (soft)
 const deleteTweet = async (tweetId, userId) => {
@@ -309,45 +432,6 @@ const updateTweet = async (tweetId, userId, content) => {
     return result.rows[0];
 };
 
-// Following feed
-const getFollowingFeed = async (viewerId, limit = 20, offset = 0) => {
-    const query = `
-        SELECT 
-            t.*,
-            u.bhid_sub AS author_sub,
-
-            (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
-            (SELECT COUNT(*) FROM tweets r
-             WHERE r.is_reply_to = t.tweet_id
-               AND r.is_deleted = FALSE
-               AND r.deleted_at IS NULL) AS reply_count,
-            (SELECT COUNT(*) FROM retweets rt WHERE rt.original_tweet_id = t.tweet_id) AS retweet_count,
-            (SELECT COUNT(*) FROM tweet_views v WHERE v.tweet_id = t.tweet_id) AS view_count,
-
-            EXISTS (
-                SELECT 1 FROM likes
-                WHERE user_id = $1 AND tweet_id = t.tweet_id
-            ) AS liked_by_user,
-
-            EXISTS (
-                SELECT 1 FROM retweets
-                WHERE user_id = $1 AND original_tweet_id = t.tweet_id
-            ) AS retweeted_by_user,
-
-            TRUE AS is_following
-        FROM tweets t
-        JOIN users u ON u.users_id = t.user_id
-        JOIN follows f ON f.followee_id = t.user_id
-        WHERE f.follower_id = $1
-          AND t.is_deleted = FALSE
-          AND t.deleted_at IS NULL
-        ORDER BY t.created_at DESC
-        LIMIT $2 OFFSET $3;
-    `;
-
-    const result = await db.query(query, [viewerId, limit, offset]);
-    return attachMedia(result.rows);
-};
 
 export {
     getTweetById,
