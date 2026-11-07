@@ -1829,3 +1829,26 @@ body.dark-mode .modal-content input {
     padding-left: 8px;
     border-left: 1px solid var(--border, #888);
 }
+
+.deleted-post-message {
+    color: var(--muted-foreground, #888);
+    font-style: italic;
+    padding: 12px 0;
+}
+
+.deleted-post-notice {
+    padding: 12px;
+    font-size: 0.9rem;
+    opacity: 0.75;
+    border-bottom: 1px solid var(--border, #888);
+}
+
+.reply-thread-item {
+    min-width: 0;
+}
+
+.nested-replies {
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border, #888);
+}
