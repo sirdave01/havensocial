@@ -5,12 +5,10 @@ import {
   Eye,
   Heart,
   MessageCircle,
-  Trash2,
   Repeat2,
 } from 'lucide-react';
 
 import {
-  deleteTweetAction,
   toggleLikeAction,
 } from '@/app/actions';
 
@@ -22,6 +20,7 @@ import MediaPreview from './MediaPreview';
 import PostControls from './PostControls';
 import PostEditor from './PostEditor';
 import SharePostButton from './SharePostButton';
+import ConfirmDeletePost from './ConfirmDeletePost';
 
 // ==================== POST TYPE ====================
 
@@ -85,23 +84,17 @@ export default function PostCard({
 
   const isReshare = Boolean(post.is_reshare);
 
-  // The original post owner.
   const isOwner =
     String(post.user_id) === String(viewerId);
 
-  // Original post ownership controls.
-  // Never show these controls on a reshare entry.
   const canManagePost = isOwner && !isReshare;
 
-  // ORIGINAL AUTHOR PROFILE
   const profileHref =
     `/profile/${encodeURIComponent(post.author_sub)}`;
 
-  // ORIGINAL POST LINK
   const tweetHref =
     `/tweet/${encodeURIComponent(tweetId)}`;
 
-  // RESHARER PROFILE
   const resharerHref = post.reshared_by_sub
     ? `/profile/${encodeURIComponent(post.reshared_by_sub)}`
     : null;
@@ -109,17 +102,12 @@ export default function PostCard({
   return (
     <article className="feed-item">
 
-      {/* =================================
-          RESHARE ATTRIBUTION
-      ================================== */}
+      {/* RESHARE ATTRIBUTION */}
 
       {isReshare && (
         <div className="reshare-attribution">
 
-          <Repeat2
-            aria-hidden="true"
-            size={16}
-          />
+          <Repeat2 aria-hidden="true" size={16} />
 
           {resharerHref ? (
             <Link href={resharerHref}>
@@ -140,9 +128,7 @@ export default function PostCard({
         </div>
       )}
 
-      {/* =================================
-          RESHARE QUOTE TEXT
-      ================================== */}
+      {/* RESHARE QUOTE */}
 
       {isReshare && post.reshare_quote_text && (
         <p className="reshare-quote">
@@ -150,9 +136,7 @@ export default function PostCard({
         </p>
       )}
 
-      {/* =================================
-          ORIGINAL POST AUTHOR
-      ================================== */}
+      {/* ORIGINAL POST AUTHOR */}
 
       <header className="post-card-header">
 
@@ -178,8 +162,6 @@ export default function PostCard({
             )}
           </Link>
 
-          {/* FOLLOW ORIGINAL AUTHOR */}
-
           {showFollow && !isOwner && (
             <FollowButton
               userId={post.user_id}
@@ -191,9 +173,7 @@ export default function PostCard({
 
       </header>
 
-      {/* =================================
-          ORIGINAL POST TEXT
-      ================================== */}
+      {/* POST TEXT */}
 
       <Link
         href={tweetHref}
@@ -204,9 +184,7 @@ export default function PostCard({
         </p>
       </Link>
 
-      {/* =================================
-          ORIGINAL POST MEDIA
-      ================================== */}
+      {/* POST MEDIA */}
 
       {post.media?.length ? (
         <div className="post-media">
@@ -224,9 +202,7 @@ export default function PostCard({
         </div>
       ) : null}
 
-      {/* =================================
-          ORIGINAL POST DATE
-      ================================== */}
+      {/* POST DATE */}
 
       <small>
         <time
@@ -236,9 +212,7 @@ export default function PostCard({
         </time>
       </small>
 
-      {/* =================================
-          POST INTERACTIONS
-      ================================== */}
+      {/* POST INTERACTIONS */}
 
       <div className="feed-actions">
 
@@ -320,7 +294,7 @@ export default function PostCard({
 
         </span>
 
-        {/* RESHARE AND PIN CONTROLS */}
+        {/* RESHARE AND PIN */}
 
         <PostControls
           tweetId={tweetId}
@@ -336,7 +310,7 @@ export default function PostCard({
           tweetId={tweetId}
         />
 
-        {/* ORIGINAL POST OWNER ACTIONS */}
+        {/* OWNER ACTIONS */}
 
         {canManagePost && (
           <>
@@ -345,23 +319,9 @@ export default function PostCard({
               initialContent={post.content || ''}
             />
 
-            <form action={deleteTweetAction}>
-
-              <input
-                type="hidden"
-                name="tweetId"
-                value={tweetId}
-              />
-
-              <button
-                type="submit"
-                aria-label="Delete post"
-                title="Delete post"
-              >
-                <Trash2 aria-hidden="true" />
-              </button>
-
-            </form>
+            <ConfirmDeletePost
+              tweetId={tweetId}
+            />
           </>
         )}
 
