@@ -154,9 +154,7 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
             ) AS is_following
         FROM tweets t
         JOIN users u ON u.users_id = t.user_id
-        WHERE t.tweet_id = $1
-          AND t.is_deleted = FALSE
-          AND t.deleted_at IS NULL;
+        WHERE t.tweet_id = $1;
     `;
 
     const mainResult = await db.query(mainQuery, [tweetId, viewerId]);
