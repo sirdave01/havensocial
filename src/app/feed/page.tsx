@@ -41,10 +41,14 @@ export default async function FeedPage({
       <section className="feed" aria-label="Posts">
         {feed.length ? feed.map((post: Post) => (
           <PostCard
-            key={String(post.tweet_id)}
-            post={post}
-            author={authorProfiles.get(post.author_sub)}
-            viewerId={user.users_id}
+              key={
+                post.is_reshare
+                  ? `reshare-${post.feed_retweet_id}`
+                  : `tweet-${post.tweet_id}`
+              }
+              post={post}
+              author={authorProfiles.get(post.author_sub)}
+              viewerId={user.users_id}
           />
         )) : <p className="empty-feed">No posts yet.</p>}
       </section>

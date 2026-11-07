@@ -21,6 +21,7 @@ import PostControls from './PostControls';
 import PostEditor from './PostEditor';
 import SharePostButton from './SharePostButton';
 
+
 export type Post = {
   tweet_id: string | number;
   user_id: string | number;
@@ -38,6 +39,14 @@ export type Post = {
   is_following?: boolean;
   is_pinned?: boolean;
 
+  // Reshare information
+  is_reshare?: boolean;
+  feed_retweet_id?: string | number | null;
+  reshared_by_user_id?: string | number | null;
+  reshared_by_sub?: string | null;
+  reshared_at?: string | Date | null;
+  reshare_quote_text?: string | null;
+
   media?: {
     media_id: string | number;
     media_url: string;
@@ -46,6 +55,7 @@ export type Post = {
     alt_text: string | null;
   }[];
 };
+
 
 function count(value: string | number | undefined) {
   return String(value ?? 0);
