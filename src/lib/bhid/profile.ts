@@ -1,10 +1,13 @@
 
 import * as oidc from 'openid-client';
 import type { UserInfoResponse } from 'openid-client';
+
 import { db } from '../../models/db.js';
 import { getHavenSession, hashAppSessionToken } from '../session';
 import { getBhidConfiguration } from '../bhid';
 import { decryptBhidAccessToken } from './token-vault';
+
+// ==================== PROFILE TYPES ====================
 
 export type BhidProfile = {
   sub: string;
@@ -40,12 +43,16 @@ type LegacyBhidSessionRow = {
   bhid_access_token_enc: string;
 };
 
+// ==================== ERRORS ====================
+
 export class BhidUserInfoError extends Error {
   constructor(readonly diagnostic: BhidUserInfoDiagnostic) {
     super('BHID UserInfo request failed');
     this.name = 'BhidUserInfoError';
   }
 }
+
+// ==================== PROFILE HELPERS ====================
 
 function stringClaim(userInfo: UserInfoResponse, claim: string) {
   const value = userInfo[claim];
@@ -71,17 +78,26 @@ function safePictureUrl(value?: string | null): string | undefined {
   return undefined;
 }
 
-function profileFromUserInfo(userInfo: UserInfoResponse): BhidProfile {
+function profileFromUserInfo(
+  userInfo: UserInfoResponse,
+): BhidProfile {
   return {
     sub: userInfo.sub,
     name: stringClaim(userInfo, 'name'),
-    preferredUsername: stringClaim(userInfo, 'preferred_username'),
-    picture: safePictureUrl(stringClaim(userInfo, 'picture')),
+    preferredUsername: stringClaim(
+      userInfo,
+      'preferred_username',
+    ),
+    picture: safePictureUrl(
+      stringClaim(userInfo, 'picture'),
+    ),
     bio: stringClaim(userInfo, 'bio'),
   };
 }
 
-function profileFromCache(row: CachedBhidProfileRow): BhidProfile {
+function profileFromCache(
+  row: CachedBhidProfileRow,
+): BhidProfile {
   return {
     sub: row.sub,
     name: row.name ?? undefined,
@@ -104,24 +120,36 @@ function diagnosticFor(
     claimNames,
     picturePresent: claimNames.includes('picture'),
     namePresent: claimNames.includes('name'),
-    preferredUsernamePresent: claimNames.includes('preferred_username'),
+    preferredUsernamePresent: claimNames.includes(
+      'preferred_username',
+    ),
     bioPresent: claimNames.includes('bio'),
-    verificationPresent: claimNames.some((claim) => /verif/i.test(claim)),
+    verificationPresent: claimNames.some(
+      (claim) => /verif/i.test(claim),
+    ),
   };
 }
 
+// ==================== BHID USERINFO ====================
+
 /**
- * Retrieves the current user's authorized profile claims from BHID.
+ * Retrieves the authorized profile claims belonging to the
+ * subject represented by the supplied BHID access token.
  */
 export async function resolveBhidProfileWithDiagnostic(
   config: oidc.Configuration,
   accessToken: string,
   expectedSubject: string,
-): Promise<{ profile: BhidProfile; diagnostic: BhidUserInfoDiagnostic }> {
+): Promise<{
+  profile: BhidProfile;
+  diagnostic: BhidUserInfoDiagnostic;
+}> {
   const endpoint = config.serverMetadata().userinfo_endpoint;
 
   if (!endpoint || new URL(endpoint).protocol !== 'https:') {
-    throw new Error('BHID UserInfo endpoint must be advertised over HTTPS');
+    throw new Error(
+      'BHID UserInfo endpoint must be advertised over HTTPS',
+    );
   }
 
   const response = await fetch(endpoint, {
@@ -149,7 +177,11 @@ export async function resolveBhidProfileWithDiagnostic(
     );
   }
 
-  if (!claims || typeof claims !== 'object' || Array.isArray(claims)) {
+  if (
+    !claims ||
+    typeof claims !== 'object' ||
+    Array.isArray(claims)
+  ) {
     throw new BhidUserInfoError(
       diagnosticFor(response.status, false, false, []),
     );
@@ -184,22 +216,35 @@ export async function resolveBhidProfile(
   accessToken: string,
   expectedSubject: string,
 ): Promise<BhidProfile> {
-  const { profile } = await resolveBhidProfileWithDiagnostic(
-    config,
-    accessToken,
-    expectedSubject,
-  );
+  const { profile } =
+    await resolveBhidProfileWithDiagnostic(
+      config,
+      accessToken,
+      expectedSubject,
+    );
 
   return profile;
 }
 
+// ==================== PERSISTENT PROFILE CACHE ====================
+
 /**
- * Saves or refreshes a BHID profile snapshot in HavenSocial's Neon database.
+ * Saves or refreshes a BHID profile snapshot in HavenSocial's
+ * Neon database.
  *
  * BHID remains the source of truth.
- * HavenSocial stores only the profile information needed for display.
+ * HavenSocial stores only the profile information needed
+ * for displaying user identities.
  */
-export async function saveBhidProfileSnapshot(profile: BhidProfile) {
+export async function saveBhidProfileSnapshot(
+  profile: BhidProfile,
+) {
+  if (!profile.sub) {
+    throw new Error(
+      'Cannot save a BHID profile without a subject',
+    );
+  }
+
   await db.query(
     `INSERT INTO bhid_profile_cache (
        bhid_sub,
@@ -228,16 +273,20 @@ export async function saveBhidProfileSnapshot(profile: BhidProfile) {
 }
 
 /**
- * Reads persistent profile snapshots.
+ * Reads persistent profile snapshots from Neon.
  *
- * Notice that this query does not depend on app_sessions.
- * Therefore, a user's HavenSocial login session can expire
- * without their cached profile disappearing.
+ * This query deliberately does not depend on app_sessions.
+ * A user's expired or revoked login session therefore does
+ * not remove their previously saved profile information.
  */
-async function getCachedBhidProfiles(subjects: string[]) {
+async function getCachedBhidProfiles(
+  subjects: string[],
+): Promise<Map<string, BhidProfile>> {
   const profiles = new Map<string, BhidProfile>();
 
-  if (!subjects.length) return profiles;
+  if (!subjects.length) {
+    return profiles;
+  }
 
   const result = await db.query<CachedBhidProfileRow>(
     `SELECT
@@ -247,29 +296,40 @@ async function getCachedBhidProfiles(subjects: string[]) {
        p.picture,
        p.bio
      FROM bhid_profile_cache p
-     JOIN users u ON u.bhid_sub = p.bhid_sub
+     JOIN users u
+       ON u.bhid_sub = p.bhid_sub
      WHERE p.bhid_sub = ANY($1::text[])
        AND u.app_status = 'ACTIVE'`,
     [subjects],
   );
 
   for (const row of result.rows) {
-    profiles.set(row.sub, profileFromCache(row));
+    profiles.set(
+      row.sub,
+      profileFromCache(row),
+    );
   }
 
   return profiles;
 }
 
+// ==================== CURRENT USER PROFILE ====================
+
 /**
  * Returns the current user's profile.
  *
- * Cached information is returned even when the BHID access token
- * has expired. If a valid token is still available, the snapshot
- * is refreshed from BHID.
+ * Cached information remains available when the BHID token
+ * expires. When a valid token exists, the profile is refreshed
+ * and its snapshot is updated.
  */
-export async function getCurrentBhidProfile(expectedSubject: string) {
-  const cachedProfiles = await getCachedBhidProfiles([expectedSubject]);
-  const cachedProfile = cachedProfiles.get(expectedSubject) ?? null;
+export async function getCurrentBhidProfile(
+  expectedSubject: string,
+): Promise<BhidProfile | null> {
+  const cachedProfiles =
+    await getCachedBhidProfiles([expectedSubject]);
+
+  const cachedProfile =
+    cachedProfiles.get(expectedSubject) ?? null;
 
   const session = await getHavenSession();
 
@@ -287,13 +347,17 @@ export async function getCurrentBhidProfile(expectedSubject: string) {
        s.bhid_access_token_enc,
        s.bhid_access_token_expires_at
      FROM app_sessions s
-     JOIN users u ON u.users_id = s.user_id
+     JOIN users u
+       ON u.users_id = s.user_id
      WHERE s.session_token_hash = $1
        AND s.revoked_at IS NULL
        AND s.expires_at > CURRENT_TIMESTAMP
        AND u.app_status = 'ACTIVE'
        AND u.bhid_sub = $2`,
-    [hashAppSessionToken(session.appSessionToken), expectedSubject],
+    [
+      hashAppSessionToken(session.appSessionToken),
+      expectedSubject,
+    ],
   );
 
   const row = result.rows[0];
@@ -304,7 +368,9 @@ export async function getCurrentBhidProfile(expectedSubject: string) {
 
   if (
     row.bhid_access_token_expires_at &&
-    new Date(row.bhid_access_token_expires_at).valueOf() <= Date.now()
+    new Date(
+      row.bhid_access_token_expires_at,
+    ).valueOf() <= Date.now()
   ) {
     await db.query(
       `UPDATE app_sessions
@@ -334,9 +400,15 @@ export async function getCurrentBhidProfile(expectedSubject: string) {
     try {
       await saveBhidProfileSnapshot(profile);
     } catch (error) {
-      console.error('Could not refresh current BHID profile cache:', {
-        errorName: error instanceof Error ? error.name : 'NonError',
-      });
+      console.error(
+        'Could not refresh current BHID profile cache:',
+        {
+          errorName:
+            error instanceof Error
+              ? error.name
+              : 'NonError',
+        },
+      );
     }
 
     return profile;
@@ -359,34 +431,52 @@ export async function getCurrentBhidProfile(expectedSubject: string) {
       return cachedProfile;
     }
 
-    console.warn('Could not refresh current BHID profile:', {
-      errorName: error instanceof Error ? error.name : 'NonError',
-    });
+    console.warn(
+      'Could not refresh current BHID profile:',
+      {
+        errorName:
+          error instanceof Error
+            ? error.name
+            : 'NonError',
+      },
+    );
 
     return cachedProfile;
   }
 }
 
+// ==================== MULTIPLE USER PROFILES ====================
+
 /**
- * Returns profiles for feed authors, reply authors and reshare authors.
+ * Retrieves profiles for feed authors, reply authors,
+ * reshare authors, followers and following accounts.
  *
- * First reads the persistent cache.
- * For profiles not yet cached, it temporarily uses the existing
- * active-session UserInfo mechanism to populate the cache.
+ * 1. Reads saved profiles first.
+ * 2. Identifies profiles that are missing.
+ * 3. Attempts to retrieve missing profiles using existing,
+ *    active HavenSocial sessions with usable BHID tokens.
+ * 4. Saves successfully retrieved profiles into Neon.
  *
- * Once cached, a profile no longer depends on its owner's session.
+ * Once a profile has been cached, its owner's active session
+ * is no longer needed for subsequent display.
  */
-export async function getBhidProfiles(subjects: string[]) {
+export async function getBhidProfiles(
+  subjects: string[],
+): Promise<Map<string, BhidProfile>> {
   const uniqueSubjects = [
     ...new Set(
       subjects
-        .filter((subject) => typeof subject === 'string')
+        .filter(
+          (subject): subject is string =>
+            typeof subject === 'string',
+        )
         .map((subject) => subject.trim())
         .filter(Boolean),
     ),
   ];
 
-  const profiles = await getCachedBhidProfiles(uniqueSubjects);
+  const profiles =
+    await getCachedBhidProfiles(uniqueSubjects);
 
   const missingSubjects = uniqueSubjects.filter(
     (subject) => !profiles.has(subject),
@@ -396,14 +486,15 @@ export async function getBhidProfiles(subjects: string[]) {
     return profiles;
   }
 
-  // Transitional fallback for profiles that have not yet been cached.
+  // Find existing usable BHID access tokens for missing profiles.
   const result = await db.query<LegacyBhidSessionRow>(
     `SELECT DISTINCT ON (u.bhid_sub)
        u.bhid_sub,
        s.session_id,
        s.bhid_access_token_enc
      FROM users u
-     JOIN app_sessions s ON s.user_id = u.users_id
+     JOIN app_sessions s
+       ON s.user_id = u.users_id
      WHERE u.bhid_sub = ANY($1::text[])
        AND u.app_status = 'ACTIVE'
        AND s.revoked_at IS NULL
@@ -429,9 +520,15 @@ export async function getBhidProfiles(subjects: string[]) {
   try {
     config = await getBhidConfiguration();
   } catch (error) {
-    console.warn('Could not initialize BHID profile lookup:', {
-      errorName: error instanceof Error ? error.name : 'NonError',
-    });
+    console.warn(
+      'Could not initialize BHID profile lookup:',
+      {
+        errorName:
+          error instanceof Error
+            ? error.name
+            : 'NonError',
+      },
+    );
 
     return profiles;
   }
@@ -439,33 +536,54 @@ export async function getBhidProfiles(subjects: string[]) {
   await Promise.all(
     result.rows.map(async (row) => {
       try {
+        // Decrypt this user's existing BHID access token.
         const accessToken = decryptBhidAccessToken(
           row.bhid_access_token_enc,
           row.session_id,
         );
 
+        // Retrieve the profile for the matching BHID subject.
+        // IMPORTANT: Use accessToken, not tokens.accessToken.
         const profile = await resolveBhidProfile(
           config,
           accessToken,
           row.bhid_sub,
         );
 
+        // Make the profile immediately available to the caller.
         profiles.set(row.bhid_sub, profile);
 
+        // Persist the profile for future offline display.
         try {
           await saveBhidProfileSnapshot(profile);
         } catch (error) {
-          console.error('Could not save BHID profile snapshot:', {
-            errorName: error instanceof Error ? error.name : 'NonError',
-          });
+          console.error(
+            'Could not save BHID profile snapshot:',
+            {
+              subject: row.bhid_sub,
+              errorName:
+                error instanceof Error
+                  ? error.name
+                  : 'NonError',
+            },
+          );
         }
       } catch (error) {
-        console.warn('Could not resolve a BHID post author profile:', {
-          errorName: error instanceof Error ? error.name : 'NonError',
-          ...(error instanceof BhidUserInfoError
-            ? { status: error.diagnostic.httpStatus }
-            : {}),
-        });
+        console.warn(
+          'Could not resolve a BHID post author profile:',
+          {
+            subject: row.bhid_sub,
+            errorName:
+              error instanceof Error
+                ? error.name
+                : 'NonError',
+            ...(error instanceof BhidUserInfoError
+              ? {
+                  status: error.diagnostic.httpStatus,
+                }
+              : {}),
+          },
+        );
       }
     }),
   );
