@@ -7,6 +7,7 @@ import {
 import NotificationList, {
   type NotificationListItem,
 } from '../components/NotificationList';
+import NotificationPushSettings from '../components/NotificationPushSettings';
 
 export default async function NotificationsPage() {
   const user = await requireLinkedUser();
@@ -55,6 +56,7 @@ export default async function NotificationsPage() {
   return (
     <main className="feed-page">
       <h1>Notifications</h1>
+      <NotificationPushSettings />
       <NotificationList
         initialNotifications={items}
         initialUnreadCount={unreadCount}

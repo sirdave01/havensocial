@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { sendUserPushNotification } from './push-notification.js';
 
 /**
  * Create a notification for a recipient.
@@ -36,15 +37,25 @@ const createNotification = async (
 
   const executor = client || db;
   const result = await executor.query(query, [userId, actorId, type, tweetId]);
-  return result.rows[0] ?? null;
+  const notification = result.rows[0] ?? null;
+
+  if (notification) {
+    // Push is best-effort: a push-provider failure must never undo the
+    // notification stored in Neon. This is awaited so serverless execution
+    // does not discard a fire-and-forget request at the end of the response.
+    await sendUserPushNotification({
+      userId,
+      actorId,
+      type,
+      tweetId,
+      notificationId: notification.notifications_id,
+    });
+  }
+
+  return notification;
 };
 
-/**
- * Retrieve the newest notifications for a user.
- *
- * @param {number|string} userId
- * @param {number} [limit]
- */
+/** Retrieve the newest notifications for a user. */
 const getNotifications = async (userId, limit = 20) => {
   const safeLimit = Number.isInteger(limit)
     ? Math.min(Math.max(limit, 1), 100)
@@ -67,10 +78,7 @@ const getNotifications = async (userId, limit = 20) => {
   return result.rows;
 };
 
-/**
- * Return the unread notification count for a user.
- * @param {number|string} userId
- */
+/** Return the unread notification count for a user. */
 const getUnreadNotificationCount = async (userId) => {
   const result = await db.query(
     `SELECT COUNT(*)::int AS count
@@ -82,11 +90,7 @@ const getUnreadNotificationCount = async (userId) => {
   return Number(result.rows[0]?.count ?? 0);
 };
 
-/**
- * Mark one notification as read, scoped to its owner.
- * @param {number|string} notificationId
- * @param {number|string} userId
- */
+/** Mark one notification as read, scoped to its owner. */
 const markAsRead = async (notificationId, userId) => {
   const result = await db.query(
     `UPDATE notifications
@@ -101,10 +105,7 @@ const markAsRead = async (notificationId, userId) => {
   return result.rows[0] ?? null;
 };
 
-/**
- * Mark all of a user's unread notifications as read.
- * @param {number|string} userId
- */
+/** Mark all of a user's unread notifications as read. */
 const markAllAsRead = async (userId) => {
   const result = await db.query(
     `UPDATE notifications
