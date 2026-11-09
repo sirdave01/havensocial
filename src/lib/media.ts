@@ -1,4 +1,3 @@
-
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -11,7 +10,6 @@ import {
   S3ServiceException,
   type HeadObjectCommandOutput,
 } from '@aws-sdk/client-s3';
-
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { fromWebToken } from '@aws-sdk/credential-providers';
 import { getVercelOidcToken } from '@vercel/oidc';
@@ -60,9 +58,9 @@ const allowedTypes: Record<
 };
 
 const MAX_POST_MEDIA_SIZE = 15 * 1024 * 1024;
+const PRESIGNED_UPLOAD_URL_TTL_SECONDS = 30 * 60;
 
 const LOCAL_MEDIA_PREFIX = 'local/posts/';
-
 const LOCAL_MEDIA_DIRECTORY = join(
   process.cwd(),
   'public',
@@ -71,7 +69,6 @@ const LOCAL_MEDIA_DIRECTORY = join(
 );
 
 export class MediaValidationError extends Error {}
-
 export class MediaStorageConfigurationError extends Error {}
 
 let client: S3Client | undefined;
@@ -98,12 +95,10 @@ let client: S3Client | undefined;
  */
 function getStorageConfig() {
   const bucket = process.env.S3_BUCKET_NAME?.trim();
-
   const region =
     process.env.S3_REGION ||
     process.env.AWS_REGION ||
     'us-east-1';
-
   const endpoint = process.env.S3_ENDPOINT || undefined;
 
   const configuredPublicBaseUrl =
@@ -171,7 +166,6 @@ function getStorageConfig() {
 async function getVercelAwsCredentials(roleArn: string) {
   try {
     const webIdentityToken = await getVercelOidcToken();
-
     const credentialsProvider = fromWebToken({
       roleArn,
       webIdentityToken,
@@ -194,12 +188,9 @@ async function getVercelAwsCredentials(roleArn: string) {
 /**
  * Creates the S3 client.
  *
- * Vercel:
- * Uses OIDC and the configured AWS IAM role.
- *
- * Local development:
- * Uses explicit AWS credentials when supplied.
- * Otherwise, the AWS SDK default credential chain is used.
+ * Vercel uses OIDC and the configured AWS IAM role.
+ * Local development uses explicit AWS credentials when supplied,
+ * otherwise the AWS SDK default credential chain is used.
  */
 function getClient() {
   if (!client) {
@@ -209,9 +200,8 @@ function getClient() {
       region: config.region,
       endpoint: config.endpoint,
       forcePathStyle: Boolean(config.endpoint),
-
-      // Avoid automatic optional checksum calculation
-      // when generating presigned upload URLs.
+      // Avoid optional checksum calculation adding upload headers
+      // that the browser would otherwise need to send and sign.
       requestChecksumCalculation: 'WHEN_REQUIRED' as const,
     };
 
@@ -244,7 +234,8 @@ function getClient() {
  * Validates media type and declared size.
  */
 function validateUpload(contentType: string, size: number) {
-  const media = allowedTypes[contentType];
+  const normalizedType = contentType.trim().toLowerCase();
+  const media = allowedTypes[normalizedType];
 
   if (!media) {
     throw new MediaValidationError('Unsupported media type');
@@ -260,7 +251,10 @@ function validateUpload(contentType: string, size: number) {
     );
   }
 
-  return media;
+  return {
+    ...media,
+    contentType: normalizedType,
+  };
 }
 
 /**
@@ -307,7 +301,6 @@ function isMissingCredentials(error: unknown) {
 
 /**
  * Creates a local upload URL.
- *
  * This fallback is only for development.
  */
 function createLocalMediaUpload(
@@ -316,7 +309,6 @@ function createLocalMediaUpload(
   size: number,
 ) {
   const media = validateUpload(contentType, size);
-
   const key =
     `${LOCAL_MEDIA_PREFIX}${media.folder}/${ownerId}/${randomUUID()}.${media.extension}`;
 
@@ -324,7 +316,7 @@ function createLocalMediaUpload(
     uploadUrl: `/media/upload?key=${encodeURIComponent(key)}`,
     key,
     publicUrl: '',
-    contentType,
+    contentType: media.contentType,
     mediaType: media.mediaType,
   };
 }
@@ -344,12 +336,12 @@ function publicUrl(key: string) {
 /**
  * Creates an upload URL.
  *
- * Production:
- * Generates a presigned S3 upload URL.
+ * Production generates a presigned S3 upload URL.
+ * Development falls back to local storage if S3 configuration
+ * or credentials are unavailable.
  *
- * Development:
- * Falls back to local storage if S3 configuration or
- * credentials are unavailable.
+ * The URL lasts 30 minutes to support slower mobile connections.
+ * The browser upload timeout is shorter than this validity window.
  */
 export async function createMediaUpload(
   ownerId: string | number,
@@ -360,37 +352,29 @@ export async function createMediaUpload(
 
   try {
     const config = getStorageConfig();
-
     const key =
       `posts/${media.folder}/${ownerId}/${randomUUID()}.${media.extension}`;
 
-    /**
-     * IMPORTANT:
-     * ContentLength is intentionally omitted.
-     *
-     * Signing Content-Length can create browser compatibility
-     * problems because browsers control this request header.
-     *
-     * The actual uploaded file size is checked during
-     * confirmUploadedMedia().
-     */
+    // ContentLength is intentionally omitted. Browsers control this
+    // request header, and signing it can cause browser compatibility issues.
+    // The actual uploaded size is checked by confirmUploadedMedia().
     const command = new PutObjectCommand({
       Bucket: config.bucket,
       Key: key,
-      ContentType: contentType,
+      ContentType: media.contentType,
     });
 
     const uploadUrl = await getSignedUrl(
       getClient(),
       command,
-      { expiresIn: 300 },
+      { expiresIn: PRESIGNED_UPLOAD_URL_TTL_SECONDS },
     );
 
     return {
       uploadUrl,
       key,
       publicUrl: publicUrl(key),
-      contentType,
+      contentType: media.contentType,
       mediaType: media.mediaType,
     };
   } catch (error) {
@@ -403,7 +387,7 @@ export async function createMediaUpload(
     ) {
       return createLocalMediaUpload(
         ownerId,
-        contentType,
+        media.contentType,
         size,
       );
     }
@@ -420,7 +404,6 @@ export async function createMediaUpload(
 
 /**
  * Saves uploaded files to the local filesystem.
- *
  * Used only by the local development fallback route.
  */
 export async function saveLocalMedia(
@@ -429,20 +412,16 @@ export async function saveLocalMedia(
   contentType: string,
   bytes: Uint8Array,
 ) {
-  const media = validateUpload(
-    contentType,
-    bytes.byteLength,
-  );
-
+  const media = validateUpload(contentType, bytes.byteLength);
   const { id, extension, mediaEntry } =
     getLocalMediaDetails(key, ownerId);
 
   const [expectedType, expectedMedia] = mediaEntry;
 
   if (
-    expectedType !== contentType ||
+    expectedType !== media.contentType ||
     expectedMedia.mediaType !== media.mediaType ||
-    !hasExpectedSignature(bytes, contentType)
+    !hasExpectedSignature(bytes, media.contentType)
   ) {
     throw new MediaValidationError(
       'Uploaded media content does not match its declared type',
@@ -483,9 +462,7 @@ export async function confirmUploadedMedia(
       getLocalMediaDetails(key, ownerId);
 
     const [mimeType, media] = mediaEntry;
-
     const filename = `${id}.${extension}`;
-
     let bytes: Buffer;
 
     try {
@@ -528,7 +505,6 @@ export async function confirmUploadedMedia(
 
   // AMAZON S3
   const config = getStorageConfig();
-
   const match =
     /^posts\/(images|videos|gifs)\/([^/]+)\/([0-9a-f-]{36})\.([a-z0-9]+)$/i.exec(
       key,
@@ -551,8 +527,6 @@ export async function confirmUploadedMedia(
   }
 
   const [expectedType, media] = mediaEntry;
-
-  // Retrieve the uploaded object's metadata.
   let head: HeadObjectCommandOutput;
 
   try {
@@ -575,7 +549,6 @@ export async function confirmUploadedMedia(
     throw error;
   }
 
-  // Verify actual size and MIME type.
   if (
     head.ContentLength === undefined ||
     head.ContentLength < 1 ||
@@ -596,8 +569,7 @@ export async function confirmUploadedMedia(
     }),
   );
 
-  const signature =
-    await object.Body?.transformToByteArray();
+  const signature = await object.Body?.transformToByteArray();
 
   if (
     !signature ||
@@ -618,8 +590,8 @@ export async function confirmUploadedMedia(
 }
 
 /**
- * Validates file signatures rather than trusting
- * the browser-provided Content-Type header alone.
+ * Validates file signatures rather than trusting the browser-provided
+ * Content-Type header alone.
  */
 function hasExpectedSignature(
   bytes: Uint8Array,

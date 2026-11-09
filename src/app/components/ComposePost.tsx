@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -9,12 +8,14 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from 'react';
+
 import IdentityAvatar from './IdentityAvatar';
 
 const MAX_CONTENT_LENGTH = 25000;
 const MAX_MEDIA_PER_POST = 4;
 const MAX_MEDIA_SIZE = 15 * 1024 * 1024;
-const S3_UPLOAD_TIMEOUT = 300000; // 5 minutes
+const S3_UPLOAD_TIMEOUT = 10 * 60 * 1000; // 10 minutes per attempt
+const S3_UPLOAD_MAX_ATTEMPTS = 2;
 
 const ACCEPTED_MEDIA_TYPES = [
   'image/jpeg',
@@ -58,6 +59,26 @@ type PreparedMedia = {
   contentType: string;
 };
 
+class MediaUploadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MediaUploadError';
+  }
+}
+
+class S3UploadError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly retryable: boolean,
+    readonly timedOut = false,
+    readonly responseSnippet?: string,
+  ) {
+    super(message);
+    this.name = 'S3UploadError';
+  }
+}
+
 const MIME_BY_EXTENSION: Record<string, string> = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
@@ -87,12 +108,11 @@ function getSupportedContentType(file: File): string | null {
   const extension = getFileExtension(file);
   const mime = file.type.toLowerCase().split(';')[0].trim();
 
-  // HEIC/HEIF files are converted to JPEG before uploading.
+  // HEIC/HEIF photographs are converted to JPEG before uploading.
   if (isHeicFile(file)) {
     return 'image/heic';
   }
 
-  // Preserve MOV as QuickTime.
   if (extension === 'mov' || mime === 'video/quicktime') {
     return 'video/quicktime';
   }
@@ -115,25 +135,20 @@ async function prepareMediaForUpload(
   const originalType = getSupportedContentType(originalFile);
 
   if (!originalType) {
-    throw new Error(
-      `${originalFile.name}: unsupported media format.`,
+    throw new MediaUploadError(
+      `${originalFile.name}: unsupported media format. Choose an image or video in a supported format.`,
     );
   }
 
-  if (
-    originalFile.size < 1 ||
-    originalFile.size > MAX_MEDIA_SIZE
-  ) {
-    throw new Error(
-      `${originalFile.name}: media must be between 1 byte and 15 MB.`,
+  if (originalFile.size < 1 || originalFile.size > MAX_MEDIA_SIZE) {
+    throw new MediaUploadError(
+      `${originalFile.name}: each file must be 15 MB or smaller.`,
     );
   }
 
-  // Convert iPhone HEIC/HEIF photographs to JPEG.
   if (isHeicFile(originalFile)) {
     try {
       const heicModule = await import('heic2any');
-
       const converted = await heicModule.default({
         blob: originalFile,
         toType: 'image/jpeg',
@@ -149,32 +164,29 @@ async function prepareMediaForUpload(
       }
 
       if (jpegBlob.size > MAX_MEDIA_SIZE) {
-        throw new Error(
-          'The converted JPEG exceeds the 15 MB upload limit.',
-        );
+        throw new Error('The converted image is larger than 15 MB.');
       }
 
       const newFilename =
         originalFile.name.replace(/\.(heic|heif)$/i, '') + '.jpg';
 
-      const jpegFile = new File(
-        [jpegBlob],
-        newFilename,
-        {
-          type: 'image/jpeg',
-          lastModified: originalFile.lastModified,
-        },
-      );
+      const jpegFile = new File([jpegBlob], newFilename, {
+        type: 'image/jpeg',
+        lastModified: originalFile.lastModified,
+      });
 
       return {
         file: jpegFile,
         contentType: 'image/jpeg',
       };
     } catch (error) {
-      console.error('HEIC/HEIF conversion failed:', error);
+      console.error('HEIC/HEIF conversion failed:', {
+        fileName: originalFile.name,
+        errorName: error instanceof Error ? error.name : 'NonError',
+      });
 
-      throw new Error(
-        `Could not convert ${originalFile.name} into JPEG. Please try another photograph.`,
+      throw new MediaUploadError(
+        `We couldn't prepare ${originalFile.name}. Please try another photograph.`,
       );
     }
   }
@@ -185,9 +197,7 @@ async function prepareMediaForUpload(
   };
 }
 
-async function readResponse<T>(
-  response: Response,
-): Promise<T | null> {
+async function readResponse<T>(response: Response): Promise<T | null> {
   try {
     return (await response.json()) as T;
   } catch {
@@ -195,14 +205,51 @@ async function readResponse<T>(
   }
 }
 
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+function getUploadUrlErrorMessage(status: number) {
+  if (status === 401) {
+    return 'Your session has expired. Please sign in again.';
+  }
+
+  if (status === 413) {
+    return 'This file is too large. Please choose a file of 15 MB or less.';
+  }
+
+  if (status === 503 || status >= 500) {
+    return 'Media uploads are temporarily unavailable. Please try again shortly.';
+  }
+
+  return "We couldn't prepare this file for upload. Please try another file.";
+}
+
+function getS3UserMessage(error: S3UploadError) {
+  if (error.timedOut) {
+    return 'The upload is taking too long. Check your connection or try a smaller file.';
+  }
+
+  if (error.status === 0) {
+    return "We couldn't connect to upload your media. Check your internet connection and try again.";
+  }
+
+  if (error.status === 403 || error.status === 401) {
+    return 'The media upload was not authorized. Please try again. If it keeps happening, contact support.';
+  }
+
+  if (error.status === 408 || error.status === 429 || error.status >= 500) {
+    return 'The media service is temporarily unavailable. Please try again.';
+  }
+
+  return "We couldn't upload this file. Please try again or choose another file.";
+}
+
 /**
- * Uploads directly to S3 using XMLHttpRequest.
- *
- * Provides:
- * - HTTP status diagnostics
- * - Upload timeout
- * - Upload progress
- * - Better network error reporting
+ * Uploads directly to S3 using XMLHttpRequest so upload progress
+ * remains available in the browser.
  */
 function uploadToS3(
   uploadUrl: string,
@@ -212,11 +259,17 @@ function uploadToS3(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let settled = false;
+
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
 
     xhr.open('PUT', uploadUrl, true);
     xhr.withCredentials = false;
     xhr.timeout = S3_UPLOAD_TIMEOUT;
-
     xhr.setRequestHeader('Content-Type', contentType);
 
     xhr.upload.onprogress = (event) => {
@@ -224,7 +277,6 @@ function uploadToS3(
         const percentage = Math.round(
           (event.loaded / event.total) * 100,
         );
-
         onProgress(percentage);
       }
     };
@@ -232,45 +284,69 @@ function uploadToS3(
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         onProgress?.(100);
-        resolve();
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
         return;
       }
 
-      reject(
-        new Error(
-          `AWS S3 rejected the upload. HTTP ${xhr.status}: ${
-            xhr.responseText?.slice(0, 250) ||
-            'No response details available.'
-          }`,
+      const retryable =
+        xhr.status === 408 ||
+        xhr.status === 429 ||
+        xhr.status >= 500;
+
+      fail(
+        new S3UploadError(
+          `S3 returned HTTP ${xhr.status}.`,
+          xhr.status,
+          retryable,
+          false,
+          xhr.responseText?.slice(0, 250),
         ),
       );
     };
 
     xhr.onerror = () => {
-      reject(
-        new Error(
-          `The browser could not complete the S3 request (HTTP ${xhr.status}). Possible causes include CORS, a network interruption or a failed connection.`,
+      fail(
+        new S3UploadError(
+          'The browser could not complete the upload request.',
+          xhr.status,
+          true,
         ),
       );
     };
 
     xhr.ontimeout = () => {
-      reject(
-        new Error(
-          'The S3 upload timed out after five minutes. Check your connection and try again.',
+      fail(
+        new S3UploadError(
+          'The upload request timed out.',
+          xhr.status,
+          true,
+          true,
         ),
       );
     };
 
     xhr.onabort = () => {
-      reject(new Error('The S3 upload was cancelled.'));
+      fail(
+        new S3UploadError(
+          'The upload was cancelled.',
+          xhr.status,
+          false,
+        ),
+      );
     };
 
     try {
       xhr.send(file);
     } catch {
-      reject(
-        new Error('The browser could not start the S3 upload.'),
+      fail(
+        new S3UploadError(
+          'The browser could not start the upload.',
+          xhr.status,
+          true,
+        ),
       );
     }
   });
@@ -284,7 +360,6 @@ export default function ComposePost({
   avatarUrl?: string;
 }) {
   const router = useRouter();
-
   const submitting = useRef(false);
   const mediaInput = useRef<HTMLInputElement>(null);
 
@@ -301,7 +376,6 @@ export default function ComposePost({
   function chooseFiles(event: ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(event.target.files || []);
     const availableSlots = MAX_MEDIA_PER_POST - files.length;
-
     const accepted: File[] = [];
     const problems: string[] = [];
 
@@ -322,7 +396,7 @@ export default function ComposePost({
 
       if (file.size < 1 || file.size > MAX_MEDIA_SIZE) {
         problems.push(
-          `${file.name}: each attachment must be between 1 byte and 15 MB.`,
+          `${file.name}: each attachment must be 15 MB or smaller.`,
         );
         continue;
       }
@@ -345,11 +419,10 @@ export default function ComposePost({
     originalFile: File,
     onProgress?: (percentage: number) => void,
   ): Promise<UploadedMedia> {
-    // Prepare the file before requesting an upload URL.
     const { file, contentType } =
       await prepareMediaForUpload(originalFile);
 
-    // STEP 1: Request an upload URL from HavenSocial.
+    // Request a fresh presigned URL for this file.
     let response: Response;
 
     try {
@@ -367,53 +440,91 @@ export default function ComposePost({
         }),
       });
     } catch {
-      throw new Error(
-        `Could not connect to HavenSocial while preparing ${file.name}. Check your internet connection.`,
+      throw new MediaUploadError(
+        "We couldn't connect to HavenSocial to prepare your upload. Check your connection and try again.",
       );
     }
 
     const result = await readResponse<UploadUrlResult>(response);
 
     if (!response.ok) {
-      throw new Error(
-        result?.message ||
-          `Could not prepare ${file.name} for upload (HTTP ${response.status}).`,
-      );
-    }
-
-    if (!result?.uploadUrl || !result?.key) {
-      throw new Error(
-        `HavenSocial returned an incomplete upload response for ${file.name}.`,
-      );
-    }
-
-    // STEP 2: Upload directly to Amazon S3.
-    try {
-      await uploadToS3(
-        result.uploadUrl,
-        file,
-        contentType,
-        onProgress,
-      );
-    } catch (error) {
-      // Never log the presigned URL: it contains temporary
-      // upload authorization information.
-      console.error('HavenSocial S3 upload failure:', {
+      console.error('HavenSocial could not create an upload URL:', {
+        status: response.status,
         fileName: file.name,
         contentType,
         fileSize: file.size,
-        error:
-          error instanceof Error ? error.message : 'Unknown error',
       });
 
-      throw error instanceof Error
-        ? error
-        : new Error('Could not upload media to AWS S3.');
+      throw new MediaUploadError(
+        getUploadUrlErrorMessage(response.status),
+      );
     }
 
-    return {
-      key: result.key,
-    };
+    if (!result?.uploadUrl || !result.key) {
+      throw new MediaUploadError(
+        "HavenSocial couldn't prepare this file. Please try again.",
+      );
+    }
+
+    // Retry only temporary network, timeout, throttling or server failures.
+    for (
+      let attempt = 1;
+      attempt <= S3_UPLOAD_MAX_ATTEMPTS;
+      attempt += 1
+    ) {
+      try {
+        onProgress?.(0);
+        await uploadToS3(
+          result.uploadUrl,
+          file,
+          contentType,
+          onProgress,
+        );
+
+        return { key: result.key };
+      } catch (error) {
+        const uploadError =
+          error instanceof S3UploadError
+            ? error
+            : new S3UploadError(
+                'Unexpected S3 upload failure.',
+                0,
+                false,
+              );
+
+        console.warn('HavenSocial S3 upload attempt failed:', {
+          attempt,
+          maxAttempts: S3_UPLOAD_MAX_ATTEMPTS,
+          fileName: file.name,
+          contentType,
+          fileSize: file.size,
+          status: uploadError.status,
+          timedOut: uploadError.timedOut,
+          retryable: uploadError.retryable,
+          responseSnippet: uploadError.responseSnippet,
+        });
+
+        const shouldRetry =
+          uploadError.retryable &&
+          attempt < S3_UPLOAD_MAX_ATTEMPTS;
+
+        if (shouldRetry) {
+          setUploadProgress(
+            `Connection interrupted. Retrying ${file.name}...`,
+          );
+          await wait(1200 * attempt);
+          continue;
+        }
+
+        throw new MediaUploadError(
+          getS3UserMessage(uploadError),
+        );
+      }
+    }
+
+    throw new MediaUploadError(
+      "We couldn't upload this file. Please try again.",
+    );
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -444,8 +555,8 @@ export default function ComposePost({
     try {
       const uploadedMedia: UploadedMedia[] = [];
 
-      // Upload sequentially to improve reliability on mobile.
-      for (let index = 0; index < files.length; index++) {
+      // Upload sequentially to reduce simultaneous network demand on mobile.
+      for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
 
         setUploadProgress(
@@ -461,7 +572,7 @@ export default function ComposePost({
         uploadedMedia.push(uploaded);
       }
 
-      // STEP 3: Publish after every upload succeeds.
+      // Publish only after every media upload has succeeded.
       setUploadProgress('Publishing your post...');
 
       let response: Response;
@@ -470,6 +581,7 @@ export default function ComposePost({
         response = await fetch('/tweets', {
           method: 'POST',
           credentials: 'same-origin',
+          cache: 'no-store',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -483,18 +595,33 @@ export default function ComposePost({
           }),
         });
       } catch {
-        throw new Error(
-          'Your media was uploaded, but HavenSocial could not connect to publish the post. Check your connection before retrying.',
+        throw new MediaUploadError(
+          'Your media uploaded, but we could not publish the post. Check your connection and try again.',
         );
       }
 
-      const result = await readResponse<{ message?: string }>(
-        response,
-      );
+      const result = await readResponse<{ message?: string }>(response);
 
       if (!response.ok) {
-        throw new Error(
-          result?.message || 'Could not create the post.',
+        if (response.status === 401) {
+          throw new MediaUploadError(
+            'Your session has expired. Please sign in again.',
+          );
+        }
+
+        if (response.status === 413) {
+          throw new MediaUploadError(
+            'Your post or its attachments are too large. Please reduce the size and try again.',
+          );
+        }
+
+        console.error('HavenSocial post publishing failed:', {
+          status: response.status,
+          serverMessage: result?.message,
+        });
+
+        throw new MediaUploadError(
+          "We couldn't publish your post. Please try again.",
         );
       }
 
@@ -502,15 +629,20 @@ export default function ComposePost({
       setFiles([]);
       setSuccess(replyTo ? 'Reply posted.' : 'Post published.');
       setUploadProgress('');
-
       router.refresh();
     } catch (caught) {
+      console.error('HavenSocial compose submission failed:', {
+        errorName:
+          caught instanceof Error ? caught.name : 'NonError',
+        message:
+          caught instanceof Error ? caught.message : 'Unknown error',
+      });
+
       setError(
         caught instanceof Error
           ? caught.message
-          : 'Could not create the post.',
+          : "We couldn't create your post. Please try again.",
       );
-
       setUploadProgress('');
     } finally {
       submitting.current = false;
@@ -588,19 +720,14 @@ export default function ComposePost({
       {files.length > 0 && (
         <ul className="compose-media-list">
           {files.map((file, index) => (
-            <li
-              key={`${file.name}-${file.lastModified}-${index}`}
-            >
+            <li key={`${file.name}-${file.lastModified}-${index}`}>
               {file.name}
-
               <button
                 type="button"
                 disabled={busy}
                 onClick={() =>
                   setFiles((current) =>
-                    current.filter(
-                      (_, fileIndex) => fileIndex !== index,
-                    ),
+                    current.filter((_, fileIndex) => fileIndex !== index),
                   )
                 }
                 aria-label={`Remove ${file.name}`}
@@ -616,10 +743,7 @@ export default function ComposePost({
         {files.length} / {MAX_MEDIA_PER_POST} attachments
       </p>
 
-      <p
-        id="post-character-count"
-        aria-live="polite"
-      >
+      <p id="post-character-count" aria-live="polite">
         {characterCount.toLocaleString()} /{' '}
         {MAX_CONTENT_LENGTH.toLocaleString()}
       </p>
@@ -646,13 +770,8 @@ export default function ComposePost({
             : 'Post'}
       </button>
 
-      {error ? (
-        <p role="alert">{error}</p>
-      ) : null}
-
-      {success ? (
-        <p role="status">{success}</p>
-      ) : null}
+      {error ? <p role="alert">{error}</p> : null}
+      {success ? <p role="status">{success}</p> : null}
     </form>
   );
 }
