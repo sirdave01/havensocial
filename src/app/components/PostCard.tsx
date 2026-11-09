@@ -1,4 +1,3 @@
-
 import Link from 'next/link';
 
 import {
@@ -8,10 +7,7 @@ import {
   Repeat2,
 } from 'lucide-react';
 
-import {
-  toggleLikeAction,
-} from '@/app/actions';
-
+import { toggleLikeAction } from '@/app/actions';
 import type { BhidProfile } from '@/lib/bhid/profile';
 
 import FollowButton from './FollowButton';
@@ -21,6 +17,7 @@ import PostControls from './PostControls';
 import PostEditor from './PostEditor';
 import SharePostButton from './SharePostButton';
 import ConfirmDeletePost from './ConfirmDeletePost';
+import ViewTracker from './ViewTracker';
 
 // ==================== POST TYPE ====================
 
@@ -88,21 +85,15 @@ export default function PostCard({
 }) {
   const tweetId = String(post.tweet_id);
 
-  // Check whether this post has been deleted.
   const isDeleted = Boolean(
     post.is_deleted || post.deleted_at,
   );
 
-  // DELETED POST PLACEHOLDER
-  // Do not expose the deleted content, media or actions.
-
+  // Do not expose deleted content or track views for deleted posts.
   if (isDeleted) {
     return (
       <article className="feed-item deleted-post">
-        <p
-          role="status"
-          className="deleted-post-message"
-        >
+        <p role="status" className="deleted-post-message">
           This post has been deleted.
         </p>
       </article>
@@ -110,30 +101,36 @@ export default function PostCard({
   }
 
   const isReshare = Boolean(post.is_reshare);
-
-  const isOwner =
-    String(post.user_id) === String(viewerId);
-
+  const isOwner = String(post.user_id) === String(viewerId);
   const canManagePost = isOwner && !isReshare;
 
-  const profileHref =
-    `/profile/${encodeURIComponent(post.author_sub)}`;
-
-  const tweetHref =
-    `/tweet/${encodeURIComponent(tweetId)}`;
-
+  const profileHref = `/profile/${encodeURIComponent(post.author_sub)}`;
+  const tweetHref = `/tweet/${encodeURIComponent(tweetId)}`;
   const resharerHref = post.reshared_by_sub
     ? `/profile/${encodeURIComponent(post.reshared_by_sub)}`
     : null;
 
+  // Each appearance of a post gets its own DOM target. A reshare and the
+  // original post can therefore be observed independently, while the
+  // database still counts the viewer only once for the original tweet.
+  const viewTargetId =
+    isReshare && post.feed_retweet_id != null
+      ? `post-view-reshare-${post.feed_retweet_id}`
+      : `post-view-tweet-${tweetId}`;
+
   return (
-    <article className="feed-item">
+    <article
+      id={viewTargetId}
+      data-view-tweet-id={tweetId}
+      className="feed-item"
+    >
+      {!isOwner && (
+        <ViewTracker tweetId={tweetId} targetId={viewTargetId} />
+      )}
 
       {/* RESHARE ATTRIBUTION */}
-
       {isReshare && (
         <div className="reshare-attribution">
-
           <Repeat2 aria-hidden="true" size={16} />
 
           {resharerHref ? (
@@ -151,12 +148,10 @@ export default function PostCard({
           )}
 
           <span>reshared</span>
-
         </div>
       )}
 
       {/* RESHARE QUOTE */}
-
       {isReshare && post.reshare_quote_text && (
         <p className="reshare-quote">
           {post.reshare_quote_text}
@@ -164,20 +159,14 @@ export default function PostCard({
       )}
 
       {/* ORIGINAL POST AUTHOR */}
-
       <header className="post-card-header">
-
         <IdentityAvatar
           src={author?.picture}
           className="profile-avatar-small"
         />
 
         <div className="post-author-row">
-
-          <Link
-            href={profileHref}
-            className="post-author"
-          >
+          <Link href={profileHref} className="post-author">
             <strong>
               {author?.name || 'HavenSocial user'}
             </strong>
@@ -195,27 +184,17 @@ export default function PostCard({
               initialFollowing={Boolean(post.is_following)}
             />
           )}
-
         </div>
-
       </header>
 
       {/* POST TEXT */}
-
-      <Link
-        href={tweetHref}
-        className="feed-post-link"
-      >
-        <p>
-          {post.content || ''}
-        </p>
+      <Link href={tweetHref} className="feed-post-link">
+        <p>{post.content || ''}</p>
       </Link>
 
       {/* POST MEDIA */}
-
       {post.media?.length ? (
         <div className="post-media">
-
           {post.media.map((item) => (
             <MediaPreview
               key={String(item.media_id)}
@@ -225,72 +204,41 @@ export default function PostCard({
               altText={item.alt_text}
             />
           ))}
-
         </div>
       ) : null}
 
       {/* POST DATE */}
-
       <small>
-        <time
-          dateTime={new Date(post.created_at).toISOString()}
-        >
+        <time dateTime={new Date(post.created_at).toISOString()}>
           {new Date(post.created_at).toLocaleString()}
         </time>
       </small>
 
       {/* POST INTERACTIONS */}
-
       <div className="feed-actions">
-
         {/* LIKE */}
-
         <form action={toggleLikeAction}>
-
-          <input
-            type="hidden"
-            name="tweetId"
-            value={tweetId}
-          />
-
+          <input type="hidden" name="tweetId" value={tweetId} />
           <input
             type="hidden"
             name="action"
-            value={
-              post.liked_by_user
-                ? 'unlike'
-                : 'like'
-            }
+            value={post.liked_by_user ? 'unlike' : 'like'}
           />
 
           <button
             type="submit"
-            className={`like-action${
-              post.liked_by_user ? ' is-liked' : ''
-            }`}
-            aria-label={`${
-              post.liked_by_user ? 'Unlike' : 'Like'
-            } (${count(post.like_count)})`}
+            className={`like-action${post.liked_by_user ? ' is-liked' : ''}`}
+            aria-label={`${post.liked_by_user ? 'Unlike' : 'Like'} (${count(post.like_count)})`}
           >
             <Heart
               aria-hidden="true"
-              fill={
-                post.liked_by_user
-                  ? 'currentColor'
-                  : 'none'
-              }
+              fill={post.liked_by_user ? 'currentColor' : 'none'}
             />
-
-            <span>
-              {count(post.like_count)}
-            </span>
-
+            <span>{count(post.like_count)}</span>
           </button>
-
         </form>
 
         {/* REPLIES */}
-
         <Link
           href={tweetHref}
           className="icon-action-button"
@@ -298,15 +246,10 @@ export default function PostCard({
           title="Reply"
         >
           <MessageCircle aria-hidden="true" />
-
-          <span>
-            {count(post.reply_count)}
-          </span>
-
+          <span>{count(post.reply_count)}</span>
         </Link>
 
-        {/* VIEWS */}
-
+        {/* QUALIFIED VIEWS */}
         <span
           className="post-view-count"
           role="img"
@@ -314,15 +257,10 @@ export default function PostCard({
           title="Views"
         >
           <Eye aria-hidden="true" />
-
-          <span>
-            {count(post.view_count)}
-          </span>
-
+          <span>{count(post.view_count)}</span>
         </span>
 
         {/* RESHARE AND PIN */}
-
         <PostControls
           tweetId={tweetId}
           retweetCount={post.retweet_count}
@@ -332,28 +270,19 @@ export default function PostCard({
         />
 
         {/* SHARE */}
-
-        <SharePostButton
-          tweetId={tweetId}
-        />
+        <SharePostButton tweetId={tweetId} />
 
         {/* OWNER ACTIONS */}
-
         {canManagePost && (
           <>
             <PostEditor
               tweetId={tweetId}
               initialContent={post.content || ''}
             />
-
-            <ConfirmDeletePost
-              tweetId={tweetId}
-            />
+            <ConfirmDeletePost tweetId={tweetId} />
           </>
         )}
-
       </div>
-
     </article>
   );
 }
