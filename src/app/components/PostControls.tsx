@@ -9,10 +9,12 @@ import { Pin, Repeat2 } from 'lucide-react';
 // ==================== TYPES ====================
 
 type PostActionResponse = {
+  ok?: boolean;
   message?: string;
   reposted?: boolean;
   retweetCount?: number;
   tweet?: {
+    tweet_id?: string;
     is_pinned?: boolean;
   };
 };
@@ -77,6 +79,8 @@ export default function PostControls({
   ): Promise<PostActionResponse> {
     const response = await fetch(path, {
       method,
+      credentials: 'same-origin',
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -88,9 +92,7 @@ export default function PostControls({
     ) as PostActionResponse;
 
     if (!response.ok) {
-      throw new Error(
-        result.message || 'Action failed',
-      );
+      throw new Error(result.message || 'Action failed.');
     }
 
     return result;
@@ -135,15 +137,12 @@ export default function PostControls({
         );
       }
 
-      // Refresh server data so duplicate feed entries
-      // display the same reshare state and count.
       router.refresh();
-
     } catch (caught) {
+      console.error('HavenSocial reshare action failed:', caught);
+
       setError(
-        caught instanceof Error
-          ? caught.message
-          : 'Could not update reshare',
+        'Could not update the reshare. Please try again.',
       );
     } finally {
       setIsRetweeting(false);
@@ -155,7 +154,7 @@ export default function PostControls({
   // ====================
 
   async function togglePin() {
-    if (isPinning) return;
+    if (isPinning || !canPin) return;
 
     setError('');
     setIsPinning(true);
@@ -167,19 +166,20 @@ export default function PostControls({
         { tweetId },
       );
 
-      const nextPinned = Boolean(
-        result.tweet?.is_pinned,
-      );
+      // The server must confirm the new database state.
+      if (typeof result.tweet?.is_pinned !== 'boolean') {
+        throw new Error('The server did not confirm the pin status.');
+      }
 
-      setIsPinned(nextPinned);
+      setIsPinned(result.tweet.is_pinned);
 
+      // Reload server-rendered data to synchronize all post cards.
       router.refresh();
-
     } catch (caught) {
+      console.error('HavenSocial pin action failed:', caught);
+
       setError(
-        caught instanceof Error
-          ? caught.message
-          : 'Could not update pin',
+        'Could not update the post pin. Please try again.',
       );
     } finally {
       setIsPinning(false);
@@ -204,24 +204,12 @@ export default function PostControls({
             : `Reshare (${currentRetweetCount})`
         }
         aria-pressed={hasRetweeted}
-        title={
-          hasRetweeted
-            ? 'Undo reshare'
-            : 'Reshare'
-        }
-        className={
-          hasRetweeted
-            ? 'is-retweeted'
-            : ''
-        }
+        title={hasRetweeted ? 'Undo reshare' : 'Reshare'}
+        className={hasRetweeted ? 'is-retweeted' : ''}
       >
-        <Repeat2
-          aria-hidden="true"
-        />
+        <Repeat2 aria-hidden="true" />
 
-        <span>
-          {currentRetweetCount}
-        </span>
+        <span>{currentRetweetCount}</span>
       </button>
 
       {/* PIN BUTTON */}
@@ -231,16 +219,20 @@ export default function PostControls({
           type="button"
           onClick={togglePin}
           disabled={isPinning}
-          aria-label={
-            isPinned ? 'Unpin post' : 'Pin post'
-          }
+          aria-label={isPinned ? 'Unpin post' : 'Pin post'}
           aria-pressed={isPinned}
           title={
-            isPinned ? 'Unpin post' : 'Pin post'
+            isPinning
+              ? 'Updating pin...'
+              : isPinned
+                ? 'Unpin post'
+                : 'Pin post'
           }
+          className={isPinned ? 'is-pinned' : ''}
         >
           <Pin
             aria-hidden="true"
+            fill={isPinned ? 'currentColor' : 'none'}
           />
         </button>
       )}
@@ -248,10 +240,7 @@ export default function PostControls({
       {/* ACTION ERROR */}
 
       {error && (
-        <span
-          role="alert"
-          className="post-action-error"
-        >
+        <span role="alert" className="post-action-error">
           {error}
         </span>
       )}
