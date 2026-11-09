@@ -43,7 +43,8 @@
     "openid-client": "^6.8.9",
     "pg": "^8.21.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
