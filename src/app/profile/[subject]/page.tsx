@@ -8,18 +8,43 @@ import FollowButton from '../../components/FollowButton';
 import IdentityAvatar from '../../components/IdentityAvatar';
 import PostCard, { type Post } from '../../components/PostCard';
 
+const PAGE_SIZE = 20;
+const MAX_PAGE = 10000;
+
+function parsePage(value?: string) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 1
+    ? Math.min(parsed, MAX_PAGE)
+    : 1;
+}
+
+function profilePageHref(subject: string, page: number) {
+  const base = `/profile/${encodeURIComponent(subject)}`;
+  return page > 1 ? `${base}?page=${page}` : base;
+}
+
 export default async function ProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ subject: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const viewer = await requireLinkedUser();
-  const { subject } = await params;
+  const [{ subject }, { page: pageParam }] = await Promise.all([params, searchParams]);
   const profile = await getUserProfile(subject, viewer.users_id);
   if (!profile) notFound();
 
-  const tweets = await getUserTweets(profile.users_id, 20, 0);
+  const page = parsePage(pageParam);
+  const tweets = await getUserTweets(
+    profile.users_id,
+    PAGE_SIZE + 1,
+    (page - 1) * PAGE_SIZE,
+  );
+  const hasNextPage = tweets.length > PAGE_SIZE;
+  const visibleTweets = tweets.slice(0, PAGE_SIZE) as Post[];
   const isOwner = String(profile.users_id) === String(viewer.users_id);
+
   const [authorProfiles, currentProfile] = await Promise.all([
     getBhidProfiles(isOwner ? [] : [profile.bhid_sub]),
     isOwner ? getCurrentBhidProfile(viewer.bhid_sub) : Promise.resolve(null),
@@ -34,12 +59,19 @@ export default async function ProfilePage({
           <IdentityAvatar src={bhidProfile?.picture} className="profile-avatar" />
           <div className="profile-heading">
             <h1>{bhidProfile?.name || 'HavenSocial user'}</h1>
-            <p>{bhidProfile?.preferredUsername ? `@${bhidProfile.preferredUsername}` : 'Username unavailable'}</p>
+            <p>
+              {bhidProfile?.preferredUsername
+                ? `@${bhidProfile.preferredUsername}`
+                : 'Username unavailable'}
+            </p>
             {isOwner && !bhidProfile && (
-              <p role="status">BHID profile details are unavailable. Sign out and sign in again to refresh access.</p>
+              <p role="status">
+                BHID profile details are unavailable. Sign out and sign in again to refresh access.
+              </p>
             )}
           </div>
         </div>
+
         <div className="profile-details">
           <div className="profile-stats">
             <span><strong>{profile.follower_count}</strong> followers</span>
@@ -55,6 +87,7 @@ export default async function ProfilePage({
             </Link>
           </div>
         </div>
+
         {!isOwner && (
           <FollowButton
             userId={profile.users_id}
@@ -63,17 +96,38 @@ export default async function ProfilePage({
           />
         )}
       </section>
+
       <section className="feed" aria-label="User posts">
-        {tweets.length ? tweets.map((tweet: Post) => (
-          <PostCard
-            key={String(tweet.tweet_id)}
-            post={tweet}
-            author={authorProfiles.get(tweet.author_sub)}
-            viewerId={viewer.users_id}
-            showFollow={false}
-          />
-        )) : <p>No posts yet.</p>}
+        {visibleTweets.length ? (
+          visibleTweets.map((tweet) => (
+            <PostCard
+              key={String(tweet.tweet_id)}
+              post={tweet}
+              author={authorProfiles.get(tweet.author_sub)}
+              viewerId={viewer.users_id}
+              showFollow={false}
+            />
+          ))
+        ) : (
+          <p>No posts yet.</p>
+        )}
       </section>
+
+      {(page > 1 || hasNextPage) && (
+        <nav className="feed-pagination" aria-label="Profile post pages">
+          {page > 1 && (
+            <Link href={profilePageHref(profile.bhid_sub, page - 1)} rel="prev">
+              Newer posts
+            </Link>
+          )}
+          <span>Page {page}</span>
+          {hasNextPage && (
+            <Link href={profilePageHref(profile.bhid_sub, page + 1)} rel="next">
+              Older posts
+            </Link>
+          )}
+        </nav>
+      )}
     </main>
   );
 }
