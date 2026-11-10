@@ -1,3 +1,4 @@
+
 name: Publish scheduled HavenSocial posts
 
 on:
@@ -11,17 +12,58 @@ permissions:
 jobs:
   publish-due-posts:
     runs-on: ubuntu-latest
+
     steps:
       - name: Publish due posts
         env:
           CRON_URL: ${{ secrets.HAVENSOCIAL_CRON_URL }}
           CRON_SECRET: ${{ secrets.HAVENSOCIAL_CRON_SECRET }}
+
         run: |
           set -euo pipefail
+
           if [ -z "$CRON_URL" ] || [ -z "$CRON_SECRET" ]; then
             echo "Missing HAVENSOCIAL_CRON_URL or HAVENSOCIAL_CRON_SECRET repository secrets."
             exit 1
           fi
-          curl --fail-with-body --silent --show-error \
-            --request GET "$CRON_URL" \
-            --header "Authorization: Bearer $CRON_SECRET"
+
+          echo "Contacting HavenSocial scheduled-post endpoint..."
+
+          set +e
+
+          HTTP_STATUS="$(curl \
+            --silent \
+            --show-error \
+            --connect-timeout 15 \
+            --max-time 60 \
+            --request GET \
+            --output /tmp/havensocial-cron-response.txt \
+            --dump-header /tmp/havensocial-cron-headers.txt \
+            --write-out '%{http_code}' \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "$CRON_URL")"
+
+          CURL_EXIT=$?
+
+          set -e
+
+          echo "Curl exit code: $CURL_EXIT"
+          echo "HTTP status: $HTTP_STATUS"
+
+          echo "Response body:"
+          cat /tmp/havensocial-cron-response.txt || true
+
+          echo "Redirect destination, if any:"
+          grep -i '^location:' /tmp/havensocial-cron-headers.txt || true
+
+          if [ "$CURL_EXIT" -ne 0 ]; then
+            echo "Could not connect to the publishing endpoint."
+            exit 1
+          fi
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Publishing endpoint did not return HTTP 200."
+            exit 1
+          fi
+
+          echo "HavenSocial endpoint returned HTTP 200."

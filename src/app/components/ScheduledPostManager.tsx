@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import styles from './ScheduledPostManager.module.css';
 
 type ScheduledMedia = {
@@ -27,6 +28,7 @@ type Draft = { content: string; scheduledAt: string };
 type DraftMap = Record<string, Draft>;
 
 const TIME_ZONE = 'Africa/Lagos';
+const REFRESH_INTERVAL_MS = 30_000;
 
 function getDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -38,18 +40,21 @@ function getDateParts(date: Date) {
     minute: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(date);
+
   return Object.fromEntries(parts.map((part) => [part.type, part.value]));
 }
 
 function toWATDateTime(value: string | Date) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
+
   const parts = getDateParts(date);
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
 function watInputToIso(value: string) {
   if (!value) return null;
+
   // Africa/Lagos uses UTC+01:00. This avoids depending on the visitor's device timezone.
   const date = new Date(`${value}:00+01:00`);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
@@ -58,11 +63,17 @@ function watInputToIso(value: string) {
 function formatWAT(value: string | Date, includeDate = true) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Invalid date';
+
   return new Intl.DateTimeFormat('en-NG', {
     timeZone: TIME_ZONE,
     ...(includeDate ? { dateStyle: 'medium' as const } : {}),
     timeStyle: 'short',
   }).format(date);
+}
+
+function isOverdue(value: string | Date) {
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) && timestamp <= Date.now();
 }
 
 function initialDrafts(posts: ScheduledPost[]): DraftMap {
@@ -77,17 +88,62 @@ function mediaIsVideo(media: ScheduledMedia) {
 }
 
 export default function ScheduledPostManager({ initialPosts }: { initialPosts: ScheduledPost[] }) {
+  const router = useRouter();
   const [posts, setPosts] = useState(initialPosts);
   const [drafts, setDrafts] = useState<DraftMap>(() => initialDrafts(initialPosts));
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Refresh the Server Component data periodically and when the tab becomes visible.
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        router.refresh();
+      }
+    };
+
+    const intervalId = window.setInterval(refreshWhenVisible, REFRESH_INTERVAL_MS);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [router]);
+
+  // Reconcile refreshed server data with client state while preserving unsaved edits.
+  useEffect(() => {
+    setPosts(initialPosts);
+    setDrafts((current) => {
+      const next: DraftMap = {};
+
+      for (const post of initialPosts) {
+        next[post.tweet_id] = current[post.tweet_id] || {
+          content: post.content || '',
+          scheduledAt: toWATDateTime(post.scheduled_at),
+        };
+      }
+
+      return next;
+    });
+  }, [initialPosts]);
+
   const nextPost = useMemo(() => {
-    return [...posts].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0] || null;
+    return [...posts].sort(
+      (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime(),
+    )[0] || null;
   }, [posts]);
 
-  const mediaCount = useMemo(() => posts.reduce((total, post) => total + (post.media?.length || 0), 0), [posts]);
+  const overdueCount = useMemo(
+    () => posts.filter((post) => isOverdue(post.scheduled_at)).length,
+    [posts],
+  );
+
+  const mediaCount = useMemo(
+    () => posts.reduce((total, post) => total + (post.media?.length || 0), 0),
+    [posts],
+  );
 
   function updateDraft(id: string, field: keyof Draft, value: string) {
     setDrafts((current) => ({
@@ -100,7 +156,11 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
 
   async function save(post: ScheduledPost) {
     if (busyId) return;
-    const draft = drafts[post.tweet_id] || { content: post.content || '', scheduledAt: toWATDateTime(post.scheduled_at) };
+
+    const draft = drafts[post.tweet_id] || {
+      content: post.content || '',
+      scheduledAt: toWATDateTime(post.scheduled_at),
+    };
     const scheduledAt = watInputToIso(draft.scheduledAt);
 
     if (!scheduledAt || new Date(scheduledAt).getTime() <= Date.now()) {
@@ -108,6 +168,7 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
       setSuccess('');
       return;
     }
+
     if (!draft.content.trim()) {
       setError('A scheduled post must contain text.');
       setSuccess('');
@@ -117,6 +178,7 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
     setBusyId(post.tweet_id);
     setError('');
     setSuccess('');
+
     try {
       const response = await fetch(`/api/tweets/scheduled/${encodeURIComponent(post.tweet_id)}`, {
         method: 'PATCH',
@@ -125,6 +187,7 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: draft.content, scheduledAt }),
       });
+
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(result?.message || 'Could not update the scheduled post.');
       if (!result?.post) throw new Error('The server did not return the updated scheduled post.');
@@ -134,6 +197,7 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
         content: result.post.content,
         scheduled_at: result.post.scheduled_at,
       };
+
       setPosts((current) => current.map((item) => item.tweet_id === post.tweet_id ? updatedPost : item));
       setDrafts((current) => ({
         ...current,
@@ -143,8 +207,10 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
         },
       }));
       setSuccess('Your scheduled post has been updated.');
+      router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not update the scheduled post.');
+      router.refresh();
     } finally {
       setBusyId(null);
     }
@@ -152,6 +218,7 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
 
   async function cancel(post: ScheduledPost) {
     if (busyId || !window.confirm('Cancel and delete this scheduled post?')) return;
+
     setBusyId(post.tweet_id);
     setError('');
     setSuccess('');
@@ -162,8 +229,10 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
         credentials: 'same-origin',
         cache: 'no-store',
       });
+
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(result?.message || 'Could not cancel the scheduled post.');
+
       setPosts((current) => current.filter((item) => item.tweet_id !== post.tweet_id));
       setDrafts((current) => {
         const next = { ...current };
@@ -171,8 +240,10 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
         return next;
       });
       setSuccess('Scheduled post cancelled.');
+      router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not cancel the scheduled post.');
+      router.refresh();
     } finally {
       setBusyId(null);
     }
@@ -193,7 +264,11 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
         <div className={styles.summaryCard}>
           <span className={styles.summaryLabel}>UPCOMING</span>
           <strong>{posts.length.toLocaleString()}</strong>
-          <span className={styles.summaryHint}>Awaiting publication</span>
+          <span className={styles.summaryHint}>
+            {overdueCount > 0
+              ? `${overdueCount.toLocaleString()} overdue · awaiting publication`
+              : 'Awaiting publication'}
+          </span>
         </div>
         <div className={styles.summaryCard}>
           <span className={styles.summaryLabel}>ATTACHMENTS</span>
@@ -202,8 +277,16 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
         </div>
         <div className={styles.summaryCard}>
           <span className={styles.summaryLabel}>NEXT PUBLISHING</span>
-          <strong className={styles.nextValue}>{nextPost ? formatWAT(nextPost.scheduled_at, false) : '—'}</strong>
-          <span className={styles.summaryHint}>{nextPost ? formatWAT(nextPost.scheduled_at) : 'Nothing in the queue'}</span>
+          <strong className={styles.nextValue}>
+            {nextPost ? (isOverdue(nextPost.scheduled_at) ? 'Overdue' : formatWAT(nextPost.scheduled_at, false)) : '—'}
+          </strong>
+          <span className={styles.summaryHint}>
+            {nextPost
+              ? isOverdue(nextPost.scheduled_at)
+                ? `Was due ${formatWAT(nextPost.scheduled_at)} · awaiting publisher`
+                : formatWAT(nextPost.scheduled_at)
+              : 'Nothing in the queue'}
+          </span>
         </div>
       </div>
 
@@ -233,11 +316,15 @@ export default function ScheduledPostManager({ initialPosts }: { initialPosts: S
               scheduledAt: toWATDateTime(post.scheduled_at),
             };
             const busy = busyId === post.tweet_id;
+            const overdue = isOverdue(post.scheduled_at);
 
             return (
               <article className={styles.postCard} key={post.tweet_id}>
                 <div className={styles.postTopline}>
-                  <span className={styles.pending}><span aria-hidden="true" /> Scheduled</span>
+                  <span className={styles.pending}>
+                    <span aria-hidden="true" />
+                    {overdue ? 'Overdue · awaiting publication' : 'Scheduled'}
+                  </span>
                   <span className={styles.postId}>Post #{post.tweet_id}</span>
                 </div>
 
