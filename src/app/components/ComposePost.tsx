@@ -396,7 +396,11 @@ async function uploadImageOrGif(file: File, contentType: string, onProgress?: (p
   }
 
   const result = await readResponse<UploadUrlResult>(response);
-  if (!response.ok) throw new MediaUploadError(getUploadUrlErrorMessage(response.status));
+  if (!response.ok) {
+  throw new MediaUploadError(
+    result?.message || getUploadUrlErrorMessage(response.status)
+  );
+}
   if (!result?.uploadUrl || !result.key) throw new MediaUploadError("HavenSocial couldn't prepare this file. Please try again.");
 
   for (let attempt = 1; attempt <= SINGLE_UPLOAD_MAX_ATTEMPTS; attempt += 1) {
