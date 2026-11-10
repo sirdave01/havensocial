@@ -190,7 +190,7 @@ const getUserTweets = async (userId, limit = 20, offset = 0) => {
       AND t.is_deleted = FALSE
       AND t.deleted_at IS NULL
       AND t.published_at IS NOT NULL
-    ORDER BY t.is_pinned DESC, t.created_at DESC, t.tweet_id DESC
+    ORDER BY t.is_pinned DESC, t.published_at DESC, t.tweet_id DESC
     LIMIT $2 OFFSET $3;
   `;
 
@@ -237,7 +237,9 @@ const getFeed = async (viewerId, limit = 20, offset = 0, followingOnly = false) 
         NULL::timestamptz AS reshared_at,
         NULL::text AS reshare_quote_text,
         t.user_id AS feed_actor_id,
-        t.created_at AS feed_created_at
+        -- A scheduled post enters the feed according to when it was published,
+        -- not when its author originally composed it.
+        t.published_at AS feed_created_at
       FROM tweets t
       JOIN users original_author ON original_author.users_id = t.user_id
       WHERE t.is_deleted = FALSE
@@ -256,6 +258,7 @@ const getFeed = async (viewerId, limit = 20, offset = 0, followingOnly = false) 
         r.created_at AS reshared_at,
         r.quote_text AS reshare_quote_text,
         r.user_id AS feed_actor_id,
+        -- Reshares are ordered by the time the reshare itself happened.
         r.created_at AS feed_created_at
       FROM retweets r
       JOIN tweets t ON t.tweet_id = r.original_tweet_id

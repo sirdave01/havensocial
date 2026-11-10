@@ -27,6 +27,7 @@ export type Post = {
   author_sub: string;
   content: string | null;
   created_at: string | Date;
+  published_at?: string | Date | null;
 
   // COUNTS
   like_count?: string | number;
@@ -66,6 +67,23 @@ export type Post = {
 
 function count(value: string | number | undefined) {
   return String(value ?? 0);
+}
+
+function formatPublicationDate(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return {
+    dateTime: date.toISOString(),
+    label: new Intl.DateTimeFormat('en-NG', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Africa/Lagos',
+    }).format(date),
+  };
 }
 
 // ==================== POST CARD ====================
@@ -109,6 +127,12 @@ export default function PostCard({
   const resharerHref = post.reshared_by_sub
     ? `/profile/${encodeURIComponent(post.reshared_by_sub)}`
     : null;
+
+  // Published posts use their actual publication timestamp. The original
+  // created_at value remains available for record-keeping.
+  const publicationDate = formatPublicationDate(
+    post.published_at ?? post.created_at,
+  );
 
   // Each appearance of a post gets its own DOM target. A reshare and the
   // original post can therefore be observed independently, while the
@@ -207,11 +231,15 @@ export default function PostCard({
         </div>
       ) : null}
 
-      {/* POST DATE */}
+      {/* PUBLICATION DATE: DISPLAYED IN NIGERIAN TIME (WAT) */}
       <small>
-        <time dateTime={new Date(post.created_at).toISOString()}>
-          {new Date(post.created_at).toLocaleString()}
-        </time>
+        {publicationDate ? (
+          <time dateTime={publicationDate.dateTime}>
+            {publicationDate.label} WAT
+          </time>
+        ) : (
+          <span>Publication time unavailable</span>
+        )}
       </small>
 
       {/* POST INTERACTIONS */}
