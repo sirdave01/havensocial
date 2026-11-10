@@ -1,0 +1,462 @@
+.manager {
+    width: min(100%, 850px);
+    margin: 0 auto;
+    padding: 24px 16px 64px;
+    color: var(--foreground, inherit);
+}
+
+.header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    margin: 8px 0 26px;
+}
+
+.eyebrow {
+    margin: 0 0 8px;
+    color: var(--muted-foreground, #888);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .16em;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: clamp(27px, 5vw, 38px);
+    line-height: 1.1;
+    letter-spacing: -.045em;
+}
+
+.intro {
+    max-width: 520px;
+    margin: 10px 0 0;
+    color: var(--muted-foreground, #888);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.newPostButton,
+.emptyButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 42px;
+    padding: 0 16px;
+    border: 1px solid var(--border, rgba(127, 127, 127, .28));
+    border-radius: 999px;
+    color: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background .18s ease, transform .18s ease;
+}
+
+.newPostButton:hover,
+.emptyButton:hover {
+    background: var(--muted, rgba(127, 127, 127, .12));
+    transform: translateY(-1px);
+}
+
+.summaryGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 34px;
+}
+
+.summaryCard {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+    padding: 17px;
+    border: 1px solid var(--border, rgba(127, 127, 127, .2));
+    border-radius: 17px;
+    background: var(--card, rgba(127, 127, 127, .055));
+}
+
+.summaryLabel {
+    color: var(--muted-foreground, #888);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .1em;
+}
+
+.summaryCard strong {
+    overflow: hidden;
+    font-size: clamp(23px, 4vw, 31px);
+    line-height: 1.15;
+    letter-spacing: -.04em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.summaryCard .nextValue {
+    font-size: clamp(18px, 3vw, 25px);
+}
+
+.summaryHint {
+    color: var(--muted-foreground, #888);
+    font-size: 11px;
+}
+
+.sectionHeading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.sectionHeading h2 {
+    margin: 0;
+    font-size: 19px;
+    letter-spacing: -.025em;
+}
+
+.sectionHeading p {
+    margin: 5px 0 0;
+    color: var(--muted-foreground, #888);
+    font-size: 12px;
+}
+
+.queueCount {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--muted, rgba(127, 127, 127, .12));
+    color: var(--muted-foreground, #888);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.alertError,
+.alertSuccess {
+    padding: 11px 13px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.alertError {
+    border: 1px solid rgba(220, 70, 70, .3);
+    background: rgba(220, 70, 70, .08);
+    color: #d95b5b;
+}
+
+.alertSuccess {
+    border: 1px solid rgba(40, 160, 100, .28);
+    background: rgba(40, 160, 100, .08);
+    color: #299566;
+}
+
+.emptyState {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    padding: 48px 22px;
+    border: 1px dashed var(--border, rgba(127, 127, 127, .35));
+    border-radius: 20px;
+    text-align: center;
+}
+
+.emptyIcon {
+    display: grid;
+    width: 54px;
+    height: 54px;
+    place-items: center;
+    border-radius: 17px;
+    background: var(--muted, rgba(127, 127, 127, .12));
+    font-size: 30px;
+}
+
+.emptyState h3 {
+    margin: 17px 0 7px;
+    font-size: 19px;
+}
+
+.emptyState p {
+    max-width: 440px;
+    margin: 0 0 18px;
+    color: var(--muted-foreground, #888);
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.postList {
+    display: grid;
+    gap: 15px;
+}
+
+.postCard {
+    min-width: 0;
+    padding: 19px;
+    border: 1px solid var(--border, rgba(127, 127, 127, .22));
+    border-radius: 18px;
+    background: var(--card, rgba(127, 127, 127, .045));
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .035);
+}
+
+.postTopline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 17px;
+}
+
+.pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #b98426;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .025em;
+}
+
+.pending>span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #d7a13d;
+    box-shadow: 0 0 0 3px rgba(215, 161, 61, .13);
+}
+
+.postId {
+    color: var(--muted-foreground, #888);
+    font-size: 10px;
+}
+
+.postContent label,
+.fieldLabel,
+.scheduleField label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.postContent textarea,
+.scheduleField input {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--input, var(--border, rgba(127, 127, 127, .3)));
+    border-radius: 11px;
+    background: var(--background, transparent);
+    color: inherit;
+    font: inherit;
+    outline: none;
+    transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.postContent textarea {
+    min-height: 90px;
+    padding: 12px;
+    resize: vertical;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.scheduleField input {
+    min-height: 44px;
+    padding: 0 11px;
+    color-scheme: light dark;
+    font-size: 13px;
+}
+
+.postContent textarea:focus,
+.scheduleField input:focus {
+    border-color: var(--primary, #6489d8);
+    box-shadow: 0 0 0 3px rgba(100, 137, 216, .13);
+}
+
+.postContent textarea:disabled,
+.scheduleField input:disabled {
+    opacity: .65;
+}
+
+.characterCount {
+    margin-top: 5px;
+    color: var(--muted-foreground, #888);
+    font-size: 10px;
+    text-align: right;
+}
+
+.mediaBlock {
+    margin-top: 17px;
+}
+
+.mediaGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+    gap: 9px;
+}
+
+.mediaItem {
+    position: relative;
+    overflow: hidden;
+    min-height: 105px;
+    border: 1px solid var(--border, rgba(127, 127, 127, .2));
+    border-radius: 12px;
+    background: var(--muted, rgba(127, 127, 127, .1));
+}
+
+.mediaItem img,
+.mediaItem video {
+    display: block;
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+}
+
+.mediaType {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    padding: 4px 6px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, .65);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .06em;
+}
+
+.mediaUnavailable {
+    display: grid;
+    min-height: 105px;
+    place-items: center;
+    color: var(--muted-foreground, #888);
+    font-size: 11px;
+}
+
+.scheduleField {
+    margin-top: 18px;
+}
+
+.scheduleField label span {
+    color: var(--muted-foreground, #888);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.scheduleField p {
+    margin: 7px 0 0;
+    color: var(--muted-foreground, #888);
+    font-size: 11px;
+}
+
+.replyWindow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 13px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--muted, rgba(127, 127, 127, .09));
+    font-size: 11px;
+}
+
+.replyWindow span {
+    width: 100%;
+    font-weight: 750;
+}
+
+.replyWindow small {
+    color: var(--muted-foreground, #888);
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 9px;
+    margin-top: 18px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border, rgba(127, 127, 127, .18));
+}
+
+.saveButton,
+.cancelButton {
+    min-height: 39px;
+    padding: 0 14px;
+    border: 1px solid var(--border, rgba(127, 127, 127, .3));
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 750;
+    transition: opacity .18s ease, background .18s ease;
+}
+
+.saveButton {
+    border-color: var(--primary, #6489d8);
+    background: var(--primary, #6489d8);
+    color: white;
+}
+
+.cancelButton:hover {
+    background: rgba(220, 70, 70, .08);
+    color: #d95b5b;
+}
+
+.saveButton:disabled,
+.cancelButton:disabled {
+    cursor: wait;
+    opacity: .55;
+}
+
+@media (max-width: 600px) {
+    .manager {
+        padding: 18px 12px 48px;
+    }
+
+    .header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .newPostButton {
+        min-height: 38px;
+    }
+
+    .summaryGrid {
+        gap: 7px;
+    }
+
+    .summaryCard {
+        padding: 12px 10px;
+        border-radius: 13px;
+    }
+
+    .summaryLabel {
+        font-size: 9px;
+    }
+
+    .summaryHint {
+        font-size: 10px;
+        line-height: 1.35;
+    }
+
+    .postCard {
+        padding: 14px;
+        border-radius: 15px;
+    }
+
+    .actions {
+        justify-content: stretch;
+    }
+
+    .saveButton,
+    .cancelButton {
+        flex: 1;
+        padding: 0 9px;
+    }
+}
