@@ -6,6 +6,7 @@ import { getUserProfile } from '../../../models/users.js';
 import { getUserTweets } from '../../../models/tweets.js';
 import FollowButton from '../../components/FollowButton';
 import IdentityAvatar from '../../components/IdentityAvatar';
+import MessageProfileButton from '../../components/MessageProfileButton';
 import PostCard, { type Post } from '../../components/PostCard';
 
 const PAGE_SIZE = 20;
@@ -100,11 +101,14 @@ export default async function ProfilePage({
         </div>
 
         {!isOwner && (
-          <FollowButton
-            userId={profile.users_id}
-            initialFollowing={Boolean(profile.is_following)}
-            showLabel
-          />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <FollowButton
+              userId={profile.users_id}
+              initialFollowing={Boolean(profile.is_following)}
+              showLabel
+            />
+            <MessageProfileButton recipientSub={profile.bhid_sub} />
+          </div>
         )}
       </section>
 
