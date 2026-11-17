@@ -11,6 +11,7 @@ export type NotificationListItem = {
   actorPicture: string | null;
   type: string;
   tweetId: string | null;
+  conversationId: string | null;
   tweetContent: string | null;
   read: boolean;
   createdAt: string;
@@ -18,23 +19,16 @@ export type NotificationListItem = {
 
 function notificationMessage(type: string) {
   switch (type.toLowerCase()) {
-    case 'follow':
-      return 'started following you.';
-    case 'like':
-      return 'liked your post.';
-    case 'reply':
-      return 'replied to your post.';
-    case 'comment':
-      return 'commented on your post.';
+    case 'follow': return 'started following you.';
+    case 'like': return 'liked your post.';
+    case 'reply': return 'replied to your post.';
+    case 'comment': return 'commented on your post.';
     case 'retweet':
-    case 'reshare':
-      return 'reshared your post.';
-    case 'mention':
-      return 'mentioned you.';
-    case 'new_post':
-      return 'published a new post.';
-    default:
-      return 'sent you a notification.';
+    case 'reshare': return 'reshared your post.';
+    case 'mention': return 'mentioned you.';
+    case 'new_post': return 'published a new post.';
+    case 'message': return 'sent you a message.';
+    default: return 'sent you a notification.';
   }
 }
 
@@ -57,23 +51,15 @@ export default function NotificationList({
 
   async function markOneAsRead(notificationId: string) {
     if (busyId || markingAll) return;
-
     setBusyId(notificationId);
     setError('');
 
     try {
       const response = await fetch(
         `/api/notifications/${encodeURIComponent(notificationId)}/read`,
-        {
-          method: 'PATCH',
-          credentials: 'same-origin',
-          cache: 'no-store',
-        },
+        { method: 'PATCH', credentials: 'same-origin', cache: 'no-store' },
       );
-
-      if (!response.ok) {
-        throw new Error('Could not update this notification.');
-      }
+      if (!response.ok) throw new Error('Could not update this notification.');
 
       setNotifications((current) => current.map((item) => (
         item.id === notificationId ? { ...item, read: true } : item
@@ -89,25 +75,16 @@ export default function NotificationList({
 
   async function markAllAsRead() {
     if (markingAll || unreadCount === 0) return;
-
     setMarkingAll(true);
     setError('');
 
     try {
       const response = await fetch('/api/notifications/read-all', {
-        method: 'POST',
-        credentials: 'same-origin',
-        cache: 'no-store',
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
       });
+      if (!response.ok) throw new Error('Could not update notifications.');
 
-      if (!response.ok) {
-        throw new Error('Could not update notifications.');
-      }
-
-      setNotifications((current) => current.map((item) => ({
-        ...item,
-        read: true,
-      })));
+      setNotifications((current) => current.map((item) => ({ ...item, read: true })));
       setUnreadCount(0);
       notifyBadgeToRefresh();
     } catch {
@@ -126,11 +103,7 @@ export default function NotificationList({
             : 'You’re all caught up.'}
         </p>
         {unreadCount > 0 && (
-          <button
-            type="button"
-            onClick={markAllAsRead}
-            disabled={markingAll}
-          >
+          <button type="button" onClick={markAllAsRead} disabled={markingAll}>
             {markingAll ? 'Updating…' : 'Mark all as read'}
           </button>
         )}
@@ -140,75 +113,74 @@ export default function NotificationList({
 
       {notifications.length === 0 ? (
         <p>You’re all caught up. New activity will appear here.</p>
-      ) : (
-        notifications.map((notification) => (
-          <article
-            className="feed-item notification-item"
-            key={notification.id}
-            aria-label={notification.read ? 'Read notification' : 'Unread notification'}
-            style={!notification.read ? {
-              borderLeft: '3px solid #2563eb',
-              background: 'var(--notification-unread-background, rgba(37, 99, 235, 0.06))',
-            } : undefined}
-          >
-            <div className="notification-item-content">
-              {notification.actorPicture ? (
-                <img
-                  src={notification.actorPicture}
-                  alt=""
-                  className="profile-avatar-small"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="profile-avatar-small notification-avatar-fallback" aria-hidden="true">
-                  {notification.actorName.slice(0, 1).toUpperCase() || 'H'}
-                </div>
-              )}
-
-              <div className="notification-item-text">
-                <p>
-                  {notification.actorSub ? (
-                    <Link href={`/profile/${encodeURIComponent(notification.actorSub)}`}>
-                      <strong>{notification.actorName}</strong>
-                    </Link>
-                  ) : (
-                    <strong>{notification.actorName}</strong>
-                  )}
-                  {' '}{notificationMessage(notification.type)}
-                  {!notification.read && <span className="notification-unread-label"> New</span>}
-                </p>
-
-                {notification.actorUsername && (
-                  <small>@{notification.actorUsername}</small>
-                )}
-
-                <time dateTime={notification.createdAt}>
-                  {new Date(notification.createdAt).toLocaleString()}
-                </time>
-
-                {notification.tweetId && (
-                  <p>
-                    <Link href={`/tweet/${encodeURIComponent(notification.tweetId)}`}>
-                      View post
-                    </Link>
-                  </p>
-                )}
+      ) : notifications.map((notification) => (
+        <article
+          className="feed-item notification-item"
+          key={notification.id}
+          aria-label={notification.read ? 'Read notification' : 'Unread notification'}
+          style={!notification.read ? {
+            borderLeft: '3px solid #2563eb',
+            background: 'var(--notification-unread-background, rgba(37, 99, 235, 0.06))',
+          } : undefined}
+        >
+          <div className="notification-item-content">
+            {notification.actorPicture ? (
+              <img
+                src={notification.actorPicture}
+                alt=""
+                className="profile-avatar-small"
+                loading="lazy"
+              />
+            ) : (
+              <div className="profile-avatar-small notification-avatar-fallback" aria-hidden="true">
+                {notification.actorName.slice(0, 1).toUpperCase() || 'H'}
               </div>
-            </div>
-
-            {!notification.read && (
-              <button
-                type="button"
-                onClick={() => void markOneAsRead(notification.id)}
-                disabled={busyId === notification.id || markingAll}
-                aria-label="Mark notification as read"
-              >
-                {busyId === notification.id ? 'Updating…' : 'Mark as read'}
-              </button>
             )}
-          </article>
-        ))
-      )}
+
+            <div className="notification-item-text">
+              <p>
+                {notification.actorSub ? (
+                  <Link href={`/profile/${encodeURIComponent(notification.actorSub)}`}>
+                    <strong>{notification.actorName}</strong>
+                  </Link>
+                ) : <strong>{notification.actorName}</strong>}
+                {' '}{notificationMessage(notification.type)}
+                {!notification.read && <span className="notification-unread-label"> New</span>}
+              </p>
+
+              {notification.actorUsername && <small>@{notification.actorUsername}</small>}
+              <time dateTime={notification.createdAt}>
+                {new Date(notification.createdAt).toLocaleString()}
+              </time>
+
+              {notification.type.toLowerCase() === 'message' && notification.conversationId ? (
+                <p>
+                  <Link href={`/messages/${encodeURIComponent(notification.conversationId)}`}>
+                    Open conversation
+                  </Link>
+                </p>
+              ) : notification.tweetId ? (
+                <p>
+                  <Link href={`/tweet/${encodeURIComponent(notification.tweetId)}`}>
+                    View post
+                  </Link>
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          {!notification.read && (
+            <button
+              type="button"
+              onClick={() => void markOneAsRead(notification.id)}
+              disabled={busyId === notification.id || markingAll}
+              aria-label="Mark notification as read"
+            >
+              {busyId === notification.id ? 'Updating…' : 'Mark as read'}
+            </button>
+          )}
+        </article>
+      ))}
     </section>
   );
 }

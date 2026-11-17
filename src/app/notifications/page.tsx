@@ -25,11 +25,8 @@ export default async function NotificationsPage() {
 
   const items: NotificationListItem[] = notifications.map(
     (notification: Record<string, unknown>) => {
-      const actorSub = notification.actor_sub
-        ? String(notification.actor_sub)
-        : null;
+      const actorSub = notification.actor_sub ? String(notification.actor_sub) : null;
       const actorProfile = actorSub ? profiles.get(actorSub) : undefined;
-
       const createdAt = notification.created_at instanceof Date
         ? notification.created_at.toISOString()
         : new Date(String(notification.created_at)).toISOString();
@@ -41,9 +38,10 @@ export default async function NotificationsPage() {
         actorUsername: actorProfile?.preferredUsername ?? null,
         actorPicture: actorProfile?.picture ?? null,
         type: String(notification.type),
-        tweetId: notification.tweet_id == null
+        tweetId: notification.tweet_id == null ? null : String(notification.tweet_id),
+        conversationId: notification.conversation_id == null
           ? null
-          : String(notification.tweet_id),
+          : String(notification.conversation_id),
         tweetContent: typeof notification.tweet_content === 'string'
           ? notification.tweet_content
           : null,

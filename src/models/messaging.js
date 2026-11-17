@@ -1,4 +1,8 @@
 import { db, pool } from './db.js';
+import {
+  createMessageNotification,
+  dispatchNotificationPush,
+} from './notification.js';
 
 const MAX_BIGINT = '9223372036854775807';
 const DEFAULT_PAGE_SIZE = 50;
@@ -129,12 +133,8 @@ export async function getOrCreateDirectConversation(userId, recipientSub) {
       [recipientSub],
     );
     const recipientId = recipientResult.rows[0]?.user_id;
-    if (!recipientId) {
-      throw new Error('RECIPIENT_NOT_FOUND');
-    }
-    if (String(recipientId) === String(userId)) {
-      throw new Error('CANNOT_MESSAGE_SELF');
-    }
+    if (!recipientId) throw new Error('RECIPIENT_NOT_FOUND');
+    if (String(recipientId) === String(userId)) throw new Error('CANNOT_MESSAGE_SELF');
 
     const blockResult = await client.query(
       `SELECT EXISTS (
@@ -290,7 +290,7 @@ export async function getDirectConversationMessages(conversationId, userId, befo
   return { conversation, messages: rows, hasMore };
 }
 
-/** Send a text message in a direct conversation. */
+/** Send a text message in a direct conversation and notify its recipient. */
 export async function sendDirectMessage(conversationId, senderId, rawContent) {
   const safeConversationId = normalizeId(conversationId);
   if (!safeConversationId) throw new Error('INVALID_CONVERSATION');
@@ -302,6 +302,9 @@ export async function sendDirectMessage(conversationId, senderId, rawContent) {
   }
 
   const client = await pool.connect();
+  let messageNotification = null;
+  let recipientId = null;
+
   try {
     await client.query('BEGIN');
 
@@ -309,6 +312,7 @@ export async function sendDirectMessage(conversationId, senderId, rawContent) {
       `SELECT
          recipient.user_id::text AS recipient_id,
          recipient_user.app_status AS recipient_status,
+         recipient.is_muted AS recipient_muted,
          EXISTS (
            SELECT 1 FROM blocked_users b
            WHERE (b.blocker_id = $2 AND b.blocked_id = recipient.user_id)
@@ -335,6 +339,7 @@ export async function sendDirectMessage(conversationId, senderId, rawContent) {
     if (!target) throw new Error('CONVERSATION_NOT_FOUND');
     if (target.blocked) throw new Error('MESSAGING_BLOCKED');
     if (target.recipient_status !== 'ACTIVE') throw new Error('RECIPIENT_UNAVAILABLE');
+    recipientId = target.recipient_id;
 
     const inserted = await client.query(
       `INSERT INTO messages (conversation_id, sender_id, content)
@@ -366,7 +371,7 @@ export async function sendDirectMessage(conversationId, senderId, rawContent) {
        SET is_archived = FALSE
        WHERE conversation_id = $1
          AND user_id = $2`,
-      [safeConversationId, target.recipient_id],
+      [safeConversationId, recipientId],
     );
 
     const profile = await client.query(
@@ -380,7 +385,32 @@ export async function sendDirectMessage(conversationId, senderId, rawContent) {
       [senderId],
     );
 
+    // A muted conversation still receives the message and unread count, but
+    // suppresses the separate in-app and Web Push notification.
+    if (!target.recipient_muted) {
+      messageNotification = await createMessageNotification(
+        client,
+        recipientId,
+        senderId,
+        safeConversationId,
+        inserted.rows[0].message_id,
+      );
+    }
+
     await client.query('COMMIT');
+
+    // Push is dispatched only after COMMIT so a notification cannot arrive
+    // for a message that was rolled back.
+    if (messageNotification) {
+      await dispatchNotificationPush(
+        messageNotification,
+        senderId,
+        'message',
+        null,
+        safeConversationId,
+      );
+    }
+
     return { ...inserted.rows[0], ...profile.rows[0] };
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch { /* preserve original error */ }
@@ -392,9 +422,6 @@ export async function sendDirectMessage(conversationId, senderId, rawContent) {
 
 /**
  * Mark all messages visible at the time of this database statement as read.
- * The client timestamp is intentionally not used: JavaScript Date truncates
- * PostgreSQL microseconds to milliseconds, which can leave the newest message
- * appearing unread after it has been opened.
  * @param {string | number} conversationId
  * @param {string | number} userId
  * @param {string | Date | null} [_readThrough=null]

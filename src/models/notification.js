@@ -6,7 +6,6 @@ import { sendUserPushNotification } from './push-notification.js';
  * Self-notifications are ignored. An optional transaction client can be
  * supplied by callers that need the notification in the same transaction.
  *
- * The final options argument supports deferring Web Push until after COMMIT.
  * @param {number|string} userId
  * @param {number|string|null} actorId
  * @param {string} type
@@ -22,9 +21,7 @@ const createNotification = async (
   client = null,
   options = {},
 ) => {
-  if (actorId != null && String(userId) === String(actorId)) {
-    return null;
-  }
+  if (actorId != null && String(userId) === String(actorId)) return null;
 
   const query = `
     INSERT INTO notifications (user_id, actor_id, type, tweet_id)
@@ -50,10 +47,47 @@ const createNotification = async (
 };
 
 /**
+ * Insert a message notification using the caller's message transaction.
+ * A partial unique index prevents duplicate alerts for a recipient/message pair.
+ * @param {import('pg').PoolClient} client
+ * @param {number|string} recipientId
+ * @param {number|string} actorId
+ * @param {number|string} conversationId
+ * @param {number|string} messageId
+ */
+const createMessageNotification = async (
+  client,
+  recipientId,
+  actorId,
+  conversationId,
+  messageId,
+) => {
+  if (String(recipientId) === String(actorId)) return null;
+
+  const result = await client.query(
+    `INSERT INTO notifications (
+       user_id, actor_id, type, conversation_id, message_id
+     )
+     SELECT recipient.users_id, actor.users_id, 'message', $3, $4
+     FROM users recipient
+     JOIN users actor ON actor.users_id = $2
+     WHERE recipient.users_id = $1
+       AND recipient.app_status = 'ACTIVE'
+       AND actor.app_status = 'ACTIVE'
+       AND recipient.users_id <> actor.users_id
+     ON CONFLICT (user_id, message_id)
+       WHERE type = 'message' AND message_id IS NOT NULL
+       DO NOTHING
+     RETURNING *`,
+    [recipientId, actorId, conversationId, messageId],
+  );
+
+  return result.rows[0] ?? null;
+};
+
+/**
  * Create one `new_post` notification for each active follower of an author's
  * newly published original post. The caller must pass its transaction client.
- * A partial unique index makes retries safe and prevents duplicate records.
- *
  * @param {import('pg').PoolClient} client
  * @param {number|string} actorId
  * @param {number|string} tweetId
@@ -95,15 +129,18 @@ const createFollowedPostNotifications = async (client, actorId, tweetId) => {
 
 /**
  * Dispatch Web Push for an already-persisted notification.
+ * @param {Record<string, unknown>|null} notification
  * @param {number|string|null} actorId
  * @param {string} type
  * @param {number|string|null} [tweetId]
+ * @param {number|string|null} [conversationId]
  */
 const dispatchNotificationPush = async (
   notification,
   actorId,
   type,
   tweetId = null,
+  conversationId = null,
 ) => {
   if (!notification) return { delivered: 0, skipped: true };
 
@@ -112,6 +149,7 @@ const dispatchNotificationPush = async (
     actorId,
     type,
     tweetId,
+    conversationId,
     notificationId: notification.notifications_id,
   });
 };
@@ -182,6 +220,7 @@ const markAllAsRead = async (userId) => {
 
 export {
   createNotification,
+  createMessageNotification,
   createFollowedPostNotifications,
   dispatchNotificationPush,
   getNotifications,
