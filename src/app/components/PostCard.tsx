@@ -18,6 +18,7 @@ import PostEditor from './PostEditor';
 import SharePostButton from './SharePostButton';
 import ConfirmDeletePost from './ConfirmDeletePost';
 import ViewTracker from './ViewTracker';
+import PostContent from './PostContent';
 
 // ==================== POST TYPE ====================
 
@@ -32,6 +33,7 @@ export type Post = {
   // REPLY RELATIONSHIP
   is_reply_to?: string | number | null;
   reply_to_author_sub?: string | null;
+  mentions?: { username: string; sub: string }[];
 
   // COUNTS
   like_count?: string | number;
@@ -234,10 +236,14 @@ export default function PostCard({
         </div>
       </header>
 
-      {/* POST TEXT */}
-      <Link href={tweetHref} className="feed-post-link">
-        <p>{post.content || ''}</p>
-      </Link>
+      {/* POST TEXT AND RESOLVED MENTIONS */}
+      <p className="feed-post-link" style={{ whiteSpace: 'pre-wrap' }}>
+        <PostContent
+          content={post.content || ''}
+          postHref={tweetHref}
+          mentions={post.mentions}
+        />
+      </p>
 
       {/* POST MEDIA */}
       {post.media?.length ? (

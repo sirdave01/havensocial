@@ -1,7 +1,6 @@
-
 name: Publish scheduled HavenSocial posts
 
-on:
+'on':
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -9,61 +8,73 @@ on:
 permissions:
   contents: read
 
+# Prevent overlapping workflow runs from competing for the same due posts.
+concurrency:
+  group: havensocial-publish-scheduled-posts
+  cancel-in-progress: false
+
 jobs:
   publish-due-posts:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 5
     steps:
       - name: Publish due posts
         env:
           CRON_URL: ${{ secrets.HAVENSOCIAL_CRON_URL }}
           CRON_SECRET: ${{ secrets.HAVENSOCIAL_CRON_SECRET }}
-
         run: |
           set -euo pipefail
+
+          RUNNER_STARTED_UTC="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          echo "GitHub runner started at: $RUNNER_STARTED_UTC"
 
           if [ -z "$CRON_URL" ] || [ -z "$CRON_SECRET" ]; then
             echo "Missing HAVENSOCIAL_CRON_URL or HAVENSOCIAL_CRON_SECRET repository secrets."
             exit 1
           fi
 
-          echo "Contacting HavenSocial scheduled-post endpoint..."
-
-          set +e
-
           HTTP_STATUS="$(curl \
             --silent \
             --show-error \
             --connect-timeout 15 \
-            --max-time 60 \
-            --request GET \
+            --max-time 180 \
+            --retry 2 \
+            --retry-delay 2 \
+            --request POST \
             --output /tmp/havensocial-cron-response.txt \
-            --dump-header /tmp/havensocial-cron-headers.txt \
             --write-out '%{http_code}' \
             --header "Authorization: Bearer $CRON_SECRET" \
+            --header 'Accept: application/json' \
             "$CRON_URL")"
 
-          CURL_EXIT=$?
-
-          set -e
-
-          echo "Curl exit code: $CURL_EXIT"
           echo "HTTP status: $HTTP_STATUS"
+          echo "Endpoint response:"
+          cat /tmp/havensocial-cron-response.txt
+          echo
 
-          echo "Response body:"
-          cat /tmp/havensocial-cron-response.txt || true
-
-          echo "Redirect destination, if any:"
-          grep -i '^location:' /tmp/havensocial-cron-headers.txt || true
-
-          if [ "$CURL_EXIT" -ne 0 ]; then
-            echo "Could not connect to the publishing endpoint."
-            exit 1
-          fi
+          RUNNER_COMPLETED_UTC="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          echo "GitHub runner completed at: $RUNNER_COMPLETED_UTC"
 
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "Publishing endpoint did not return HTTP 200."
             exit 1
           fi
 
-          echo "HavenSocial endpoint returned HTTP 200."
+          if ! jq -e '.ok == true' /tmp/havensocial-cron-response.txt >/dev/null; then
+            echo "Publishing endpoint returned HTTP 200 without a successful result payload."
+            exit 1
+          fi
+
+          PUBLISHED_COUNT="$(jq -r '.publishedCount // 0' /tmp/havensocial-cron-response.txt)"
+          DUE_COUNT="$(jq -r '.dueCountBefore // 0' /tmp/havensocial-cron-response.txt)"
+          REMAINING_COUNT="$(jq -r '.remainingDueCount // 0' /tmp/havensocial-cron-response.txt)"
+          OLDEST_DELAY="$(jq -r '.oldestDueDelayMinutes // 0' /tmp/havensocial-cron-response.txt)"
+
+          echo "Due before run: $DUE_COUNT"
+          echo "Published by this run: $PUBLISHED_COUNT"
+          echo "Due posts remaining: $REMAINING_COUNT"
+          echo "Oldest due-post delay at endpoint check (minutes): $OLDEST_DELAY"
+
+          if [ "$REMAINING_COUNT" -gt 0 ]; then
+            echo "Some due posts remain; a later run should process them."
+          fi

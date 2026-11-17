@@ -6,11 +6,13 @@ import { sendUserPushNotification } from './push-notification.js';
  * Self-notifications are ignored. An optional transaction client can be
  * supplied by callers that need the notification in the same transaction.
  *
+ * The final options argument supports deferring Web Push until after COMMIT.
  * @param {number|string} userId
  * @param {number|string|null} actorId
  * @param {string} type
  * @param {number|string|null} [tweetId]
  * @param {import('pg').PoolClient|null} [client]
+ * @param {{deferPush?: boolean}} [options]
  */
 const createNotification = async (
   userId,
@@ -18,6 +20,7 @@ const createNotification = async (
   type,
   tweetId = null,
   client = null,
+  options = {},
 ) => {
   if (actorId != null && String(userId) === String(actorId)) {
     return null;
@@ -39,20 +42,78 @@ const createNotification = async (
   const result = await executor.query(query, [userId, actorId, type, tweetId]);
   const notification = result.rows[0] ?? null;
 
-  if (notification) {
-    // Push is best-effort: a push-provider failure must never undo the
-    // notification stored in Neon. This is awaited so serverless execution
-    // does not discard a fire-and-forget request at the end of the response.
-    await sendUserPushNotification({
-      userId,
-      actorId,
-      type,
-      tweetId,
-      notificationId: notification.notifications_id,
-    });
+  if (notification && !options.deferPush) {
+    await dispatchNotificationPush(notification, actorId, type, tweetId);
   }
 
   return notification;
+};
+
+/**
+ * Create one `new_post` notification for each active follower of an author's
+ * newly published original post. The caller must pass its transaction client.
+ * A partial unique index makes retries safe and prevents duplicate records.
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {number|string} actorId
+ * @param {number|string} tweetId
+ * @returns {Promise<Array<Record<string, unknown>>>}
+ */
+const createFollowedPostNotifications = async (client, actorId, tweetId) => {
+  const result = await client.query(
+    `INSERT INTO notifications (user_id, actor_id, type, tweet_id)
+     SELECT DISTINCT
+       recipient.users_id,
+       author.users_id,
+       'new_post',
+       post.tweet_id
+     FROM tweets post
+     JOIN users author
+       ON author.users_id = post.user_id
+      AND author.app_status = 'ACTIVE'
+     JOIN follows f
+       ON f.followee_id = author.users_id
+     JOIN users recipient
+       ON recipient.users_id = f.follower_id
+      AND recipient.app_status = 'ACTIVE'
+     WHERE post.tweet_id = $2
+       AND post.user_id = $1
+       AND post.is_reply_to IS NULL
+       AND post.published_at IS NOT NULL
+       AND post.is_deleted = FALSE
+       AND post.deleted_at IS NULL
+       AND recipient.users_id <> author.users_id
+     ON CONFLICT (user_id, actor_id, tweet_id)
+       WHERE type = 'new_post' AND tweet_id IS NOT NULL
+       DO NOTHING
+     RETURNING *`,
+    [actorId, tweetId],
+  );
+
+  return result.rows;
+};
+
+/**
+ * Dispatch Web Push for an already-persisted notification.
+ * @param {number|string|null} actorId
+ * @param {string} type
+ * @param {number|string|null} [tweetId]
+ */
+const dispatchNotificationPush = async (
+  notification,
+  actorId,
+  type,
+  tweetId = null,
+) => {
+  if (!notification) return { delivered: 0, skipped: true };
+
+  return sendUserPushNotification({
+    userId: notification.user_id,
+    actorId,
+    type,
+    tweetId,
+    notificationId: notification.notifications_id,
+  });
 };
 
 /** Retrieve the newest notifications for a user. */
@@ -121,6 +182,8 @@ const markAllAsRead = async (userId) => {
 
 export {
   createNotification,
+  createFollowedPostNotifications,
+  dispatchNotificationPush,
   getNotifications,
   getUnreadNotificationCount,
   markAsRead,

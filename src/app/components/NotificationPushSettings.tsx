@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
- type PushState =
+type PushState =
   | 'checking'
   | 'unsupported'
   | 'disabled'
@@ -85,7 +85,7 @@ export default function NotificationPushSettings() {
           }
         } else if (active) {
           setState('disabled');
-          setMessage('Get alerts for likes, replies and new followers even when HavenSocial is not open.');
+          setMessage('Get alerts for likes, replies, new followers and posts from accounts you follow even when HavenSocial is not open.');
         }
       } catch {
         if (active) {

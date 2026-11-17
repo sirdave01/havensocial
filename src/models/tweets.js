@@ -1,4 +1,9 @@
-import { db } from './db.js';
+import { db, pool } from './db.js';
+import {
+  dispatchMentionNotifications,
+  notifyPendingTweetMentions,
+  syncTweetMentions,
+} from './mentions.js';
 
 // ==================== HELPERS ====================
 
@@ -56,6 +61,46 @@ const attachMedia = async (rows) => {
   return rows;
 };
 
+
+const attachMentions = async (rows) => {
+  const allRows = [];
+  const visit = (row) => {
+    allRows.push(row);
+    for (const reply of row.replies || []) visit(reply);
+  };
+  rows.forEach(visit);
+  if (!allRows.length) return rows;
+
+  const tweetIds = [...new Set(allRows.map((row) => String(row.tweet_id)))];
+  const { rows: mentionRows } = await db.query(
+    `SELECT
+       tm.tweet_id::text AS tweet_id,
+       p.preferred_username AS username,
+       u.bhid_sub AS sub
+     FROM tweet_mentions tm
+     JOIN users u ON u.users_id = tm.mentioned_user_id
+     JOIN bhid_profile_cache p ON p.bhid_sub = u.bhid_sub
+     WHERE tm.tweet_id = ANY($1::bigint[])
+       AND u.app_status = 'ACTIVE'
+     ORDER BY tm.tweet_id, LOWER(p.preferred_username)`,
+    [tweetIds],
+  );
+
+  const mentionsByTweet = new Map();
+  for (const mention of mentionRows) {
+    const id = String(mention.tweet_id);
+    const mentions = mentionsByTweet.get(id) || [];
+    mentions.push({ username: mention.username, sub: mention.sub });
+    mentionsByTweet.set(id, mentions);
+  }
+
+  allRows.forEach((row) => {
+    row.mentions = mentionsByTweet.get(String(row.tweet_id)) || [];
+  });
+
+  return rows;
+};
+
 // ==================== THREADED REPLIES ====================
 
 export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
@@ -105,7 +150,9 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
   `;
 
   const { rows } = await db.query(query, [tweetId, viewerId]);
-  return attachMedia(buildReplyTree(rows));
+  const tree = buildReplyTree(rows);
+  await attachMedia(tree);
+  return attachMentions(tree);
 };
 
 // ==================== SINGLE TWEET + THREAD ====================
@@ -145,8 +192,10 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
   if (!tweet) return null;
 
   const replies = await getThreadedRepliesForTweet(tweetId, viewerId);
-  await attachMedia([tweet]);
-  return { ...tweet, replies };
+  const thread = { ...tweet, replies };
+  await attachMedia([thread]);
+  await attachMentions([thread]);
+  return thread;
 };
 
 // ==================== SINGLE TWEET ====================
@@ -171,7 +220,9 @@ const getTweetById = async (tweetId) => {
   `;
 
   const result = await db.query(query, [tweetId]);
-  return result.rows[0];
+  const tweet = result.rows[0];
+  if (tweet) await attachMentions([tweet]);
+  return tweet;
 };
 
 // ==================== USER TWEETS ====================
@@ -207,7 +258,8 @@ const getUserTweets = async (userId, limit = 20, offset = 0) => {
   `;
 
   const result = await db.query(query, [userId, safeLimit, safeOffset]);
-  return attachMedia(result.rows);
+  await attachMedia(result.rows);
+  return attachMentions(result.rows);
 };
 
 // ==================== SCHEDULED TWEETS ====================
@@ -316,7 +368,8 @@ const getFeed = async (viewerId, limit = 20, offset = 0, followingOnly = false) 
   `;
 
   const { rows } = await db.query(query, [viewerId, safeLimit, safeOffset, followingOnly]);
-  return attachMedia(rows);
+  await attachMedia(rows);
+  return attachMentions(rows);
 };
 
 const getHomeFeed = async (viewerId, limit = 20, offset = 0) =>
@@ -346,23 +399,56 @@ const deleteTweet = async (tweetId, userId) => {
 // ==================== UPDATE TWEET ====================
 
 const updateTweet = async (tweetId, userId, content) => {
-  const result = await db.query(
-    `UPDATE tweets
-     SET content = $1,
-         updated_at = CURRENT_TIMESTAMP,
-         edited_at = CASE
-           WHEN content IS DISTINCT FROM $1 THEN CURRENT_TIMESTAMP
-           ELSE edited_at
-         END
-     WHERE tweet_id = $2
-       AND user_id = $3
-       AND is_deleted = FALSE
-       AND deleted_at IS NULL
-       AND published_at IS NOT NULL
-     RETURNING *`,
-    [content, tweetId, userId],
-  );
-  return result.rows[0];
+  const client = await pool.connect();
+  let mentionNotifications = [];
+
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `UPDATE tweets
+       SET content = $1,
+           updated_at = CURRENT_TIMESTAMP,
+           edited_at = CASE
+             WHEN content IS DISTINCT FROM $1 THEN CURRENT_TIMESTAMP
+             ELSE edited_at
+           END
+       WHERE tweet_id = $2
+         AND user_id = $3
+         AND is_deleted = FALSE
+         AND deleted_at IS NULL
+         AND published_at IS NOT NULL
+       RETURNING *`,
+      [content, tweetId, userId],
+    );
+
+    const tweet = result.rows[0] ?? null;
+    if (!tweet) {
+      await client.query('COMMIT');
+      return null;
+    }
+
+    await syncTweetMentions(client, tweetId, content);
+    mentionNotifications = await notifyPendingTweetMentions(
+      client,
+      tweetId,
+      userId,
+    );
+
+    await client.query('COMMIT');
+    await dispatchMentionNotifications(mentionNotifications);
+    return tweet;
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Post edit transaction rollback failed:', {
+        errorName: rollbackError instanceof Error ? rollbackError.name : 'NonError',
+      });
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 export {

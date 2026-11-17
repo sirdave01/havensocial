@@ -1,4 +1,3 @@
-
 import {
   setVapidDetails,
   sendNotification,
@@ -63,6 +62,8 @@ function buildNotification(
     body = `${name} reshared your post.`;
   } else if (normalizedType === 'mention') {
     body = `${name} mentioned you.`;
+  } else if (normalizedType === 'new_post') {
+    body = `${name} published a new post.`;
   } else {
     body = `${name} sent you a notification.`;
   }
@@ -86,10 +87,9 @@ function buildNotification(
 }
 
 /**
- * Deliver a Web Push notification to every active subscription
- * belonging to the notification recipient.
- *
- * Push failures never invalidate the in-app notification.
+ * Deliver a Web Push notification to every active subscription belonging
+ * to the notification recipient. Push failures never invalidate the
+ * in-app notification.
  */
 export async function sendUserPushNotification({
   userId,
@@ -145,11 +145,8 @@ export async function sendUserPushNotification({
         [actorId],
       );
 
-      actorName =
-        actorResult.rows[0]?.display_name || actorName;
-
-      actorSub =
-        actorResult.rows[0]?.bhid_sub || null;
+      actorName = actorResult.rows[0]?.display_name || actorName;
+      actorSub = actorResult.rows[0]?.bhid_sub || null;
     }
 
     const payload = JSON.stringify(

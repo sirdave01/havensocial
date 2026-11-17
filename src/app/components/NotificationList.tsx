@@ -31,6 +31,8 @@ function notificationMessage(type: string) {
       return 'reshared your post.';
     case 'mention':
       return 'mentioned you.';
+    case 'new_post':
+      return 'published a new post.';
     default:
       return 'sent you a notification.';
   }
@@ -151,7 +153,6 @@ export default function NotificationList({
           >
             <div className="notification-item-content">
               {notification.actorPicture ? (
-                // BHID owns this avatar URL; HavenSocial only displays it.
                 <img
                   src={notification.actorPicture}
                   alt=""
