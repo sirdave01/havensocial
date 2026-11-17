@@ -130,8 +130,7 @@ export async function getOrCreateDirectConversation(userId, recipientSub) {
     );
     const recipientId = recipientResult.rows[0]?.user_id;
     if (!recipientId) {
-      const error = new Error('RECIPIENT_NOT_FOUND');
-      throw error;
+      throw new Error('RECIPIENT_NOT_FOUND');
     }
     if (String(recipientId) === String(userId)) {
       throw new Error('CANNOT_MESSAGE_SELF');
@@ -392,24 +391,24 @@ export async function sendDirectMessage(conversationId, senderId, rawContent) {
 }
 
 /**
- * Update a participant's read position after the conversation is displayed.
+ * Mark all messages visible at the time of this database statement as read.
+ * The client timestamp is intentionally not used: JavaScript Date truncates
+ * PostgreSQL microseconds to milliseconds, which can leave the newest message
+ * appearing unread after it has been opened.
  * @param {string | number} conversationId
  * @param {string | number} userId
- * @param {string | null} [readThrough=null]
+ * @param {string | Date | null} [_readThrough=null]
  */
-export async function markDirectConversationRead(conversationId, userId, readThrough = null) {
+export async function markDirectConversationRead(conversationId, userId, _readThrough = null) {
   const safeConversationId = normalizeId(conversationId);
   if (!safeConversationId) return false;
 
-  const parsedReadThrough = readThrough == null ? null : new Date(readThrough);
-  if (parsedReadThrough && Number.isNaN(parsedReadThrough.getTime())) return false;
-
   const result = await db.query(
     `UPDATE conversation_participants cp
-     SET last_read_at = CASE
-           WHEN $3::timestamptz IS NULL THEN cp.last_read_at
-           ELSE LEAST($3::timestamptz, CURRENT_TIMESTAMP)
-         END,
+     SET last_read_at = GREATEST(
+           COALESCE(cp.last_read_at, cp.joined_at),
+           statement_timestamp()
+         ),
          is_archived = FALSE
      FROM conversations c
      WHERE cp.conversation_id = c.conversation_id
@@ -419,7 +418,7 @@ export async function markDirectConversationRead(conversationId, userId, readThr
        AND (SELECT COUNT(*) FROM conversation_participants member
             WHERE member.conversation_id = c.conversation_id) = 2
      RETURNING cp.conversation_id`,
-    [safeConversationId, userId, parsedReadThrough],
+    [safeConversationId, userId],
   );
   return Boolean(result.rows[0]);
 }
