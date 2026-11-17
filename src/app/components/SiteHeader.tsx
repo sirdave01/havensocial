@@ -3,28 +3,32 @@ import Link from 'next/link';
 import { getCurrentBhidProfile } from '@/lib/bhid/profile';
 import { getLinkedUser } from '@/lib/linked-user';
 import { getUnreadNotificationCount } from '@/models/notification.js';
+import { getUnreadMessageCount } from '@/models/messaging.js';
 
 import IdentityAvatar from './IdentityAvatar';
 import NavIcon, { type NavIconName } from './NavIcon';
 import NotificationNavItem from './NotificationNavItem';
+import MessagesNavItem from './MessagesNavItem';
 import ThemeToggle from './ThemeToggle';
 
 const navigation: { href: string; label: string; icon: NavIconName }[] = [
   { href: '/feed', label: 'Home', icon: 'home' },
   { href: '/search', label: 'Search', icon: 'search' },
   { href: '/profile', label: 'Profile', icon: 'profile' },
+  { href: '/messages', label: 'Messages', icon: 'messages' },
   { href: '/notifications', label: 'Notifications', icon: 'notifications' },
 ];
 
 export default async function SiteHeader() {
   const user = await getLinkedUser();
 
-  const [profile, unreadCount] = user
+  const [profile, unreadCount, unreadMessageCount] = user
     ? await Promise.all([
         getCurrentBhidProfile(user.bhid_sub),
         getUnreadNotificationCount(user.users_id),
+        getUnreadMessageCount(user.users_id),
       ])
-    : [null, 0];
+    : [null, 0, 0];
 
   return (
     <header>
@@ -55,10 +59,12 @@ export default async function SiteHeader() {
           {navigation.map((item) => {
             if (item.label === 'Notifications') {
               return (
-                <NotificationNavItem
-                  key={item.label}
-                  initialCount={unreadCount}
-                />
+                <NotificationNavItem key={item.label} initialCount={unreadCount} />
+              );
+            }
+            if (item.label === 'Messages') {
+              return (
+                <MessagesNavItem key={item.label} initialCount={unreadMessageCount} />
               );
             }
 
