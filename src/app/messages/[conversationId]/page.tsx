@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation';
+
 import { requireLinkedUser } from '@/lib/linked-user';
 import {
   getDirectConversationMessages,
   markDirectConversationRead,
 } from '@/models/messaging.js';
 import ConversationView from '../../components/ConversationView';
-
 
 export default async function DirectConversationPage({
   params,
@@ -16,11 +16,22 @@ export default async function DirectConversationPage({
   const { conversationId } = await params;
   if (!/^[1-9]\d{0,18}$/.test(conversationId)) notFound();
 
-  const data = await getDirectConversationMessages(conversationId, user.users_id, null, 50);
+  const data = await getDirectConversationMessages(
+    conversationId,
+    user.users_id,
+    null,
+    50,
+  );
   if (!data) notFound();
 
-  const latestMessageTime = data.messages[data.messages.length - 1]?.created_at ?? null;
-  await markDirectConversationRead(conversationId, user.users_id, latestMessageTime);
+  // Pass the message ID, not a JavaScript Date. The model resolves the exact
+  // PostgreSQL timestamp, preserving its microsecond precision.
+  const latestMessageId = data.messages[data.messages.length - 1]?.message_id ?? null;
+  await markDirectConversationRead(
+    conversationId,
+    user.users_id,
+    latestMessageId,
+  );
 
   return (
     <main className="feed-page">
