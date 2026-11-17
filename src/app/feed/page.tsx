@@ -63,6 +63,9 @@ export default async function FeedPage({
     if (post.reshared_by_sub && post.reshared_by_sub !== user.bhid_sub) {
       profileSubjects.add(post.reshared_by_sub);
     }
+    if (post.reply_to_author_sub && post.reply_to_author_sub !== user.bhid_sub) {
+      profileSubjects.add(post.reply_to_author_sub);
+    }
   }
 
   const authorProfiles = await getBhidProfiles(Array.from(profileSubjects));
@@ -108,6 +111,9 @@ export default async function FeedPage({
                 : `tweet-${post.tweet_id}`}
               post={post}
               author={authorProfiles.get(post.author_sub)}
+              replyToAuthor={post.reply_to_author_sub
+                ? authorProfiles.get(post.reply_to_author_sub)
+                : undefined}
               resharedBy={post.reshared_by_sub
                 ? authorProfiles.get(post.reshared_by_sub)
                 : undefined}

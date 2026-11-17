@@ -1,4 +1,3 @@
-
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 
@@ -65,12 +64,14 @@ function renderReplyTree(
       <PostCard
         post={reply}
         author={profiles.get(reply.author_sub)}
+        replyToAuthor={reply.reply_to_author_sub
+          ? profiles.get(reply.reply_to_author_sub)
+          : undefined}
         viewerId={viewerId}
         showFollow={false}
       />
 
       {/* NESTED REPLIES */}
-
       {reply.replies?.length ? (
         <div className="nested-replies">
           {renderReplyTree(
@@ -81,7 +82,6 @@ function renderReplyTree(
           )}
         </div>
       ) : null}
-
     </div>
   ));
 }
@@ -124,16 +124,23 @@ export default async function TweetPage({
   // 6. Collect every reply, including nested replies.
   const allReplies = flattenReplies(replies);
 
-  // 7. Collect BHID author subjects.
+  // 7. Collect BHID author subjects, including immediate-parent authors.
   const profileSubjects = new Set<string>();
 
   if (!originalPostDeleted && data.author_sub) {
     profileSubjects.add(data.author_sub);
   }
 
+  if (!originalPostDeleted && data.reply_to_author_sub) {
+    profileSubjects.add(data.reply_to_author_sub);
+  }
+
   for (const reply of allReplies) {
     if (reply.author_sub) {
       profileSubjects.add(reply.author_sub);
+    }
+    if (reply.reply_to_author_sub) {
+      profileSubjects.add(reply.reply_to_author_sub);
     }
   }
 
@@ -155,9 +162,7 @@ export default async function TweetPage({
   // 9. Render the conversation.
   return (
     <main className="feed-page">
-
       {/* TRACK VIEWS ONLY FOR ACTIVE ORIGINAL POSTS */}
-
       {!originalPostDeleted && (
         <ViewTracker
           tweetId={String(data.tweet_id)}
@@ -165,7 +170,6 @@ export default async function TweetPage({
       )}
 
       {/* ORIGINAL POST OR DELETED-POST PLACEHOLDER */}
-
       <PostCard
         post={data as Post}
         author={
@@ -173,11 +177,13 @@ export default async function TweetPage({
             ? undefined
             : authorProfiles.get(data.author_sub)
         }
+        replyToAuthor={data.reply_to_author_sub
+          ? authorProfiles.get(data.reply_to_author_sub)
+          : undefined}
         viewerId={user.users_id}
       />
 
       {/* REPLY COMPOSER */}
-
       {!originalPostDeleted ? (
         <ComposePost
           replyTo={String(data.tweet_id)}
@@ -194,12 +200,10 @@ export default async function TweetPage({
       )}
 
       {/* PRESERVED REPLY THREAD */}
-
       <section
         className="feed"
         aria-label="Replies"
       >
-
         {replies.length ? (
           renderReplyTree(
             replies,
@@ -213,9 +217,7 @@ export default async function TweetPage({
               : 'No replies yet. Be the first to reply.'}
           </p>
         )}
-
       </section>
-
     </main>
   );
 }

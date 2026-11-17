@@ -80,6 +80,7 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
     SELECT
       rt.*,
       u.bhid_sub AS author_sub,
+      reply_parent_author.bhid_sub AS reply_to_author_sub,
       (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = rt.tweet_id) AS like_count,
       (SELECT COUNT(*) FROM tweets r
        WHERE r.is_reply_to = rt.tweet_id
@@ -98,6 +99,8 @@ export const getThreadedRepliesForTweet = async (tweetId, viewerId = null) => {
               WHERE follower_id = $2 AND followee_id = rt.user_id) AS is_following
     FROM reply_tree rt
     JOIN users u ON u.users_id = rt.user_id
+    LEFT JOIN tweets reply_parent ON reply_parent.tweet_id = rt.is_reply_to
+    LEFT JOIN users reply_parent_author ON reply_parent_author.users_id = reply_parent.user_id
     ORDER BY rt.created_at ASC, rt.tweet_id ASC;
   `;
 
@@ -112,6 +115,7 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
     SELECT
       t.*,
       u.bhid_sub AS author_sub,
+      reply_parent_author.bhid_sub AS reply_to_author_sub,
       (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
       (SELECT COUNT(*) FROM tweets r
        WHERE r.is_reply_to = t.tweet_id
@@ -130,6 +134,8 @@ export const getTweetWithReplies = async (tweetId, viewerId = null) => {
               WHERE follower_id = $2 AND followee_id = t.user_id) AS is_following
     FROM tweets t
     JOIN users u ON u.users_id = t.user_id
+    LEFT JOIN tweets reply_parent ON reply_parent.tweet_id = t.is_reply_to
+    LEFT JOIN users reply_parent_author ON reply_parent_author.users_id = reply_parent.user_id
     WHERE t.tweet_id = $1
       AND t.published_at IS NOT NULL;
   `;
@@ -150,11 +156,14 @@ const getTweetById = async (tweetId) => {
     SELECT
       t.*,
       u.bhid_sub AS author_sub,
+      reply_parent_author.bhid_sub AS reply_to_author_sub,
       (SELECT COUNT(*) FROM tweet_views v
        WHERE v.tweet_id = t.tweet_id
          AND v.qualification_status = 'QUALIFIED') AS view_count
     FROM tweets t
     JOIN users u ON u.users_id = t.user_id
+    LEFT JOIN tweets reply_parent ON reply_parent.tweet_id = t.is_reply_to
+    LEFT JOIN users reply_parent_author ON reply_parent_author.users_id = reply_parent.user_id
     WHERE t.tweet_id = $1
       AND t.is_deleted = FALSE
       AND t.deleted_at IS NULL
@@ -174,6 +183,7 @@ const getUserTweets = async (userId, limit = 20, offset = 0) => {
     SELECT
       t.*,
       u.bhid_sub AS author_sub,
+      reply_parent_author.bhid_sub AS reply_to_author_sub,
       (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = t.tweet_id) AS like_count,
       (SELECT COUNT(*) FROM tweets r
        WHERE r.is_reply_to = t.tweet_id
@@ -186,6 +196,8 @@ const getUserTweets = async (userId, limit = 20, offset = 0) => {
          AND v.qualification_status = 'QUALIFIED') AS view_count
     FROM tweets t
     JOIN users u ON u.users_id = t.user_id
+    LEFT JOIN tweets reply_parent ON reply_parent.tweet_id = t.is_reply_to
+    LEFT JOIN users reply_parent_author ON reply_parent_author.users_id = reply_parent.user_id
     WHERE t.user_id = $1
       AND t.is_deleted = FALSE
       AND t.deleted_at IS NULL
@@ -270,6 +282,7 @@ const getFeed = async (viewerId, limit = 20, offset = 0, followingOnly = false) 
     )
     SELECT
       feed_items.*,
+      reply_parent_author.bhid_sub AS reply_to_author_sub,
       (SELECT COUNT(*) FROM likes l WHERE l.tweet_id = feed_items.tweet_id) AS like_count,
       (SELECT COUNT(*) FROM tweets r
        WHERE r.is_reply_to = feed_items.tweet_id
@@ -287,6 +300,8 @@ const getFeed = async (viewerId, limit = 20, offset = 0, followingOnly = false) 
       EXISTS (SELECT 1 FROM follows
               WHERE follower_id = $1 AND followee_id = feed_items.user_id) AS is_following
     FROM feed_items
+    LEFT JOIN tweets reply_parent ON reply_parent.tweet_id = feed_items.is_reply_to
+    LEFT JOIN users reply_parent_author ON reply_parent_author.users_id = reply_parent.user_id
     WHERE NOT $4::boolean
        OR EXISTS (
             SELECT 1 FROM follows f

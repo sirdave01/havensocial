@@ -45,8 +45,19 @@ export default async function ProfilePage({
   const visibleTweets = tweets.slice(0, PAGE_SIZE) as Post[];
   const isOwner = String(profile.users_id) === String(viewer.users_id);
 
+  const profileSubjects = new Set<string>();
+  if (!isOwner) profileSubjects.add(profile.bhid_sub);
+  for (const tweet of visibleTweets) {
+    if (
+      tweet.reply_to_author_sub &&
+      tweet.reply_to_author_sub !== viewer.bhid_sub
+    ) {
+      profileSubjects.add(tweet.reply_to_author_sub);
+    }
+  }
+
   const [authorProfiles, currentProfile] = await Promise.all([
-    getBhidProfiles(isOwner ? [] : [profile.bhid_sub]),
+    getBhidProfiles(Array.from(profileSubjects)),
     isOwner ? getCurrentBhidProfile(viewer.bhid_sub) : Promise.resolve(null),
   ]);
   if (currentProfile) authorProfiles.set(currentProfile.sub, currentProfile);
@@ -104,6 +115,9 @@ export default async function ProfilePage({
               key={String(tweet.tweet_id)}
               post={tweet}
               author={authorProfiles.get(tweet.author_sub)}
+              replyToAuthor={tweet.reply_to_author_sub
+                ? authorProfiles.get(tweet.reply_to_author_sub)
+                : undefined}
               viewerId={viewer.users_id}
               showFollow={false}
             />

@@ -29,6 +29,10 @@ export type Post = {
   created_at: string | Date;
   published_at?: string | Date | null;
 
+  // REPLY RELATIONSHIP
+  is_reply_to?: string | number | null;
+  reply_to_author_sub?: string | null;
+
   // COUNTS
   like_count?: string | number;
   reply_count?: string | number;
@@ -91,12 +95,14 @@ function formatPublicationDate(value: string | Date) {
 export default function PostCard({
   post,
   author,
+  replyToAuthor,
   resharedBy,
   viewerId,
   showFollow = true,
 }: {
   post: Post;
   author: BhidProfile | undefined;
+  replyToAuthor?: BhidProfile;
   resharedBy?: BhidProfile;
   viewerId: string | number;
   showFollow?: boolean;
@@ -126,6 +132,9 @@ export default function PostCard({
   const tweetHref = `/tweet/${encodeURIComponent(tweetId)}`;
   const resharerHref = post.reshared_by_sub
     ? `/profile/${encodeURIComponent(post.reshared_by_sub)}`
+    : null;
+  const replyToProfileHref = post.reply_to_author_sub
+    ? `/profile/${encodeURIComponent(post.reply_to_author_sub)}`
     : null;
 
   // Published posts use their actual publication timestamp. The original
@@ -180,6 +189,20 @@ export default function PostCard({
         <p className="reshare-quote">
           {post.reshare_quote_text}
         </p>
+      )}
+
+      {/* REPLY ATTRIBUTION */}
+      {post.is_reply_to != null && (
+        <div className="reply-attribution">
+          <span>Replying to </span>
+          {replyToProfileHref && replyToAuthor?.preferredUsername ? (
+            <Link href={replyToProfileHref}>
+              @{replyToAuthor.preferredUsername}
+            </Link>
+          ) : (
+            <span>a HavenSocial user</span>
+          )}
+        </div>
       )}
 
       {/* ORIGINAL POST AUTHOR */}
