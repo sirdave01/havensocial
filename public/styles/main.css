@@ -1853,3 +1853,20 @@ body.dark-mode .modal-content input {
     border-left: 1px solid var(--border, #888);
 }
 
+/* Scoped Search page button sizing. Append to public/styles/main.css. */
+.search-form button.search-submit-button {
+    width: fit-content;
+    min-width: 0;
+    min-height: 2.35rem;
+    padding: 0.45rem 1.1rem;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    border-radius: 10px;
+    box-shadow: none;
+}
+
+.search-form button.search-submit-button:hover {
+    box-shadow: none;
+}
+
+

@@ -55,7 +55,7 @@ export default async function SearchPage({
     <main className="feed-page">
       <h1>Search HavenSocial</h1>
 
-      <form action="/search" method="get">
+      <form action="/search" method="get" className="search-form">
         <label htmlFor="search-query">Search users by name, username or BHID</label>
         <input
           id="search-query"
@@ -66,7 +66,7 @@ export default async function SearchPage({
           maxLength={MAX_QUERY_LENGTH}
           placeholder="Enter a name, username or BHID…"
         />
-        <button type="submit">Search</button>
+        <button type="submit" className="search-submit-button">Search</button>
       </form>
 
       {query.length > 0 && query.length < MIN_SEARCH_LENGTH && (
