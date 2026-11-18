@@ -1,0 +1,86 @@
+﻿[
+  {
+    "id": "@matrix-org/matrix-sdk-crypto-wasm@19.0.1",
+    "name": "@matrix-org/matrix-sdk-crypto-wasm",
+    "version": "19.0.1",
+    "size": 2347205,
+    "unpackedSize": 9141230,
+    "shasum": "7a103715afae941768352bc88b02ab9491dc95cc",
+    "integrity": "sha512-8KtzFk8xGxUGVVCAK4FWB1poOQoKLzy2Z98iudD7cbaciZ6UIkxivYgMA4/f2z3L0nVSAPiWaBp4mwWv2BBocQ==",
+    "filename": "matrix-org-matrix-sdk-crypto-wasm-19.0.1.tgz",
+    "files": [
+      {
+        "path": "LICENSE",
+        "size": 10174,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 6609,
+        "mode": 420
+      },
+      {
+        "path": "index-wasm-esm.mjs",
+        "size": 2601,
+        "mode": 420
+      },
+      {
+        "path": "index.cjs",
+        "size": 2570,
+        "mode": 420
+      },
+      {
+        "path": "index.d.ts",
+        "size": 2584,
+        "mode": 420
+      },
+      {
+        "path": "index.mjs",
+        "size": 2950,
+        "mode": 420
+      },
+      {
+        "path": "node.cjs",
+        "size": 4147,
+        "mode": 420
+      },
+      {
+        "path": "node.mjs",
+        "size": 4060,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 2965,
+        "mode": 420
+      },
+      {
+        "path": "pkg/matrix_sdk_crypto_wasm_bg.cjs",
+        "size": 454156,
+        "mode": 420
+      },
+      {
+        "path": "pkg/matrix_sdk_crypto_wasm_bg.js",
+        "size": 461262,
+        "mode": 420
+      },
+      {
+        "path": "pkg/matrix_sdk_crypto_wasm_bg.wasm",
+        "size": 7955688,
+        "mode": 420
+      },
+      {
+        "path": "pkg/matrix_sdk_crypto_wasm_bg.wasm.d.ts",
+        "size": 57479,
+        "mode": 420
+      },
+      {
+        "path": "pkg/matrix_sdk_crypto_wasm.d.ts",
+        "size": 173985,
+        "mode": 420
+      }
+    ],
+    "entryCount": 14,
+    "bundled": []
+  }
+]
