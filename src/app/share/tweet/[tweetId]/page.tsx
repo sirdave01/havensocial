@@ -1,6 +1,10 @@
+
 import { cache } from 'react';
+
 import type { Metadata } from 'next';
+
 import Link from 'next/link';
+
 import { notFound } from 'next/navigation';
 
 import { getBhidProfiles } from '@/lib/bhid/profile';
@@ -28,6 +32,8 @@ type ShareMedia = {
   alt_text?: string | null;
   width?: number | null;
   height?: number | null;
+  thumbnail_storage_key?: string | null;
+  thumbnail_url?: string | null;
 };
 
 type ShareTweet = {
@@ -115,6 +121,13 @@ function isImageMedia(media: ShareMedia) {
   );
 }
 
+function isVideoMedia(media: ShareMedia) {
+  return (
+    String(media.media_type || '').toUpperCase() === 'VIDEO' ||
+    String(media.mime_type || '').toLowerCase().startsWith('video/')
+  );
+}
+
 function getPublicationDate(
   value: string | Date | null | undefined,
 ) {
@@ -152,9 +165,6 @@ function getPostDescription(
 
 // ==================== SHARED DATA FETCH ====================
 
-// React cache avoids unnecessarily repeating the same lookup
-// when generateMetadata and the page both request the post.
-
 const getShareData = cache(async (tweetId: string) => {
   const tweet = await getTweetWithReplies(
     tweetId,
@@ -167,7 +177,6 @@ const getShareData = cache(async (tweetId: string) => {
 
   const post = tweet as ShareTweet;
 
-  // Deleted posts must never expose their old content or media.
   if (isDeletedPost(post)) {
     return null;
   }
@@ -232,26 +241,40 @@ export async function generateMetadata({
   const canonicalUrl =
     `${SITE_URL}/share/tweet/${encodeURIComponent(tweetId)}`;
 
-  // Select an actual image attachment for Open Graph.
-  // Do not use an MP4 or other video URL as an image.
-  const imageMedia = (tweet.media ?? []).find(
-    isImageMedia,
+  const media = tweet.media ?? [];
+
+  // Prefer an actual image attachment.
+  const imageMedia = media.find(isImageMedia);
+
+  // If the post has no image attachment, use the thumbnail
+  // belonging to its video attachment instead.
+  const videoMedia = media.find(
+    (item) =>
+      isVideoMedia(item) &&
+      Boolean(item.thumbnail_url),
   );
 
-  const imageUrl = imageMedia
+  const previewImageUrl = imageMedia
     ? getAbsoluteUrl(imageMedia.media_url)
-    : null;
+    : videoMedia
+      ? getAbsoluteUrl(videoMedia.thumbnail_url)
+      : null;
 
-  const openGraphImages = imageUrl
+  const previewImageAlt = imageMedia
+    ? imageMedia.alt_text ||
+      `Post by ${authorName} on HavenSocial`
+    : videoMedia
+      ? `Video thumbnail from a post by ${authorName} on HavenSocial`
+      : undefined;
+
+  const openGraphImages = previewImageUrl
     ? [
         {
-          url: imageUrl,
-          alt:
-            imageMedia?.alt_text ||
-            `Post by ${authorName} on HavenSocial`,
+          url: previewImageUrl,
+          alt: previewImageAlt,
           ...(imageMedia?.mime_type
             ? { type: imageMedia.mime_type }
-            : {}),
+            : { type: 'image/jpeg' }),
           ...(imageMedia?.width
             ? { width: Number(imageMedia.width) }
             : {}),
@@ -270,6 +293,7 @@ export async function generateMetadata({
     metadataBase: new URL(SITE_URL),
 
     title,
+
     description,
 
     applicationName: 'HavenSocial',
@@ -284,9 +308,11 @@ export async function generateMetadata({
       siteName: 'HavenSocial',
       title,
       description,
+
       ...(openGraphImages
         ? { images: openGraphImages }
         : {}),
+
       ...(publicationDate
         ? {
             publishedTime: publicationDate.toISOString(),
@@ -295,13 +321,16 @@ export async function generateMetadata({
     },
 
     twitter: {
-      card: imageUrl
+      card: previewImageUrl
         ? 'summary_large_image'
         : 'summary',
+
       title,
+
       description,
-      ...(imageUrl
-        ? { images: [imageUrl] }
+
+      ...(previewImageUrl
+        ? { images: [previewImageUrl] }
         : {}),
     },
   };
@@ -403,7 +432,8 @@ export default async function SharedTweetPage({
                   url={item.media_url}
                   mediaType={item.media_type}
                   mimeType={item.mime_type}
-                  altText={String(item.alt_text)}
+                  altText={item.alt_text ?? null}
+                  thumbnailUrl={item.thumbnail_url ?? null}
                 />
               ))}
             </div>

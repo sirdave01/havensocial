@@ -4,6 +4,7 @@ type MediaPreviewProps = {
   mediaType: string;
   altText: string | null;
   mimeType?: string | null;
+  thumbnailUrl?: string | null;
 };
 
 const VIDEO_MIME_TYPES: Record<string, string> = {
@@ -17,9 +18,8 @@ export default function MediaPreview({
   mediaType,
   altText,
   mimeType,
+  thumbnailUrl,
 }: MediaPreviewProps) {
-  // Remove query strings before checking the file extension.
-  // This is important for presigned or query-based media URLs.
   const cleanUrl = url.split(/[?#]/, 1)[0].toLowerCase();
 
   const extension = cleanUrl.split('.').pop() || '';
@@ -31,10 +31,9 @@ export default function MediaPreview({
 
   const inferredMimeType = VIDEO_MIME_TYPES[extension];
 
-  const videoMimeType =
-    suppliedMimeType?.startsWith('video/')
-      ? suppliedMimeType
-      : inferredMimeType;
+  const videoMimeType = suppliedMimeType?.startsWith('video/')
+    ? suppliedMimeType
+    : inferredMimeType;
 
   const isVideo =
     mediaType.toUpperCase() === 'VIDEO' ||
@@ -47,12 +46,10 @@ export default function MediaPreview({
         controls
         playsInline
         preload="metadata"
+        poster={thumbnailUrl || undefined}
         aria-label={altText || 'Post video'}
       >
-        <source
-          src={url}
-          type={videoMimeType}
-        />
+        <source src={url} type={videoMimeType} />
 
         Your browser does not support this video format.
       </video>
