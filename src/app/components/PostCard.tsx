@@ -33,7 +33,12 @@ export type Post = {
   // REPLY RELATIONSHIP
   is_reply_to?: string | number | null;
   reply_to_author_sub?: string | null;
-  mentions?: { username: string; sub: string }[];
+  reply_to_author_username?: string | null;
+
+  mentions?: {
+    username: string;
+    sub: string;
+  }[];
 
   // COUNTS
   like_count?: string | number;
@@ -132,22 +137,38 @@ export default function PostCard({
 
   const profileHref = `/profile/${encodeURIComponent(post.author_sub)}`;
   const tweetHref = `/tweet/${encodeURIComponent(tweetId)}`;
+
   const resharerHref = post.reshared_by_sub
     ? `/profile/${encodeURIComponent(post.reshared_by_sub)}`
     : null;
+
+  // The original author's profile link.
   const replyToProfileHref = post.reply_to_author_sub
     ? `/profile/${encodeURIComponent(post.reply_to_author_sub)}`
     : null;
 
-  // Published posts use their actual publication timestamp. The original
-  // created_at value remains available for record-keeping.
+  // The exact post this reply references.
+  const replyToTweetHref =
+    post.is_reply_to != null
+      ? `/tweet/${encodeURIComponent(String(post.is_reply_to))}`
+      : null;
+
+  // Prefer the username returned by the tweet query.
+  // Keep the existing BHID profile object as a fallback.
+  const replyToUsername =
+    post.reply_to_author_username ||
+    replyToAuthor?.preferredUsername ||
+    null;
+
+  // Published posts use their actual publication timestamp.
+  // The original created_at value remains available for record-keeping.
   const publicationDate = formatPublicationDate(
     post.published_at ?? post.created_at,
   );
 
-  // Each appearance of a post gets its own DOM target. A reshare and the
-  // original post can therefore be observed independently, while the
-  // database still counts the viewer only once for the original tweet.
+  // Each appearance of a post gets its own DOM target.
+  // A reshare and the original post can therefore be observed independently,
+  // while the database still counts the viewer only once for the original tweet.
   const viewTargetId =
     isReshare && post.feed_retweet_id != null
       ? `post-view-reshare-${post.feed_retweet_id}`
@@ -197,12 +218,23 @@ export default function PostCard({
       {post.is_reply_to != null && (
         <div className="reply-attribution">
           <span>Replying to </span>
-          {replyToProfileHref && replyToAuthor?.preferredUsername ? (
+
+          {replyToProfileHref ? (
             <Link href={replyToProfileHref}>
-              @{replyToAuthor.preferredUsername}
+              @{replyToUsername || 'original author'}
             </Link>
           ) : (
             <span>a HavenSocial user</span>
+          )}
+
+          {replyToTweetHref && (
+            <>
+              <span aria-hidden="true"> · </span>
+
+              <Link href={replyToTweetHref}>
+                View original post
+              </Link>
+            </>
           )}
         </div>
       )}

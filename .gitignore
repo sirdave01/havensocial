@@ -166,3 +166,4 @@ vite.config.ts.timestamp-*
 .vite/
 /infra/matrix/synapse-data/
 /infra/matrix/postgres-data/
+/infra/matrix/.env
