@@ -39,13 +39,13 @@ export const createTweetWithExtras = async (
     if (isReplyTo !== null && isReplyTo !== undefined) {
       const parentResult = await client.query(
         `SELECT
-            user_id,
-            (published_at IS NOT NULL
-             AND is_deleted = FALSE
-             AND deleted_at IS NULL
-             AND (replies_open_at IS NULL OR replies_open_at <= CURRENT_TIMESTAMP)
-             AND (replies_close_at IS NULL OR replies_close_at > CURRENT_TIMESTAMP)) AS can_reply,
-            (replies_open_at IS NOT NULL AND replies_open_at > CURRENT_TIMESTAMP) AS not_open_yet
+           user_id,
+           (published_at IS NOT NULL
+            AND is_deleted = FALSE
+            AND deleted_at IS NULL
+            AND (replies_open_at IS NULL OR replies_open_at <= CURRENT_TIMESTAMP)
+            AND (replies_close_at IS NULL OR replies_close_at > CURRENT_TIMESTAMP)) AS can_reply,
+           (replies_open_at IS NOT NULL AND replies_open_at > CURRENT_TIMESTAMP) AS not_open_yet
          FROM tweets
          WHERE tweet_id = $1
          FOR SHARE`,
@@ -100,10 +100,18 @@ export const createTweetWithExtras = async (
     for (const [position, attachment] of media.entries()) {
       await client.query(
         `INSERT INTO tweet_media (
-            tweet_id, storage_key, media_url, media_type,
-            mime_type, file_size, alt_text, position
+            tweet_id,
+            storage_key,
+            media_url,
+            media_type,
+            mime_type,
+            file_size,
+            alt_text,
+            thumbnail_storage_key,
+            thumbnail_url,
+            position
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           tweet.tweet_id,
           attachment.key,
@@ -112,6 +120,8 @@ export const createTweetWithExtras = async (
           attachment.mimeType,
           attachment.fileSize,
           attachment.altText,
+          attachment.thumbnailKey ?? null,
+          attachment.thumbnailUrl ?? null,
           position,
         ],
       );

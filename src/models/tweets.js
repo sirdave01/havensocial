@@ -57,6 +57,8 @@ const attachMedia = async (rows) => {
        media_type,
        mime_type,
        file_size,
+       thumbnail_storage_key,
+       thumbnail_url,
        width,
        height,
        duration_seconds,

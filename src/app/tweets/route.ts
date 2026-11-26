@@ -10,6 +10,13 @@ export const runtime = 'nodejs';
 const MAX_MEDIA_PER_POST = 4;
 const MAX_POSTGRES_BIGINT = '9223372036854775807';
 
+type ConfirmedMedia = Awaited<ReturnType<typeof confirmUploadedMedia>>;
+type PostMedia = ConfirmedMedia & {
+  altText: string;
+  thumbnailKey: string | null;
+  thumbnailUrl: string | null;
+};
+
 function parsePostgresBigint(value: unknown): string | null {
   const text = typeof value === 'string'
     ? value
@@ -160,25 +167,73 @@ export async function POST(request: Request) {
   }
 
   const mediaKeys = new Set<string>();
-  const media = [];
+  const media: PostMedia[] = [];
   for (const attachment of body.media || []) {
     if (
       !attachment ||
       typeof attachment !== 'object' ||
       Array.isArray(attachment) ||
       typeof attachment.key !== 'string' ||
+      attachment.key.length === 0 ||
       typeof attachment.altText !== 'string' ||
       attachment.altText.length > 1000 ||
-      mediaKeys.has(attachment.key)
+      mediaKeys.has(attachment.key) ||
+      (attachment.thumbnailKey !== undefined &&
+        (typeof attachment.thumbnailKey !== 'string' || attachment.thumbnailKey.length === 0))
     ) {
       return NextResponse.json({ message: 'Invalid media attachment' }, { status: 400 });
     }
 
     mediaKeys.add(attachment.key);
+
     try {
+      const confirmedAttachment = await confirmUploadedMedia(
+        attachment.key,
+        user.users_id,
+      );
+
+      let thumbnailKey: string | null = null;
+      let thumbnailUrl: string | null = null;
+
+      if (attachment.thumbnailKey !== undefined) {
+        if (
+          confirmedAttachment.mediaType !== 'VIDEO' ||
+          mediaKeys.has(attachment.thumbnailKey)
+        ) {
+          return NextResponse.json(
+            { message: 'A thumbnail can only be attached to a video, and each upload must use a unique key.' },
+            { status: 400 },
+          );
+        }
+
+        mediaKeys.add(attachment.thumbnailKey);
+        const confirmedThumbnail = await confirmUploadedMedia(
+          attachment.thumbnailKey,
+          user.users_id,
+        );
+
+        // The client creates JPEG thumbnails. Accepting only JPEG here keeps
+        // social preview metadata predictable and prevents video/GIF objects
+        // from being stored as poster images.
+        if (
+          confirmedThumbnail.mediaType !== 'IMAGE' ||
+          confirmedThumbnail.mimeType.toLowerCase() !== 'image/jpeg'
+        ) {
+          return NextResponse.json(
+            { message: 'Video thumbnails must be valid JPEG images.' },
+            { status: 400 },
+          );
+        }
+
+        thumbnailKey = confirmedThumbnail.key;
+        thumbnailUrl = confirmedThumbnail.url;
+      }
+
       media.push({
-        ...await confirmUploadedMedia(attachment.key, user.users_id),
+        ...confirmedAttachment,
         altText: attachment.altText,
+        thumbnailKey,
+        thumbnailUrl,
       });
     } catch (error) {
       if (error instanceof MediaValidationError) {

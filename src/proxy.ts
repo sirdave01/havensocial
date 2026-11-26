@@ -39,8 +39,16 @@ const isPublicApi = (pathname: string): boolean => {
   );
 };
 
+// Public post previews are accessible without a browser session.
+// Only one post ID segment is permitted.
+const isPublicSharePage = (pathname: string): boolean => {
+  return /^\/share\/tweet\/[^/]+\/?$/.test(pathname);
+};
+
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
 
   // Allow public pages, authentication endpoints, static assets,
   // and the scheduled-post endpoint through without a browser session.
@@ -48,14 +56,14 @@ export function proxy(request: NextRequest) {
     publicPaths.has(pathname) ||
     isStaticAsset(pathname) ||
     isPublicApi(pathname) ||
-    cronPaths.has(pathname)
+    cronPaths.has(pathname) ||
+    (isPublicSharePage(pathname) &&
+      ['GET', 'HEAD'].includes(request.method))
   ) {
     return NextResponse.next();
   }
 
   // Protect state-changing browser requests against cross-origin requests.
-  const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
-
   if (!safeMethods.includes(request.method)) {
     const origin = request.headers.get('origin');
 
