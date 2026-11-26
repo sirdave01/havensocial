@@ -83,9 +83,7 @@ export async function POST(request: Request) {
   }
 
   const content = body.content.trim();
-  if (!content) {
-    return NextResponse.json({ message: 'Post content cannot be empty' }, { status: 400 });
-  }
+
   if (content.includes('\0')) {
     return NextResponse.json({ message: 'Post content cannot contain null characters' }, { status: 400 });
   }
@@ -99,6 +97,20 @@ export async function POST(request: Request) {
 
   if (body.isReplyTo != null && !replyTo) {
     return NextResponse.json({ message: 'Invalid reply target' }, { status: 400 });
+  }
+
+  // Captions are optional for new feed posts that include at least one media
+  // attachment. Replies remain text-based, and fully empty posts are rejected.
+  const hasMediaAttachments = Array.isArray(body.media) && body.media.length > 0;
+  if (!content && (replyTo !== null || !hasMediaAttachments)) {
+    return NextResponse.json(
+      {
+        message: replyTo !== null
+          ? 'Reply content cannot be empty'
+          : 'Write something or attach at least one image or video before posting',
+      },
+      { status: 400 },
+    );
   }
 
   const scheduled = parseOptionalDate(body.scheduledAt);

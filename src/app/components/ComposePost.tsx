@@ -1,7 +1,5 @@
 'use client';
 
-
-
 import { useRouter } from 'next/navigation';
 
 import { ImagePlus } from 'lucide-react';
@@ -9,9 +7,8 @@ import { ImagePlus } from 'lucide-react';
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 
 import IdentityAvatar from './IdentityAvatar';
+
 import MentionTextarea from './MentionTextarea';
-
-
 
 const MAX_CONTENT_LENGTH = 25000;
 
@@ -43,9 +40,7 @@ const ACCEPTED_MEDIA_EXTENSIONS = [
 
 ];
 
-
-
-type UploadedMedia = { key: string };
+type UploadedMedia = { key: string; thumbnailKey?: string };
 
 type UploadUrlResult = { uploadUrl?: string; key?: string; message?: string };
 
@@ -75,8 +70,6 @@ type MultipartStartResult = {
 
 type PartUrlResult = { uploadUrl?: string; message?: string };
 
-
-
 class MediaUploadError extends Error {
 
   constructor(message: string) {
@@ -88,8 +81,6 @@ class MediaUploadError extends Error {
   }
 
 }
-
-
 
 class S3UploadError extends Error {
 
@@ -113,8 +104,6 @@ class S3UploadError extends Error {
 
 }
 
-
-
 const MIME_BY_EXTENSION: Record<string, string> = {
 
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
@@ -125,15 +114,11 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 
 };
 
-
-
 function getFileExtension(file: File) {
 
   return file.name.split('.').pop()?.toLowerCase() || '';
 
 }
-
-
 
 function isHeicFile(file: File) {
 
@@ -142,12 +127,9 @@ function isHeicFile(file: File) {
   const mime = file.type.toLowerCase().split(';')[0].trim();
 
   return ['heic', 'heif'].includes(extension) ||
-
     /^image\/(?:heic|heif)(?:-sequence)?$/.test(mime);
 
 }
-
-
 
 function getSupportedContentType(file: File): string | null {
 
@@ -167,8 +149,6 @@ function getSupportedContentType(file: File): string | null {
 
 }
 
-
-
 async function prepareMediaForUpload(originalFile: File): Promise<PreparedMedia> {
 
   const originalType = getSupportedContentType(originalFile);
@@ -180,8 +160,6 @@ async function prepareMediaForUpload(originalFile: File): Promise<PreparedMedia>
     throw new MediaUploadError(`${originalFile.name}: each file must be 15 MB or smaller.`);
 
   }
-
-
 
   if (isHeicFile(originalFile)) {
 
@@ -223,13 +201,9 @@ async function prepareMediaForUpload(originalFile: File): Promise<PreparedMedia>
 
   }
 
-
-
   return { file: originalFile, contentType: originalType };
 
 }
-
-
 
 async function readResponse<T>(response: Response): Promise<T | null> {
 
@@ -245,15 +219,11 @@ async function readResponse<T>(response: Response): Promise<T | null> {
 
 }
 
-
-
 function wait(milliseconds: number) {
 
   return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 
 }
-
-
 
 function getUploadUrlErrorMessage(status: number) {
 
@@ -266,8 +236,6 @@ function getUploadUrlErrorMessage(status: number) {
   return "We couldn't prepare this file for upload. Please try another file.";
 
 }
-
-
 
 function getS3UserMessage(error: S3UploadError) {
 
@@ -282,8 +250,6 @@ function getS3UserMessage(error: S3UploadError) {
   return "We couldn't upload this file. Please try again or choose another file.";
 
 }
-
-
 
 function uploadToS3(
 
@@ -312,8 +278,6 @@ function uploadToS3(
       reject(error);
 
     };
-
-
 
     xhr.open('PUT', uploadUrl, true);
 
@@ -373,8 +337,6 @@ function uploadToS3(
 
 }
 
-
-
 /** Uploads one video part and returns the S3 ETag needed for multipart completion. */
 
 function uploadVideoPart(
@@ -402,8 +364,6 @@ function uploadVideoPart(
       reject(error);
 
     };
-
-
 
     xhr.open('PUT', uploadUrl, true);
 
@@ -469,8 +429,6 @@ function uploadVideoPart(
 
 }
 
-
-
 async function uploadVideoMultipart(
 
   file: File,
@@ -486,8 +444,6 @@ async function uploadVideoMultipart(
   let uploadId: string | undefined;
 
   let completed = false;
-
-
 
   try {
 
@@ -512,8 +468,6 @@ async function uploadVideoMultipart(
       throw new MediaUploadError(start?.message || getUploadUrlErrorMessage(startResponse.status));
 
     }
-
-
 
     key = start.key;
 
@@ -549,8 +503,6 @@ async function uploadVideoMultipart(
 
     }
 
-
-
     if (start.mode !== 'multipart' || !start.key || !start.uploadId ||
 
       !Number.isSafeInteger(start.partSize) || start.partSize < 5 * 1024 * 1024) {
@@ -561,19 +513,13 @@ async function uploadVideoMultipart(
 
     uploadId = start.uploadId;
 
-
-
     const partCount = Math.ceil(file.size / start.partSize);
 
     if (partCount < 1 || partCount > 3) throw new MediaUploadError('This video cannot be split into supported upload parts.');
 
-
-
     const completedParts: Array<{ PartNumber: number; ETag: string }> = [];
 
     let completedBytes = 0;
-
-
 
     // Upload sequentially to avoid saturating slow mobile connections.
 
@@ -586,8 +532,6 @@ async function uploadVideoMultipart(
       const blob = file.slice(startOffset, endOffset);
 
       let partEtag: string | null = null;
-
-
 
       for (let attempt = 1; attempt <= VIDEO_PART_MAX_ATTEMPTS; attempt += 1) {
 
@@ -626,8 +570,6 @@ async function uploadVideoMultipart(
             throw new MediaUploadError(urlResult?.message || getUploadUrlErrorMessage(urlResponse.status));
 
           }
-
-
 
           partEtag = await uploadVideoPart(urlResult.uploadUrl, blob, (loaded) => {
 
@@ -677,8 +619,6 @@ async function uploadVideoMultipart(
 
       }
 
-
-
       if (!partEtag) throw new MediaUploadError(`Video part ${partNumber} could not be uploaded.`);
 
       completedParts.push({ PartNumber: partNumber, ETag: partEtag });
@@ -688,8 +628,6 @@ async function uploadVideoMultipart(
       onProgress?.(Math.round((completedBytes / file.size) * 100));
 
     }
-
-
 
     const completeResponse = await fetch('/media/multipart/complete', {
 
@@ -712,8 +650,6 @@ async function uploadVideoMultipart(
       throw new MediaUploadError(completeResult?.message || "HavenSocial couldn't finish assembling your video. Please try again.");
 
     }
-
-
 
     completed = true;
 
@@ -755,15 +691,11 @@ async function uploadVideoMultipart(
 
 }
 
-
-
 function setUploadProgressSafe(onProgress: ((percentage: number) => void) | undefined, percentage: number) {
 
   onProgress?.(percentage);
 
 }
-
-
 
 async function uploadImageOrGif(file: File, contentType: string, onProgress?: (percentage: number) => void): Promise<UploadedMedia> {
 
@@ -791,8 +723,6 @@ async function uploadImageOrGif(file: File, contentType: string, onProgress?: (p
 
   }
 
-
-
   const result = await readResponse<UploadUrlResult>(response);
 
   if (!response.ok) {
@@ -806,8 +736,6 @@ async function uploadImageOrGif(file: File, contentType: string, onProgress?: (p
 }
 
   if (!result?.uploadUrl || !result.key) throw new MediaUploadError("HavenSocial couldn't prepare this file. Please try again.");
-
-
 
   for (let attempt = 1; attempt <= SINGLE_UPLOAD_MAX_ATTEMPTS; attempt += 1) {
 
@@ -864,6 +792,123 @@ async function uploadImageOrGif(file: File, contentType: string, onProgress?: (p
 }
 
 
+/**
+ * Extracts a JPEG preview frame from a local video file.
+ * If the browser cannot decode the source format, the caller can still upload
+ * and publish the original video without a thumbnail.
+ */
+async function createVideoThumbnailFile(file: File): Promise<File | null> {
+  const objectUrl = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.preload = 'auto';
+  video.muted = true;
+  video.playsInline = true;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const finish = (error?: Error) => {
+        window.clearTimeout(timeoutId);
+        video.removeEventListener('loadedmetadata', onMetadata);
+        video.removeEventListener('loadeddata', onReady);
+        video.removeEventListener('seeked', onReady);
+        video.removeEventListener('error', onError);
+        if (error) reject(error);
+        else resolve();
+      };
+
+      const onReady = () => finish();
+      const onError = () => finish(new Error('This video format could not be decoded for a preview.'));
+      const onMetadata = () => {
+        const duration = video.duration;
+        const seekTime = Number.isFinite(duration) && duration > 0
+          ? Math.min(1, duration / 10)
+          : 0;
+
+        if (seekTime > 0.05) {
+          video.addEventListener('seeked', onReady, { once: true });
+          try {
+            video.currentTime = seekTime;
+          } catch {
+            finish(new Error('The video preview frame could not be selected.'));
+          }
+          return;
+        }
+
+        if (video.readyState >= 2) onReady();
+        else video.addEventListener('loadeddata', onReady, { once: true });
+      };
+
+      const timeoutId = window.setTimeout(
+        () => finish(new Error('Timed out while preparing the video preview.')),
+        15000,
+      );
+
+      video.addEventListener('loadedmetadata', onMetadata, { once: true });
+      video.addEventListener('error', onError, { once: true });
+      video.src = objectUrl;
+      video.load();
+    });
+
+    if (!video.videoWidth || !video.videoHeight) return null;
+
+    const maxDimension = 1280;
+    const scale = Math.min(
+      1,
+      maxDimension / Math.max(video.videoWidth, video.videoHeight),
+    );
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.84);
+    });
+
+    if (!blob || blob.size < 1 || blob.size > MAX_MEDIA_SIZE) return null;
+
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'video';
+    return new File([blob], `${baseName}-thumbnail.jpg`, {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
+    });
+  } catch (error) {
+    console.warn('HavenSocial could not extract a video thumbnail:', {
+      fileName: file.name,
+      errorName: error instanceof Error ? error.name : 'NonError',
+    });
+    return null;
+  } finally {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+/**
+ * Uploads a derived preview separately from the video itself. A preview failure
+ * is non-fatal: the post keeps its video attachment and is saved normally.
+ */
+async function uploadVideoThumbnail(file: File): Promise<string | undefined> {
+  const thumbnailFile = await createVideoThumbnailFile(file);
+  if (!thumbnailFile) return undefined;
+
+  try {
+    const uploaded = await uploadImageOrGif(thumbnailFile, 'image/jpeg');
+    return uploaded.key;
+  } catch (error) {
+    console.warn('HavenSocial video thumbnail upload failed; publishing the video without a thumbnail:', {
+      fileName: file.name,
+      errorName: error instanceof Error ? error.name : 'NonError',
+    });
+    return undefined;
+  }
+}
 
 async function uploadFile(originalFile: File, onProgress?: (percentage: number) => void): Promise<UploadedMedia> {
 
@@ -878,8 +923,6 @@ async function uploadFile(originalFile: File, onProgress?: (percentage: number) 
   return uploadImageOrGif(file, contentType, onProgress);
 
 }
-
-
 
 export default function ComposePost({
 
@@ -923,8 +966,6 @@ export default function ComposePost({
 
   const textareaId = replyTo ? 'reply-content' : 'tweet-content';
 
-
-
   function chooseFiles(event: ChangeEvent<HTMLInputElement>) {
 
     const selected = Array.from(event.target.files || []);
@@ -934,8 +975,6 @@ export default function ComposePost({
     const accepted: File[] = [];
 
     const problems: string[] = [];
-
-
 
     for (const file of selected) {
 
@@ -967,8 +1006,6 @@ export default function ComposePost({
 
     }
 
-
-
     if (accepted.length) setFiles((current) => [...current, ...accepted].slice(0, MAX_MEDIA_PER_POST));
 
     setError(problems.join(' '));
@@ -979,21 +1016,24 @@ export default function ComposePost({
 
   }
 
-
-
   async function submit(event: FormEvent<HTMLFormElement>) {
 
     event.preventDefault();
 
     if (submitting.current) return;
 
-
-
     const trimmedContent = content.trim();
+    const hasMediaAttachments = files.length > 0;
 
-    if (!trimmedContent) {
+    // Feed posts may contain media without a caption. Replies still require
+    // text, and a post with neither text nor attachments is not valid.
+    if (!trimmedContent && (Boolean(replyTo) || !hasMediaAttachments)) {
 
-      setError(replyTo ? 'Write a reply before sending.' : 'Write something before posting.');
+      setError(
+        replyTo
+          ? 'Write a reply before sending.'
+          : 'Write something or attach at least one image or video before posting.',
+      );
 
       setSuccess('');
 
@@ -1011,8 +1051,6 @@ export default function ComposePost({
 
     }
 
-
-
     const now = new Date();
 
     const scheduledAt = scheduledLocal ? new Date(scheduledLocal) : null;
@@ -1020,8 +1058,6 @@ export default function ComposePost({
     const repliesOpenAt = repliesOpenLocal ? new Date(repliesOpenLocal) : null;
 
     const repliesCloseAt = repliesCloseLocal ? new Date(repliesCloseLocal) : null;
-
-
 
     if (scheduledLocal && (!scheduledAt || Number.isNaN(scheduledAt.getTime()) || scheduledAt <= now)) {
 
@@ -1038,8 +1074,6 @@ export default function ComposePost({
       return;
 
     }
-
-
 
     const publicationTime = scheduledAt || now;
 
@@ -1065,8 +1099,6 @@ export default function ComposePost({
 
     }
 
-
-
     submitting.current = true;
 
     setBusy(true);
@@ -1076,8 +1108,6 @@ export default function ComposePost({
     setSuccess('');
 
     setUploadProgress('');
-
-
 
     try {
 
@@ -1095,11 +1125,19 @@ export default function ComposePost({
 
         });
 
+        if (getSupportedContentType(file)?.startsWith('video/')) {
+
+          setUploadProgress(`Preparing video preview ${index + 1} of ${files.length}: ${file.name}`);
+
+          const thumbnailKey = await uploadVideoThumbnail(file);
+
+          if (thumbnailKey) uploaded.thumbnailKey = thumbnailKey;
+
+        }
+
         uploadedMedia.push(uploaded);
 
       }
-
-
 
       setUploadProgress(scheduledAt ? 'Scheduling your post...' : 'Publishing your post...');
 
@@ -1125,7 +1163,15 @@ export default function ComposePost({
 
           repliesCloseAt: repliesCloseAt?.toISOString() ?? null,
 
-          media: uploadedMedia.map(({ key }) => ({ key, altText: '' })),
+          media: uploadedMedia.map(({ key, thumbnailKey }) => ({
+
+            key,
+
+            altText: '',
+
+            ...(thumbnailKey ? { thumbnailKey } : {}),
+
+          })),
 
         }),
 
@@ -1140,8 +1186,6 @@ export default function ComposePost({
         throw new MediaUploadError(result?.message || "We couldn't publish your post. Please try again.");
 
       }
-
-
 
       setContent('');
 
@@ -1191,8 +1235,6 @@ export default function ComposePost({
 
   }
 
-
-
   return (
 
     <form onSubmit={submit}>
@@ -1204,22 +1246,32 @@ export default function ComposePost({
         <IdentityAvatar src={avatarUrl} className="profile-avatar-small" />
 
         <MentionTextarea
+
           id={textareaId}
+
           name="content"
+
           value={content}
+
           onChange={(nextContent) => {
+
             setContent(nextContent);
+
             setError('');
+
             setSuccess('');
+
           }}
+
           disabled={busy}
+
           ariaDescribedBy="post-character-count"
+
           ariaInvalid={Boolean(error)}
+
         />
 
       </div>
-
-
 
       <label htmlFor={`${textareaId}-media`}>Attach images or videos</label>
 
@@ -1269,8 +1321,6 @@ export default function ComposePost({
 
       </p>
 
-
-
       {files.length > 0 && (
 
         <ul className="compose-media-list">
@@ -1312,8 +1362,6 @@ export default function ComposePost({
         {characterCount.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}
 
       </p>
-
-
 
       {!replyTo && (
 
@@ -1375,8 +1423,6 @@ export default function ComposePost({
 
       )}
 
-
-
       {uploadProgress && <p role="status" aria-live="polite">{uploadProgress}</p>}
 
       <button
@@ -1385,7 +1431,11 @@ export default function ComposePost({
 
         className="btn-primary"
 
-        disabled={busy || !content.trim() || characterCount > MAX_CONTENT_LENGTH}
+        disabled={
+          busy ||
+          ((!content.trim()) && (Boolean(replyTo) || files.length === 0)) ||
+          characterCount > MAX_CONTENT_LENGTH
+        }
 
       >
 
