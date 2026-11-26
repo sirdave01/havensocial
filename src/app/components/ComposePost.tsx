@@ -797,6 +797,107 @@ async function uploadImageOrGif(file: File, contentType: string, onProgress?: (p
  * If the browser cannot decode the source format, the caller can still upload
  * and publish the original video without a thumbnail.
  */
+function waitForVideoEvent(
+  video: HTMLVideoElement,
+  eventName: 'loadedmetadata' | 'loadeddata' | 'seeked',
+  timeoutMs = 6000,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      video.removeEventListener(eventName, onReady);
+      video.removeEventListener('error', onError);
+    };
+
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onError = () => {
+      cleanup();
+      reject(new Error('The browser could not decode this video.'));
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for video ${eventName}.`));
+    }, timeoutMs);
+
+    video.addEventListener(eventName, onReady, { once: true });
+    video.addEventListener('error', onError, { once: true });
+  });
+}
+
+/**
+ * Waits until the selected frame has actually been submitted for display.
+ * requestVideoFrameCallback is more reliable than treating `seeked` alone as
+ * proof that the decoded frame is ready. Two animation frames are the fallback.
+ */
+function waitForDecodedVideoFrame(video: HTMLVideoElement): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    let fallbackTimer: number | undefined;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (fallbackTimer !== undefined) {
+        window.clearTimeout(fallbackTimer);
+      }
+      resolve();
+    };
+
+    const afterPaint = () => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(finish);
+      });
+    };
+
+    const frameVideo = video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (
+        callback: (now: number, metadata: unknown) => void,
+      ) => number;
+    };
+
+    if (typeof frameVideo.requestVideoFrameCallback === 'function') {
+      frameVideo.requestVideoFrameCallback(() => finish());
+      // Some browsers expose the API but do not issue a callback for a paused
+      // seek. Fall back to paint frames rather than failing the post.
+      fallbackTimer = window.setTimeout(afterPaint, 1200);
+    } else {
+      afterPaint();
+    }
+  });
+}
+
+function measureCanvasBrightness(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): number {
+  const pixels = context.getImageData(0, 0, width, height).data;
+  const stride = Math.max(4, Math.floor(pixels.length / 400 / 4) * 4);
+  let total = 0;
+  let samples = 0;
+
+  for (let index = 0; index < pixels.length; index += stride) {
+    const luminance =
+      0.2126 * pixels[index] +
+      0.7152 * pixels[index + 1] +
+      0.0722 * pixels[index + 2];
+    total += luminance;
+    samples += 1;
+  }
+
+  return samples ? total / samples : 0;
+}
+
+/**
+ * Extracts a JPEG preview from several points in the local video. It waits for
+ * an actually decoded frame and prefers a visible frame over a blank opening
+ * frame. If decoding is unsupported, the original video can still be posted.
+ */
 async function createVideoThumbnailFile(file: File): Promise<File | null> {
   const objectUrl = URL.createObjectURL(file);
   const video = document.createElement('video');
@@ -805,65 +906,71 @@ async function createVideoThumbnailFile(file: File): Promise<File | null> {
   video.playsInline = true;
 
   try {
-    await new Promise<void>((resolve, reject) => {
-      const finish = (error?: Error) => {
-        window.clearTimeout(timeoutId);
-        video.removeEventListener('loadedmetadata', onMetadata);
-        video.removeEventListener('loadeddata', onReady);
-        video.removeEventListener('seeked', onReady);
-        video.removeEventListener('error', onError);
-        if (error) reject(error);
-        else resolve();
-      };
+    const metadataPromise = waitForVideoEvent(video, 'loadedmetadata');
+    video.src = objectUrl;
+    video.load();
+    await metadataPromise;
 
-      const onReady = () => finish();
-      const onError = () => finish(new Error('This video format could not be decoded for a preview.'));
-      const onMetadata = () => {
-        const duration = video.duration;
-        const seekTime = Number.isFinite(duration) && duration > 0
-          ? Math.min(1, duration / 10)
-          : 0;
+    if (!video.videoWidth || !video.videoHeight) {
+      throw new Error('The video has no usable frame dimensions.');
+    }
 
-        if (seekTime > 0.05) {
-          video.addEventListener('seeked', onReady, { once: true });
-          try {
-            video.currentTime = seekTime;
-          } catch {
-            finish(new Error('The video preview frame could not be selected.'));
-          }
-          return;
-        }
+    const duration = Number.isFinite(video.duration) && video.duration > 0
+      ? video.duration
+      : 0;
 
-        if (video.readyState >= 2) onReady();
-        else video.addEventListener('loadeddata', onReady, { once: true });
-      };
-
-      const timeoutId = window.setTimeout(
-        () => finish(new Error('Timed out while preparing the video preview.')),
-        15000,
-      );
-
-      video.addEventListener('loadedmetadata', onMetadata, { once: true });
-      video.addEventListener('error', onError, { once: true });
-      video.src = objectUrl;
-      video.load();
-    });
-
-    if (!video.videoWidth || !video.videoHeight) return null;
+    // A few candidate timestamps avoid capturing an initially black frame.
+    const candidateTimes = duration > 0.15
+      ? [0.20, 0.45, 0.70].map((fraction) =>
+          Math.min(duration - 0.05, Math.max(0, duration * fraction)),
+        )
+      : [0];
 
     const maxDimension = 1280;
     const scale = Math.min(
       1,
       maxDimension / Math.max(video.videoWidth, video.videoHeight),
     );
+    const width = Math.max(1, Math.round(video.videoWidth * scale));
+    const height = Math.max(1, Math.round(video.videoHeight * scale));
+
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    canvas.width = width;
+    canvas.height = height;
 
     const context = canvas.getContext('2d');
     if (!context) return null;
 
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    let bestBrightness = -1;
+    let bestFrame: ImageData | null = null;
+
+    for (const time of [...new Set(candidateTimes)]) {
+      if (time > 0.02 && Math.abs(video.currentTime - time) > 0.02) {
+        const seekPromise = waitForVideoEvent(video, 'seeked');
+        video.currentTime = time;
+        await seekPromise;
+      } else if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        await waitForVideoEvent(video, 'loadeddata');
+      }
+
+      await waitForDecodedVideoFrame(video);
+
+      context.drawImage(video, 0, 0, width, height);
+
+      const brightness = measureCanvasBrightness(context, width, height);
+      if (brightness > bestBrightness) {
+        bestFrame = context.getImageData(0, 0, width, height);
+        bestBrightness = brightness;
+      }
+
+      // A frame with useful visible detail is good enough; otherwise inspect
+      // later points in the clip in case the opening frames are blank.
+      if (brightness >= 12) break;
+    }
+
+    if (!bestFrame) return null;
+
+    context.putImageData(bestFrame, 0, 0);
 
     const blob = await new Promise<Blob | null>((resolve) => {
       canvas.toBlob(resolve, 'image/jpeg', 0.84);
