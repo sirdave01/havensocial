@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getLinkedUser } from '@/lib/linked-user';
-import { markAllAsRead } from '@/models/notification.js';
+import {
+  getUnreadNotificationCount,
+  markAllAsRead,
+} from '@/models/notification.js';
 
 export async function POST() {
   const user = await getLinkedUser();
@@ -14,13 +17,18 @@ export async function POST() {
 
   try {
     const updated = await markAllAsRead(user.users_id);
+    const unreadCount = await getUnreadNotificationCount(user.users_id);
 
-    return NextResponse.json({
-      ok: true,
-      updated,
-    }, {
-      headers: { 'Cache-Control': 'no-store' },
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        updated,
+        unreadCount,
+      },
+      {
+        headers: { 'Cache-Control': 'no-store' },
+      },
+    );
   } catch (error) {
     console.error('Mark all notifications as read failed:', {
       errorName: error instanceof Error ? error.name : 'NonError',

@@ -2,6 +2,58 @@ import { db } from './db.js';
 import { sendUserPushNotification } from './push-notification.js';
 
 /**
+ * Retrieve the unread notification count for a user.
+ * An optional transaction client can be supplied.
+ *
+ * @param {number|string} userId
+ * @param {import('pg').PoolClient|null} [client]
+ */
+const getUnreadNotificationCount = async (userId, client = null) => {
+  const executor = client || db;
+
+  const result = await executor.query(
+    `SELECT COUNT(*)::int AS count
+     FROM notifications
+     WHERE user_id = $1
+       AND read = FALSE`,
+    [userId],
+  );
+
+  return Number(result.rows[0]?.count ?? 0);
+};
+
+/**
+ * Dispatch Web Push for an already-persisted notification.
+ *
+ * @param {Record<string, unknown>|null} notification
+ * @param {number|string|null} actorId
+ * @param {string} type
+ * @param {number|string|null} [tweetId]
+ * @param {number|string|null} [conversationId]
+ * @param {number|null} [badgeCount]
+ */
+const dispatchNotificationPush = async (
+  notification,
+  actorId,
+  type,
+  tweetId = null,
+  conversationId = null,
+  badgeCount = null,
+) => {
+  if (!notification) return { delivered: 0, skipped: true };
+
+  return sendUserPushNotification({
+    userId: notification.user_id,
+    actorId,
+    type,
+    tweetId,
+    conversationId,
+    notificationId: notification.notifications_id,
+    badgeCount,
+  });
+};
+
+/**
  * Create a notification for a recipient.
  * Self-notifications are ignored. An optional transaction client can be
  * supplied by callers that need the notification in the same transaction.
@@ -36,11 +88,31 @@ const createNotification = async (
   `;
 
   const executor = client || db;
-  const result = await executor.query(query, [userId, actorId, type, tweetId]);
+  const result = await executor.query(query, [
+    userId,
+    actorId,
+    type,
+    tweetId,
+  ]);
+
   const notification = result.rows[0] ?? null;
 
   if (notification && !options.deferPush) {
-    await dispatchNotificationPush(notification, actorId, type, tweetId);
+    // Use the same executor so an uncommitted notification is included
+    // in the count when the caller supplied a transaction client.
+    const badgeCount = await getUnreadNotificationCount(
+      userId,
+      executor === db ? null : executor,
+    );
+
+    await dispatchNotificationPush(
+      notification,
+      actorId,
+      type,
+      tweetId,
+      null,
+      badgeCount,
+    );
   }
 
   return notification;
@@ -49,6 +121,7 @@ const createNotification = async (
 /**
  * Insert a message notification using the caller's message transaction.
  * A partial unique index prevents duplicate alerts for a recipient/message pair.
+ *
  * @param {import('pg').PoolClient} client
  * @param {number|string} recipientId
  * @param {number|string} actorId
@@ -86,8 +159,9 @@ const createMessageNotification = async (
 };
 
 /**
- * Create one `new_post` notification for each active follower of an author's
+ * Create one new_post notification for each active follower of an author's
  * newly published original post. The caller must pass its transaction client.
+ *
  * @param {import('pg').PoolClient} client
  * @param {number|string} actorId
  * @param {number|string} tweetId
@@ -128,33 +202,8 @@ const createFollowedPostNotifications = async (client, actorId, tweetId) => {
 };
 
 /**
- * Dispatch Web Push for an already-persisted notification.
- * @param {Record<string, unknown>|null} notification
- * @param {number|string|null} actorId
- * @param {string} type
- * @param {number|string|null} [tweetId]
- * @param {number|string|null} [conversationId]
+ * Retrieve the newest notifications for a user.
  */
-const dispatchNotificationPush = async (
-  notification,
-  actorId,
-  type,
-  tweetId = null,
-  conversationId = null,
-) => {
-  if (!notification) return { delivered: 0, skipped: true };
-
-  return sendUserPushNotification({
-    userId: notification.user_id,
-    actorId,
-    type,
-    tweetId,
-    conversationId,
-    notificationId: notification.notifications_id,
-  });
-};
-
-/** Retrieve the newest notifications for a user. */
 const getNotifications = async (userId, limit = 20) => {
   const safeLimit = Number.isInteger(limit)
     ? Math.min(Math.max(limit, 1), 100)
@@ -177,19 +226,9 @@ const getNotifications = async (userId, limit = 20) => {
   return result.rows;
 };
 
-/** Return the unread notification count for a user. */
-const getUnreadNotificationCount = async (userId) => {
-  const result = await db.query(
-    `SELECT COUNT(*)::int AS count
-     FROM notifications
-     WHERE user_id = $1 AND read = FALSE`,
-    [userId],
-  );
-
-  return Number(result.rows[0]?.count ?? 0);
-};
-
-/** Mark one notification as read, scoped to its owner. */
+/**
+ * Mark one notification as read, scoped to its owner.
+ */
 const markAsRead = async (notificationId, userId) => {
   const result = await db.query(
     `UPDATE notifications
@@ -204,7 +243,9 @@ const markAsRead = async (notificationId, userId) => {
   return result.rows[0] ?? null;
 };
 
-/** Mark all of a user's unread notifications as read. */
+/**
+ * Mark all of a user's unread notifications as read.
+ */
 const markAllAsRead = async (userId) => {
   const result = await db.query(
     `UPDATE notifications

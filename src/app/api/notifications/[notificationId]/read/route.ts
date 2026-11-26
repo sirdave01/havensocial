@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getLinkedUser } from '@/lib/linked-user';
-import { markAsRead } from '@/models/notification.js';
+import {
+  getUnreadNotificationCount,
+  markAsRead,
+} from '@/models/notification.js';
 
 type RouteContext = {
   params: Promise<{ notificationId: string }>;
@@ -40,13 +43,18 @@ export async function PATCH(
 
   try {
     const updated = await markAsRead(notificationId, user.users_id);
+    const unreadCount = await getUnreadNotificationCount(user.users_id);
 
-    return NextResponse.json({
-      ok: true,
-      updated: Boolean(updated),
-    }, {
-      headers: { 'Cache-Control': 'no-store' },
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        updated: Boolean(updated),
+        unreadCount,
+      },
+      {
+        headers: { 'Cache-Control': 'no-store' },
+      },
+    );
   } catch (error) {
     console.error('Mark notification as read failed:', {
       errorName: error instanceof Error ? error.name : 'NonError',
