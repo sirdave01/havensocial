@@ -275,8 +275,7 @@ function MessageAttachment({ media }: { media: MessageMediaItem }) {
   return (
     <a
       href={media.media_url}
-      target="_blank"
-      rel="noreferrer"
+      download={fileName}
       style={{
         display: 'flex',
         alignItems: 'center',
