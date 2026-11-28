@@ -440,6 +440,7 @@ export async function createMessageMediaReadUrl(
     Key: key,
     ResponseContentType: mimeType,
     ResponseContentDisposition: `${disposition}; filename*=UTF-8''${encodeURIComponent(safeName)}`,
+    ResponseCacheControl: 'private, no-store, max-age=0',
   });
 
   return getSignedUrl(getS3Client(), command, {
