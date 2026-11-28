@@ -1,6 +1,7 @@
 # database backup
 backups/
 
+.private-uploads/
 
 # Logs
 logs

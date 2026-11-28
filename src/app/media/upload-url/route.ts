@@ -7,29 +7,31 @@ import {
   MediaStorageConfigurationError,
   MediaValidationError,
 } from '@/lib/media';
+import {
+  createMessageMediaUpload,
+  MessageMediaStorageConfigurationError,
+  MessageMediaValidationError,
+} from '@/lib/message-media';
+import { getDirectConversationForUser } from '@/models/messaging.js';
 
 export const runtime = 'nodejs';
 
+const noStore = { 'Cache-Control': 'no-store' };
+
 export async function POST(request: Request) {
   const user = await getLinkedUser();
-
   if (!user) {
     return NextResponse.json(
       { message: 'Your session has expired. Please sign in again.' },
-      { status: 401, headers: { 'Cache-Control': 'no-store' } },
+      { status: 401, headers: noStore },
     );
   }
 
   const body = await readJsonObject(request);
-
-  if (
-    !body ||
-    body.kind !== 'posts' ||
-    typeof body.contentType !== 'string'
-  ) {
+  if (!body || typeof body.kind !== 'string' || typeof body.contentType !== 'string') {
     return NextResponse.json(
       { message: 'Invalid media upload request.' },
-      { status: 400, headers: { 'Cache-Control': 'no-store' } },
+      { status: 400, headers: noStore },
     );
   }
 
@@ -37,69 +39,77 @@ export async function POST(request: Request) {
   const size = Number(body.size);
 
   try {
-    const upload = await createMediaUpload(
-      user.users_id,
-      contentType,
-      size,
-    );
+    // Keep the existing public feed-media upload contract unchanged.
+    if (body.kind === 'posts') {
+      const upload = await createMediaUpload(user.users_id, contentType, size);
+      return NextResponse.json(upload, { headers: noStore });
+    }
+
+    if (body.kind === 'messages') {
+      const conversationId = String(body.conversationId ?? '');
+      const conversation = await getDirectConversationForUser(
+        conversationId,
+        user.users_id,
+      );
+
+      if (!conversation) {
+        return NextResponse.json(
+          { message: 'Conversation not found.' },
+          { status: 404, headers: noStore },
+        );
+      }
+
+      if (!conversation.can_send) {
+        return NextResponse.json(
+          { message: 'You cannot send attachments in this conversation.' },
+          { status: 403, headers: noStore },
+        );
+      }
+
+      const upload = await createMessageMediaUpload(
+        conversation.conversation_id,
+        user.users_id,
+        contentType,
+        size,
+      );
+
+      return NextResponse.json(upload, { headers: noStore });
+    }
 
     return NextResponse.json(
-      upload,
-      { headers: { 'Cache-Control': 'no-store' } },
+      { message: 'Unsupported media upload destination.' },
+      { status: 400, headers: noStore },
     );
   } catch (error) {
-    if (error instanceof MediaValidationError) {
+    if (
+      error instanceof MediaValidationError ||
+      error instanceof MessageMediaValidationError
+    ) {
       return NextResponse.json(
         { message: error.message },
-        { status: 400, headers: { 'Cache-Control': 'no-store' } },
+        { status: 400, headers: noStore },
       );
     }
 
-    if (error instanceof MediaStorageConfigurationError) {
-      console.error('Post media storage configuration failed:', {
+    if (
+      error instanceof MediaStorageConfigurationError ||
+      error instanceof MessageMediaStorageConfigurationError
+    ) {
+      console.error('HavenSocial media storage configuration failed:', {
         errorName: error.name,
-        reason: error.message,
       });
-
       return NextResponse.json(
-        {
-          message:
-            'Media uploads are temporarily unavailable. Please try again later.',
-        },
-        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+        { message: 'Media uploads are temporarily unavailable. Please try again later.' },
+        { status: 503, headers: noStore },
       );
     }
 
-    const details = error as {
-      name?: unknown;
-      code?: unknown;
-      $metadata?: {
-        httpStatusCode?: number;
-        requestId?: string;
-        extendedRequestId?: string;
-      };
-    };
-
-    console.error('Could not create HavenSocial S3 upload URL:', {
-      errorName:
-        typeof details?.name === 'string'
-          ? details.name
-          : 'UnknownError',
-      errorCode:
-        typeof details?.code === 'string'
-          ? details.code
-          : undefined,
-      httpStatusCode: details?.$metadata?.httpStatusCode,
-      requestId: details?.$metadata?.requestId,
-      extendedRequestId: details?.$metadata?.extendedRequestId,
+    console.error('Could not create HavenSocial media upload URL:', {
+      errorName: error instanceof Error ? error.name : 'NonError',
     });
-
     return NextResponse.json(
-      {
-        message:
-          'We could not prepare your media upload. Please try again shortly.',
-      },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      { message: 'We could not prepare your upload. Please try again shortly.' },
+      { status: 503, headers: noStore },
     );
   }
 }
